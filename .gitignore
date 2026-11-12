@@ -1,0 +1,38 @@
+# --- Segredos / ambiente ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# --- Claude Code (configurações locais podem conter dados pessoais) ---
+.claude/settings.local.json
+
+# --- Java / Maven / Gradle ---
+target/
+build/
+.gradle/
+*.class
+*.log
+hs_err_pid*
+
+# --- Node / Vite ---
+node_modules/
+dist/
+coverage/
+*.local
+npm-debug.log*
+
+# --- IDEs / SO ---
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# --- Relatórios de segurança gerados ---
+reports/
+dependency-check-report.*
+trivy-report.*
