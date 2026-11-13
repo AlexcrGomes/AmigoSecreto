@@ -183,8 +183,11 @@ sensíveis, mesmo um erro no filtro de eventos não vazaria pares (Constituiçã
 **Decision**: a coluna que diz **quem foi tirado** (`receiver`) é **criptografada na aplicação
 com AES-256-GCM** (IV aleatório de 96 bits por linha, `group_id` + `giver_id` como dados
 autenticados adicionais). A chave vem da variável de ambiente `DRAW_ENCRYPTION_KEY` (32 bytes em
-Base64) e nunca é versionada. A criptografia é feita por um `AttributeConverter` JPA. O
-`giver_id` fica em claro, porque é a chave de busca de "meu amigo secreto".
+Base64) e nunca é versionada. A criptografia é feita por um serviço explícito
+(`AssignmentCipher`) chamado pelo `DrawService` ao gravar e pelo serviço de consulta ao ler —
+**não** por um `AttributeConverter` JPA, porque o converter só recebe o valor da coluna e não
+teria acesso a `group_id`/`giver_id` para usar como AAD. O `giver_id` fica em claro, porque é a
+chave de busca de "meu amigo secreto".
 
 **Consequências aceitas**:
 - O banco não consegue garantir com índice que cada pessoa é tirada só uma vez (o valor

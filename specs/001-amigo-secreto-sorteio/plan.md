@@ -123,7 +123,8 @@ backend/
     │   │   ├── group/            # GroupController, GroupService, SecretGroup, GroupMember,
     │   │   │                     #   repositories, GroupCodeGenerator, dto/
     │   │   ├── draw/             # DrawController, DrawService, DerangementGenerator,
-    │   │   │                     #   DrawAssignment, AssignmentCipher (AttributeConverter)
+    │   │   │                     #   DrawAssignment, SecretFriendService,
+    │   │   │                     #   AssignmentCipher (AES-256-GCM com AAD, chamado pelos serviços)
     │   │   └── events/           # GroupEventPublisher, SseEmitterRegistry, GroupEventsController
     │   └── resources/
     │       ├── application.yml   # perfis default/dev/test; tudo via variáveis de ambiente
