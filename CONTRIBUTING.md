@@ -22,6 +22,28 @@ Nenhuma mudança entra na `main` sem Pull Request, validação automática verde
 Todo novo commit no PR roda tudo de novo e **exige nova aprovação**, então a aprovação vale
 sempre para o código final.
 
+## Varredura semanal e issues de segurança
+
+Toda segunda-feira, às 06:00 UTC, o workflow **Security** roda de novo, mesmo sem mudança no
+código, porque novas vulnerabilidades (CVEs) são publicadas o tempo todo. Ele também pode ser
+disparado à mão em **Actions → Security → Run workflow**.
+
+Se o Trivy, o `npm audit` ou o Gitleaks reprovarem nessa execução, o job `abrir-issue` abre uma
+issue **"Varredura de segurança semanal encontrou problemas"** com a etiqueta `seguranca`:
+
+- uma tabela por imagem ou arquivo, com cada CVE (link para os detalhes), a gravidade, o pacote,
+  a versão instalada e a **versão que corrige**;
+- para segredos, só a regra e o arquivo:linha, nunca o valor;
+- o link para a execução com os logs completos.
+
+Só existe uma issue dessas aberta por vez: as falhas das semanas seguintes viram comentários
+nela. Para resolver, aceite o PR do Dependabot ou atualize a versão indicada; nos pacotes das
+imagens, reconstruir costuma bastar. Feche a issue pelo próprio PR da correção, escrevendo
+`Closes #<número>` na descrição.
+
+Enquanto a correção não entra, **todo PR fica bloqueado** nos checks de segurança, mesmo sem
+relação com o problema. É intencional: nada novo entra na `main` com um HIGH/CRITICAL conhecido.
+
 ## Configuração única no GitHub (mantenedor)
 
 O repositório é público, então o environment com revisor obrigatório está disponível no plano
@@ -52,7 +74,8 @@ gratuito. Faça uma vez:
     `codeql (javascript-typescript)`, `trivy-fs`, `npm-audit`, `trivy-image`, `gitleaks`
 
 > Os nomes dos checks só aparecem na busca depois que os workflows rodarem uma vez (abra o
-> primeiro PR e volte para completar a lista).
+> primeiro PR e volte para completar a lista). **Não** inclua `abrir-issue`: ele só roda na
+> varredura semanal.
 
 ### Quando houver um segundo mantenedor
 

@@ -263,6 +263,10 @@ desta feature: o roteiro manual do `quickstart.md` cobre o fluxo ponta a ponta.
   - **Imagens**: Trivy `image` nas 3 imagens.
   - **Segredos**: Gitleaks no histórico do repositório.
   - Severidade `CRITICAL,HIGH` → falha o job (bloqueia o merge).
+- Na execução semanal (ou manual), se Trivy, `npm audit` ou Gitleaks reprovarem, o job
+  `abrir-issue` abre uma issue com a etiqueta `seguranca` listando as CVEs (pacote, versão
+  instalada e versão corrigida), ou comenta na issue que já estiver aberta. Segredos aparecem só
+  com a regra e o local, nunca com o valor. Em PR esse job não roda: o check vermelho já bloqueia.
 - `dependabot.yml`: Maven, npm, Docker e GitHub Actions, semanal.
 - Actions de terceiros fixadas por SHA de commit.
 - Proteção da `main` por ruleset: PR obrigatório, todos os jobs do `ci.yml` e do `security.yml`
