@@ -54,10 +54,10 @@ Maven com acesso ao Docker do WSL:
 docker run --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/backend":/app -v "$HOME/.m2":/root/.m2 -w /app maven:3.10.0-eclipse-temurin-25 mvn -B verify
 ```
 
-Frontend (lint + testes + cobertura):
+Frontend (lint + formatação + testes + cobertura):
 
 ```bash
-docker run --rm -v "$PWD/frontend":/app -w /app node:24.22.3-alpine3.24 sh -c "npm ci && npm run lint && npm run test:coverage"
+docker run --rm -v "$PWD/frontend":/app -w /app node:24.22.3-alpine3.24 sh -c "npm ci && npm run lint && npm run format:check && npm run test:coverage"
 ```
 
 **Esperado**: tudo verde e cobertura ≥ 80% nos dois (o build falha abaixo disso). O relatório

@@ -105,9 +105,11 @@ compose.yaml                      # db + backend + frontend
 .env.example                      # modelo de variáveis (sem segredos reais)
 .github/
 ├── workflows/
-│   ├── ci.yml                    # build, testes, cobertura, lint, build das imagens
+│   ├── ci.yml                    # build, testes, cobertura, lint, imagens + job de aprovação manual
 │   └── security.yml              # CodeQL, Trivy, npm audit, Gitleaks
+├── pull_request_template.md      # checklist dos Princípios I a VIII
 └── dependabot.yml
+CONTRIBUTING.md                   # fluxo de PR, aprovação manual e proteção da main
 
 backend/
 ├── Dockerfile                    # multi-stage, não-root
@@ -166,7 +168,7 @@ que deixa tudo numa única origem.
 
 | Risco | Mitigação |
 |-------|-----------|
-| Vazamento de par por erro de autorização | rota única, sem parâmetro de usuário; teste de integração de sigilo com N usuários; revisão de PR obrigatória (Princípio I) |
+| Vazamento de par por erro de autorização | rota única, sem parâmetro de usuário; teste de integração de sigilo com N usuários; aprovação manual obrigatória de todo PR, só depois do CI e das varreduras verdes, com a checklist dos princípios (Constituição, gate 7) |
 | Perda de `DRAW_ENCRYPTION_KEY` torna os pares ilegíveis | documentar backup da chave junto ao backup do banco; o app falha ao iniciar sem a chave |
 | Docker no WSL e caminhos do Windows | comandos do quickstart executados no WSL (`/mnt/c/...`); `.gitattributes` com LF |
 | SSE cortado por proxy | `proxy_buffering off`, heartbeat de 25 s, reconexão + polling de contingência de 10 s |

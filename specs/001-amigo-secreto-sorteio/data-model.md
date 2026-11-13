@@ -117,6 +117,6 @@ sessões vencidas são limpas por uma tarefa agendada do próprio Spring Session
 | Versão | Conteúdo |
 |--------|----------|
 | `V1__create_users.sql` | `app_user` |
-| `V2__create_groups.sql` | `secret_group`, `group_member` |
-| `V3__create_draw_assignment.sql` | `draw_assignment` |
-| `V4__create_spring_session.sql` | tabelas do Spring Session JDBC |
+| `V2__create_spring_session.sql` | tabelas do Spring Session JDBC |
+| `V3__create_groups.sql` | `secret_group`, `group_member` |
+| `V4__create_draw_assignment.sql` | `draw_assignment` |

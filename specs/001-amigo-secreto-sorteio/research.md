@@ -84,6 +84,10 @@ para Argon2 no futuro sem invalidar senhas existentes.
 | Entrar com código inválido | usuário | 10 falhas / 10 min | `429` |
 | Iniciar sorteio | grupo | 5 / min | `429` |
 
+Capacidade e janela de cada política vêm de `app.rate-limit.*` (padrões acima). O perfil `test`
+relaxa só o cadastro, porque os testes de integração criam mais de 100 usuários; o limite real é
+coberto pelo teste unitário do `RateLimiter`.
+
 **Rationale**: atende FR-004 e FR-013 sem infraestrutura extra. Uma única instância do backend
 basta para a escala da spec (R8).
 
@@ -261,7 +265,13 @@ desta feature: o roteiro manual do `quickstart.md` cobre o fluxo ponta a ponta.
   - Severidade `CRITICAL,HIGH` → falha o job (bloqueia o merge).
 - `dependabot.yml`: Maven, npm, Docker e GitHub Actions, semanal.
 - Actions de terceiros fixadas por SHA de commit.
-- Proteção da `main` (PR obrigatório + checks verdes) configurada no GitHub.
+- Proteção da `main` por ruleset: PR obrigatório, todos os jobs do `ci.yml` e do `security.yml`
+  como checks obrigatórios, sem push direto e sem bypass para administradores.
+- **Aprovação manual com um único mantenedor**: o GitHub não conta a aprovação do autor do PR.
+  Por isso o `ci.yml` tem o job `aprovacao`, que depende dos demais jobs e usa o environment
+  `aprovacao-manual`, com o mantenedor como revisor obrigatório. Ele também é check obrigatório, e
+  todo novo commit exige nova aprovação. Em repositório privado, isso exige GitHub Pro/Team; sem
+  isso, a aprovação manual é o próprio merge do mantenedor após a checklist do PR.
 
 **Rationale**: o Trivy cobre SCA e imagens com uma ferramenta só e sem chave de API.
 O OWASP Dependency-Check foi descartado porque depende de uma chave da NVD e tem builds lentos.
