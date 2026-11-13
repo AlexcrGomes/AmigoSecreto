@@ -1,0 +1,94 @@
+# Configuração do backend. Tudo que varia por ambiente vem de variáveis de ambiente
+# (.env no Docker Compose). Nenhum segredo é versionado.
+
+spring:
+  application:
+    name: amigo-secreto
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/amigosecreto}
+    username: ${POSTGRES_USER:amigo}
+    password: ${POSTGRES_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  session:
+    jdbc:
+      # As tabelas do Spring Session vêm da migração V2 (Flyway), não do schema automático
+      initialize-schema: never
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  servlet:
+    session:
+      timeout: 8h
+      cookie:
+        http-only: true
+        secure: ${COOKIE_SECURE:true}
+        same-site: lax
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+app:
+  draw:
+    # Chave AES-256 (base64) dos pares do sorteio — research R9. Sem default: sem a chave o app não sobe.
+    encryption-key: ${DRAW_ENCRYPTION_KEY}
+  # Limites de tentativas — research R4 (capacidade de tentativas por janela)
+  rate-limit:
+    login-failure:
+      capacity: 5
+      window: 15m
+    register:
+      capacity: 10
+      window: 1h
+    join-invalid-code:
+      capacity: 10
+      window: 10m
+    draw:
+      capacity: 5
+      window: 1m
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+
+app:
+  rate-limit:
+    register:
+      # Os testes de integração criam mais de 100 usuários; o limite real é coberto pelo teste do RateLimiter
+      capacity: 10000

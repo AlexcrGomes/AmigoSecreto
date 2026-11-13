@@ -102,6 +102,7 @@ specs/001-amigo-secreto-sorteio/
 
 ```text
 compose.yaml                      # db + backend + frontend
+db/Dockerfile                     # postgres oficial + apk upgrade + su-exec no lugar do gosu
 .env.example                      # modelo de variáveis (sem segredos reais)
 .github/
 ├── workflows/

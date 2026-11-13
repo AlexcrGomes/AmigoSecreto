@@ -1,0 +1,57 @@
+# Sobe o sistema completo: docker compose up -d --build (no WSL). Variáveis em .env (ver .env.example).
+# Só o frontend publica porta; o banco e o backend ficam na rede interna (research R10).
+
+name: amigo-secreto
+
+services:
+  db:
+    # postgres:18.7-alpine3.24 com correções de segurança (ver db/Dockerfile)
+    build: ./db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-amigosecreto}
+      POSTGRES_USER: ${POSTGRES_USER:-amigo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    shm_size: 128mb
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-amigosecreto}
+      POSTGRES_USER: ${POSTGRES_USER:-amigo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      DRAW_ENCRYPTION_KEY: ${DRAW_ENCRYPTION_KEY:?defina DRAW_ENCRYPTION_KEY no .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  pgdata:
