@@ -4,6 +4,9 @@
 spring:
   application:
     name: amigo-secreto
+  autoconfigure:
+    # Sem usuário em memória com senha gerada: a autenticação é feita pelo AuthService
+    exclude: org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/amigosecreto}
     username: ${POSTGRES_USER:amigo}
@@ -86,6 +89,13 @@ spring:
   config:
     activate:
       on-profile: test
+
+server:
+  servlet:
+    session:
+      cookie:
+        # Os testes de integração falam HTTP puro com o servidor embutido
+        secure: false
 
 app:
   rate-limit:
