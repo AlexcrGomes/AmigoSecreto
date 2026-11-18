@@ -10,6 +10,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,11 +24,28 @@ import org.springframework.web.bind.annotation.RestController;
 public class GroupController {
 
     private final GroupService groupService;
+    private final GroupMembershipService membershipService;
     private final CurrentUser currentUser;
 
-    public GroupController(GroupService groupService, CurrentUser currentUser) {
+    public GroupController(
+            GroupService groupService, GroupMembershipService membershipService, CurrentUser currentUser) {
         this.groupService = groupService;
+        this.membershipService = membershipService;
         this.currentUser = currentUser;
+    }
+
+    /** O usuário da sessão sai do grupo (antes do sorteio). */
+    @DeleteMapping("/{groupId}/participants/me")
+    public ResponseEntity<Void> leave(@PathVariable UUID groupId) {
+        membershipService.leave(currentUser.id(), groupId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** O organizador (usuário da sessão) remove um participante (antes do sorteio). */
+    @DeleteMapping("/{groupId}/participants/{userId}")
+    public ResponseEntity<Void> remove(@PathVariable UUID groupId, @PathVariable UUID userId) {
+        membershipService.remove(currentUser.id(), groupId, userId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping

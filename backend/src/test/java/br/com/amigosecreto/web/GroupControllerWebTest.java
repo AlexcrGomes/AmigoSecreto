@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -16,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import br.com.amigosecreto.auth.AuthenticatedUser;
 import br.com.amigosecreto.auth.CurrentUser;
 import br.com.amigosecreto.common.ConflictException;
+import br.com.amigosecreto.common.ForbiddenException;
 import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.common.ProblemResponseWriter;
 import br.com.amigosecreto.common.RateLimitExceededException;
@@ -23,6 +25,7 @@ import br.com.amigosecreto.config.SecurityConfig;
 import br.com.amigosecreto.events.GroupEventsController;
 import br.com.amigosecreto.events.SseEmitterRegistry;
 import br.com.amigosecreto.group.GroupController;
+import br.com.amigosecreto.group.GroupMembershipService;
 import br.com.amigosecreto.group.GroupService;
 import br.com.amigosecreto.group.GroupStatus;
 import br.com.amigosecreto.group.dto.GroupDetail;
@@ -57,6 +60,9 @@ class GroupControllerWebTest {
 
     @MockitoBean
     private SseEmitterRegistry registry;
+
+    @MockitoBean
+    private GroupMembershipService membershipService;
 
     private static RequestPostProcessor ana() {
         return authentication(UsernamePasswordAuthenticationToken.authenticated(ANA, null, List.of()));
@@ -220,5 +226,53 @@ class GroupControllerWebTest {
                         .with(ana()))
                 .andExpect(status().isOk());
         verify(registry).register(GROUP_ID, ANA.id());
+    }
+
+    @Test
+    void leaveIs204ForTheSessionUser() throws Exception {
+        mvc.perform(delete("/api/v1/groups/{id}/participants/me", GROUP_ID)
+                        .with(ana())
+                        .with(spaCsrf()))
+                .andExpect(status().isNoContent());
+        verify(membershipService).leave(ANA.id(), GROUP_ID);
+    }
+
+    @Test
+    void removeIs204AndUsesTheSessionUserAsTheOrganizer() throws Exception {
+        UUID carla = UUID.randomUUID();
+
+        mvc.perform(delete("/api/v1/groups/{id}/participants/{userId}", GROUP_ID, carla)
+                        .with(ana())
+                        .with(spaCsrf()))
+                .andExpect(status().isNoContent());
+        verify(membershipService).remove(ANA.id(), GROUP_ID, carla);
+    }
+
+    @Test
+    void membershipErrorsFollowTheContract() throws Exception {
+        UUID carla = UUID.randomUUID();
+        doThrow(new ForbiddenException("Só o organizador pode remover participantes."))
+                .when(membershipService)
+                .remove(ANA.id(), GROUP_ID, carla);
+        doThrow(new ConflictException("group-already-drawn", "O sorteio deste grupo já foi realizado."))
+                .when(membershipService)
+                .leave(ANA.id(), GROUP_ID);
+
+        mvc.perform(delete("/api/v1/groups/{id}/participants/{userId}", GROUP_ID, carla)
+                        .with(ana())
+                        .with(spaCsrf()))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/groups/{id}/participants/me", GROUP_ID)
+                        .with(ana())
+                        .with(spaCsrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("/problems/group-already-drawn"));
+    }
+
+    @Test
+    void membershipChangesRequireXsrf() throws Exception {
+        mvc.perform(delete("/api/v1/groups/{id}/participants/me", GROUP_ID).with(ana()))
+                .andExpect(status().isForbidden());
+        verify(membershipService, never()).leave(any(), any());
     }
 }

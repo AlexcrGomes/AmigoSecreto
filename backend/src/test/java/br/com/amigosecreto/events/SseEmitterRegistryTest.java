@@ -3,7 +3,9 @@ package br.com.amigosecreto.events;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
+import br.com.amigosecreto.events.GroupEvents.MembershipRevokedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
+import br.com.amigosecreto.events.GroupEvents.RevocationReason;
 import br.com.amigosecreto.group.GroupStatus;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,6 +28,12 @@ class SseEmitterRegistryTest {
     static class RecordingEmitter extends SseEmitter {
         final List<String> sent = new ArrayList<>();
         boolean broken;
+        boolean completed;
+
+        @Override
+        public void complete() {
+            completed = true;
+        }
 
         @Override
         public void send(SseEventBuilder builder) throws IOException {
@@ -122,6 +130,45 @@ class SseEmitterRegistryTest {
         assertThat(registry.connectionCount(GROUP)).isZero();
         registry.onParticipantsChanged(new ParticipantsChangedEvent(GROUP, GroupStatus.OPEN, 1));
         assertThat(created.getFirst().sent).isEmpty();
+    }
+
+    @Test
+    void removedUserGetsMembershipRevokedOnlyForThemAndTheirConnectionsAreClosed() {
+        RecordingEmitter ana = (RecordingEmitter) registry.register(GROUP, ANA);
+        RecordingEmitter bruno = (RecordingEmitter) registry.register(GROUP, BRUNO);
+        RecordingEmitter brunoSecondTab = (RecordingEmitter) registry.register(GROUP, BRUNO);
+
+        registry.onMembershipRevoked(new MembershipRevokedEvent(GROUP, BRUNO, RevocationReason.REMOVED));
+
+        for (RecordingEmitter emitter : List.of(bruno, brunoSecondTab)) {
+            assertThat(emitter.sent)
+                    .singleElement()
+                    .asString()
+                    .contains("event:membership-revoked")
+                    .contains("data:{\"groupId\":\"" + GROUP + "\"}");
+            assertThat(emitter.completed).isTrue();
+        }
+        assertThat(ana.sent).isEmpty();
+        assertThat(ana.completed).isFalse();
+        assertThat(registry.connectionCount(GROUP)).isEqualTo(1);
+    }
+
+    @Test
+    void userWhoLeftHasConnectionsClosedWithoutTheRemovalNotice() {
+        RecordingEmitter bruno = (RecordingEmitter) registry.register(GROUP, BRUNO);
+
+        registry.onMembershipRevoked(new MembershipRevokedEvent(GROUP, BRUNO, RevocationReason.LEFT));
+
+        assertThat(bruno.sent).isEmpty();
+        assertThat(bruno.completed).isTrue();
+        assertThat(registry.connectionCount(GROUP)).isZero();
+    }
+
+    @Test
+    void revokingSomeoneWithoutConnectionsIsHarmless() {
+        registry.onMembershipRevoked(new MembershipRevokedEvent(GROUP, BRUNO, RevocationReason.REMOVED));
+
+        assertThat(registry.connectionCount(GROUP)).isZero();
     }
 
     @Test

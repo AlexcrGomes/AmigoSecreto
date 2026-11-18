@@ -8,6 +8,8 @@ export const POLL_INTERVAL_MS = 10_000;
 interface GroupEventHandlers {
   /** O sorteio acabou de acontecer (evento `group-drawn`). */
   onDrawn?: () => void;
+  /** O próprio usuário foi removido do grupo (evento `membership-revoked`). */
+  onRevoked?: () => void;
 }
 
 /**
@@ -48,6 +50,12 @@ export function useGroupEvents(groupId: string | undefined, handlers: GroupEvent
     source.addEventListener('group-drawn', () => {
       refresh();
       handlersRef.current.onDrawn?.();
+    });
+    source.addEventListener('membership-revoked', () => {
+      // Deixou de ser membro: nada mais a ouvir (nem reconectar, nem consultar)
+      stopPolling();
+      source.close();
+      handlersRef.current.onRevoked?.();
     });
     source.onopen = () => {
       if (disconnected) {

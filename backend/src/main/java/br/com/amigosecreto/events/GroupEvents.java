@@ -17,6 +17,14 @@ public final class GroupEvents {
     /** Sorteio concluído. */
     public record GroupDrawnEvent(UUID groupId, int participantCount) {}
 
-    /** O usuário {@code userId} deixou de ser membro (US4). */
-    public record MembershipRevokedEvent(UUID groupId, UUID userId) {}
+    /** Por que alguém deixou de ser membro. */
+    public enum RevocationReason {
+        /** Saiu por conta própria. */
+        LEFT,
+        /** Foi removido pelo organizador: recebe o aviso {@code membership-revoked}. */
+        REMOVED
+    }
+
+    /** O usuário {@code userId} deixou de ser membro (US4): suas conexões SSE do grupo são encerradas. */
+    public record MembershipRevokedEvent(UUID groupId, UUID userId, RevocationReason reason) {}
 }

@@ -1,7 +1,9 @@
 package br.com.amigosecreto.events;
 
 import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
+import br.com.amigosecreto.events.GroupEvents.MembershipRevokedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
+import br.com.amigosecreto.events.GroupEvents.RevocationReason;
 import br.com.amigosecreto.group.GroupStatus;
 import java.io.IOException;
 import java.time.Duration;
@@ -84,6 +86,35 @@ public class SseEmitterRegistry {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onGroupDrawn(GroupDrawnEvent event) {
         broadcast(event.groupId(), "group-drawn", signal(event.groupId(), GroupStatus.DRAWN, event.participantCount()));
+    }
+
+    /**
+     * Quem deixou de ser membro perde as conexões do grupo. Só quem foi removido recebe antes o aviso
+     * {@code membership-revoked} — e só ele, nunca os demais participantes.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onMembershipRevoked(MembershipRevokedEvent event) {
+        Map<UUID, Set<SseEmitter>> byUser = emitters.get(event.groupId());
+        Set<SseEmitter> connections = byUser == null ? null : byUser.get(event.userId());
+        if (connections == null) {
+            return;
+        }
+        String json = jsonMapper.writeValueAsString(Map.of("groupId", event.groupId()));
+        for (SseEmitter emitter : Set.copyOf(connections)) {
+            if (event.reason() == RevocationReason.REMOVED) {
+                send(
+                        event.groupId(),
+                        event.userId(),
+                        emitter,
+                        SseEmitter.event().name("membership-revoked").data(json));
+            }
+            unregister(event.groupId(), event.userId(), emitter);
+            try {
+                emitter.complete();
+            } catch (IllegalStateException ignored) {
+                // já encerrada
+            }
+        }
     }
 
     /** Comentário a cada 25 s: mantém a conexão viva em proxies e detecta clientes que sumiram. */

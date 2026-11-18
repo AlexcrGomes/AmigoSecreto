@@ -147,6 +147,21 @@ public final class ApiClient {
             return false;
         }
 
+        /** Espera o servidor encerrar o fluxo. */
+        public boolean awaitClosedByServer(Duration timeout) {
+            try {
+                reader.get(timeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+                return true;
+            } catch (java.util.concurrent.TimeoutException e) {
+                return false;
+            } catch (java.util.concurrent.ExecutionException e) {
+                return true;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+
         @Override
         public void close() {
             response.thenAccept(r -> r.body().close());

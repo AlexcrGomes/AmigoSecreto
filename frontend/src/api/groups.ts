@@ -66,3 +66,15 @@ export function drawGroup(id: string): Promise<DrawResult> {
 export function getMySecretFriend(id: string, signal?: AbortSignal): Promise<SecretFriend> {
   return apiFetch<SecretFriend>(`/groups/${encodeURIComponent(id)}/my-secret-friend`, { signal });
 }
+
+/** O usuário da sessão sai do grupo (só antes do sorteio). */
+export async function leaveGroup(id: string): Promise<void> {
+  await apiFetch(`/groups/${encodeURIComponent(id)}/participants/me`, { method: 'DELETE' });
+}
+
+/** O organizador remove um participante (só antes do sorteio). */
+export async function removeParticipant(id: string, userId: string): Promise<void> {
+  await apiFetch(`/groups/${encodeURIComponent(id)}/participants/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+  });
+}
