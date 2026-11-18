@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- build ----
-FROM maven:3.10.0-eclipse-temurin-25 AS build
+FROM maven:3-eclipse-temurin-27 AS build
 WORKDIR /build
 # Dependências primeiro, para aproveitar o cache de camadas
 COPY pom.xml .
