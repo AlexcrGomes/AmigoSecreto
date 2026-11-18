@@ -2,8 +2,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router';
 import { ApiError, apiFetch } from './api/client';
+import { AuthProvider } from './auth/AuthProvider';
+import { GuestOnly, RequireAuth } from './auth/RequireAuth';
+import { AppHeader } from './components/AppHeader';
 import { ToastProvider } from './components/ui/Toast';
+import { HomePage } from './pages/HomePage';
+import { LoginPage } from './pages/LoginPage';
 import { PagePlaceholder } from './pages/PagePlaceholder';
+import { RegisterPage } from './pages/RegisterPage';
 
 /** Erros 4xx são definitivos (não adianta repetir); rede e 5xx tentam até 2 vezes. */
 export function shouldRetry(failureCount: number, error: unknown): boolean {
@@ -24,11 +30,7 @@ function createQueryClient() {
 function Layout() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex min-h-14 w-full max-w-md items-center px-4">
-          <span className="text-lg font-bold text-primary">Amigo Secreto</span>
-        </div>
-      </header>
+      <AppHeader />
       <main className="mx-auto w-full max-w-md flex-1 px-4">
         <Outlet />
       </main>
@@ -40,12 +42,16 @@ function AppRoutes() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/entrar" element={<PagePlaceholder title="Entrar" />} />
-        <Route path="/cadastro" element={<PagePlaceholder title="Criar conta" />} />
-        <Route path="/" element={<PagePlaceholder title="Meus grupos" />} />
-        <Route path="/grupos/novo" element={<PagePlaceholder title="Criar grupo" />} />
-        <Route path="/entrar-no-grupo" element={<PagePlaceholder title="Entrar com código" />} />
-        <Route path="/grupos/:id" element={<PagePlaceholder title="Grupo" />} />
+        <Route element={<GuestOnly />}>
+          <Route path="/entrar" element={<LoginPage />} />
+          <Route path="/cadastro" element={<RegisterPage />} />
+        </Route>
+        <Route element={<RequireAuth />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/grupos/novo" element={<PagePlaceholder title="Criar grupo" />} />
+          <Route path="/entrar-no-grupo" element={<PagePlaceholder title="Entrar com código" />} />
+          <Route path="/grupos/:id" element={<PagePlaceholder title="Grupo" />} />
+        </Route>
         <Route path="*" element={<PagePlaceholder title="Página não encontrada" />} />
       </Route>
     </Routes>
@@ -64,11 +70,13 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </ToastProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </ToastProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

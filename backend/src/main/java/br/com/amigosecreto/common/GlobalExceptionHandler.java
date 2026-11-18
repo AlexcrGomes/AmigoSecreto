@@ -1,6 +1,8 @@
 package br.com.amigosecreto.common;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,8 +58,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected @Nullable ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        List<FieldError> errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> new FieldError(error.getField(), error.getDefaultMessage()))
+        // Uma mensagem por campo (a primeira violação), que é o que o formulário exibe
+        Map<String, String> firstByField = new LinkedHashMap<>();
+        ex.getBindingResult()
+                .getFieldErrors()
+                .forEach(error -> firstByField.putIfAbsent(error.getField(), error.getDefaultMessage()));
+        List<FieldError> errors = firstByField.entrySet().stream()
+                .map(entry -> new FieldError(entry.getKey(), entry.getValue()))
                 .toList();
         ProblemDetail problem = Problems.of(
                 HttpStatus.BAD_REQUEST, "validation-error", "Dados inválidos", "Verifique os campos destacados.");

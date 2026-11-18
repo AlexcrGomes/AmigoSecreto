@@ -76,7 +76,7 @@ somente Docker e Git na máquina; nenhum segredo versionado; imagens não-root c
 | Bucket4j + Caffeine | rate limiting exigido por FR-004 e FR-013 (R4) |
 | springdoc-openapi | documentação OpenAPI exigida pela Constituição VIII; só no perfil `dev` |
 | TanStack Query | cache, refetch e polling de contingência do estado do grupo (R8) |
-| react-hook-form + zod | formulários acessíveis com a mesma validação do backend |
+| react-hook-form + zod (+ `@hookform/resolvers`, a ponte entre os dois) | formulários acessíveis com a mesma validação do backend |
 | MSW | testes de frontend sem backend real |
 
 ## Project Structure

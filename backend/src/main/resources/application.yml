@@ -30,6 +30,9 @@ spring:
       enabled: true
 
 server:
+  # O IP do cliente (chave do rate limit) vem do X-Forwarded-For que o nginx sobrescreve;
+  # o Tomcat só confia nesse cabeçalho vindo de proxies de rede interna.
+  forward-headers-strategy: native
   servlet:
     session:
       timeout: 8h
