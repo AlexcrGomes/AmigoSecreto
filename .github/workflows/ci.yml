@@ -1,0 +1,90 @@
+# Gates 1 a 4 e 6 da constituição (build, testes, cobertura >= 80%, lint/format, imagens)
+# e gate 7 (aprovação manual do mantenedor, só depois dos demais jobs).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      # Testes unitários + integração (Testcontainers usa o Docker do runner),
+      # JaCoCo >= 80% e Spotless
+      - run: mvn -B verify
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.3'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run test:coverage
+      - run: npm run build
+
+  docker:
+    name: docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build das imagens
+        # Valores fictícios só para a interpolação do compose; nenhum container é iniciado
+        env:
+          POSTGRES_PASSWORD: ci-build-only
+          DRAW_ENCRYPTION_KEY: ci-build-only
+        run: docker compose build
+
+  aprovacao:
+    name: aprovacao
+    # Gate 7: espera a aprovação manual do mantenedor no environment protegido
+    # (Actions → Review deployments → Approve). Novo commit = nova aprovação.
+    if: github.event_name == 'pull_request'
+    needs: [backend, frontend, docker]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: aprovacao-manual
+    steps:
+      - name: Registrar aprovação
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: 'echo "PR ${PR_NUMBER} aprovado manualmente no commit ${HEAD_SHA}."'

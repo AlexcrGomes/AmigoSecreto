@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logs da aplicação (Constituição I e III): INFO em produção, nada de corpo de requisição, SQL ou
+  parâmetros (poderiam conter senhas, e-mails ou pares do sorteio). Só o perfil dev detalha a aplicação.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- Nunca logar corpo de requisição, SQL nem valores de parâmetros -->
+    <logger name="org.springframework.web.filter.CommonsRequestLoggingFilter" level="OFF"/>
+    <logger name="org.hibernate.SQL" level="OFF"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="OFF"/>
+    <logger name="org.hibernate.type.descriptor.sql" level="OFF"/>
+
+    <springProfile name="dev">
+        <logger name="br.com.amigosecreto" level="DEBUG"/>
+    </springProfile>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

@@ -41,7 +41,8 @@ incorreto.
 
 ### III. Segurança por Padrão
 
-- Todas as rotas MUST exigir autenticação, exceto cadastro, login e verificação de saúde.
+- Todas as rotas MUST exigir autenticação, exceto cadastro, login, obtenção do token CSRF e verificação de saúde. Rotas públicas MUST
+  NOT expor dados de usuários ou grupos.
 - Senhas MUST ser armazenadas apenas com hash forte e salt (BCrypt ou Argon2); nunca em texto
   plano nem com criptografia reversível.
 - Tokens/sessões MUST ter expiração; se forem usados cookies, MUST ser `HttpOnly`, `Secure` e
@@ -157,7 +158,8 @@ tasks aprovados.
 **Git e GitHub**:
 
 - Cada feature em sua branch `NNN-nome-da-feature`; integração na `main` apenas via Pull
-  Request. A `main` MUST ser protegida (sem push direto, CI verde obrigatório).
+  Request. A `main` MUST ser protegida: sem push direto (inclusive para administradores, sem
+  bypass), e merge só com todos os gates abaixo verdes.
 - Commits seguem Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `chore:`…).
 
 **Quality gates obrigatórios no CI para merge**:
@@ -168,7 +170,12 @@ tasks aprovados.
 4. Lint/format sem erros (ex.: Spotless/Checkstyle no Java, ESLint + Prettier no frontend).
 5. Varreduras de segurança sem achados Críticos/Altos (Princípio V).
 6. Build das imagens Docker com sucesso.
-7. Revisão de código aprovada, verificando conformidade com esta constituição.
+7. Aprovação manual de um mantenedor, verificando conformidade com esta constituição
+   (checklist dos Princípios I a VIII no PR). Com um único mantenedor, a aprovação é feita no
+   ambiente protegido `aprovacao-manual` do GitHub (o mantenedor como revisor obrigatório),
+   cujo job é check obrigatório e só roda depois dos gates 1 a 6. Todo novo commit no PR
+   invalida a aprovação anterior. Com dois ou mais mantenedores, passa a valer também a
+   aprovação de PR por alguém que não seja o autor.
 
 ## Governance
 
@@ -183,7 +190,7 @@ tasks aprovados.
   - PATCH — esclarecimentos e correções de redação.
 - **Conformidade**: todo `plan` MUST passar pelo "Constitution Check" antes da pesquisa e
   novamente após o design; toda violação MUST ser registrada na tabela de complexidade do
-  `plan` com justificativa. Toda revisão de PR MUST verificar os Princípios I a VIII.
+  `plan` com justificativa. Toda aprovação de PR MUST verificar os Princípios I a VIII.
 - Princípios marcados como NÃO NEGOCIÁVEL (I, II, IV) não admitem exceção, apenas emenda.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-12 | **Last Amended**: 2026-11-12
+**Version**: 1.1.0 | **Ratified**: 2026-11-12 | **Last Amended**: 2026-11-12

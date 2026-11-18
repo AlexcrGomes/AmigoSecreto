@@ -1,0 +1,440 @@
+openapi: 3.1.0
+info:
+  title: Amigo Secreto API
+  version: 1.0.0
+  description: |
+    API REST da feature 001 (grupos e sorteio sigiloso).
+
+    Regras gerais:
+    - Mesma origem do frontend (nginx faz proxy de `/api`). Autenticação por cookie de sessão
+      `SESSION` (HttpOnly). Todas as rotas exigem sessão, exceto as marcadas com `security: []`.
+    - Toda requisição que altera estado (POST/PUT/PATCH/DELETE) exige o cabeçalho `X-XSRF-TOKEN`
+      com o valor do cookie `XSRF-TOKEN` (CSRF no padrão SPA do Spring Security).
+    - Erros seguem RFC 9457 (`application/problem+json`), com mensagens em pt-BR no campo `detail`.
+    - SIGILO (Constituição I): nenhuma resposta contém o par de outro participante. A única rota
+      que devolve um amigo secreto é `GET /groups/{groupId}/my-secret-friend`, que usa sempre o
+      usuário da sessão; não existe parâmetro de usuário.
+    - Grupos em que o usuário não é membro respondem `404` (não `403`), para não revelar que
+      existem.
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: auth
+  - name: groups
+  - name: draw
+
+paths:
+  /auth/csrf:
+    get:
+      tags: [auth]
+      summary: Emite o cookie XSRF-TOKEN (chamado ao abrir o app)
+      security: []
+      responses:
+        '204': { description: Cookie XSRF-TOKEN definido }
+
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Cria a conta e já inicia a sessão (FR-001, FR-002)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Conta criada; cookie SESSION definido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409':
+          description: E-mail já cadastrado
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Autentica com e-mail e senha (FR-003, FR-004)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Autenticado; cookie SESSION definido (novo ID de sessão)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401':
+          description: Credenciais inválidas — mensagem genérica, igual para e-mail inexistente e senha errada
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Encerra a sessão (FR-005)
+      responses:
+        '204': { description: Sessão invalidada e cookie removido }
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Usuário da sessão atual
+      responses:
+        '200':
+          description: Usuário autenticado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /groups:
+    get:
+      tags: [groups]
+      summary: Lista os grupos de que o usuário participa (FR-016)
+      responses:
+        '200':
+          description: Grupos do usuário, mais recentes primeiro
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GroupSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [groups]
+      summary: Cria um grupo; o criador vira organizador e participante (FR-008, FR-009)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateGroupRequest' }
+      responses:
+        '201':
+          description: Grupo criado
+          headers:
+            Location: { schema: { type: string }, description: '/api/v1/groups/{groupId}' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GroupDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /groups/join:
+    post:
+      tags: [groups]
+      summary: Entra em um grupo pelo código (FR-011, FR-012, FR-013)
+      description: |
+        Idempotente: se o usuário já for membro, responde 200 com o grupo, sem duplicar.
+        O código é normalizado (maiúsculas, sem espaços e sem hífen) antes da busca.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/JoinGroupRequest' }
+      responses:
+        '200':
+          description: Usuário é membro do grupo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GroupDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Código inválido (conta como tentativa falha para o rate limit)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: Grupo já sorteado (`type` = `/problems/group-already-drawn`) ou cheio (`type` = `/problems/group-full`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /groups/{groupId}:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    get:
+      tags: [groups]
+      summary: Detalhes do grupo para um membro (FR-014, FR-017)
+      responses:
+        '200':
+          description: Grupo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GroupDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/GroupNotFound' }
+
+  /groups/{groupId}/participants/me:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    delete:
+      tags: [groups]
+      summary: Sai do grupo antes do sorteio (FR-018)
+      responses:
+        '204': { description: Saiu do grupo }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/GroupNotFound' }
+        '409':
+          description: Grupo já sorteado, ou o usuário é o organizador
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /groups/{groupId}/participants/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [groups]
+      summary: Organizador remove um participante antes do sorteio (FR-018)
+      responses:
+        '204': { description: Participante removido }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Usuário é membro, mas não é o organizador
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '404': { description: Grupo não encontrado, ou o usuário informado não é membro }
+        '409':
+          description: Grupo já sorteado, ou tentativa de remover o próprio organizador
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /groups/{groupId}/draw:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    post:
+      tags: [draw]
+      summary: Organizador realiza o sorteio do grupo inteiro (FR-020 a FR-027)
+      description: |
+        Executado uma única vez, no servidor, em transação com lock da linha do grupo.
+        A resposta NÃO contém nenhum par, nem o do próprio organizador.
+      responses:
+        '200':
+          description: Sorteio realizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DrawResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Usuário é membro, mas não é o organizador
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '404': { $ref: '#/components/responses/GroupNotFound' }
+        '409':
+          description: Grupo já sorteado (`/problems/group-already-drawn`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: Menos de 3 participantes (`/problems/not-enough-participants`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /groups/{groupId}/my-secret-friend:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    get:
+      tags: [draw]
+      summary: Amigo secreto do usuário da sessão (FR-028 a FR-032)
+      description: |
+        Única rota que devolve um amigo secreto. Sempre usa o usuário da sessão; não aceita
+        parâmetro de usuário. Resposta com `Cache-Control: no-store`.
+      responses:
+        '200':
+          description: Quem o usuário tirou
+          headers:
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SecretFriend' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/GroupNotFound' }
+        '409':
+          description: Grupo ainda não sorteado (`/problems/group-not-drawn`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /groups/{groupId}/events:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    get:
+      tags: [groups]
+      summary: Fluxo SSE de sinais de atualização do grupo (FR-015, FR-027)
+      description: Ver [sse-events.md](./sse-events.md). Os eventos não contêm nomes nem pares.
+      responses:
+        '200':
+          description: Fluxo de eventos
+          content:
+            text/event-stream:
+              schema: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/GroupNotFound' }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: SESSION
+
+  parameters:
+    GroupId:
+      name: groupId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Sem sessão válida
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    GroupNotFound:
+      description: Grupo inexistente ou usuário não é membro (indistinguíveis de propósito)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ValidationError:
+      description: Dados inválidos; `errors` lista os campos
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    TooManyRequests:
+      description: Limite de tentativas excedido
+      headers:
+        Retry-After: { schema: { type: integer }, description: segundos }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 8, maxLength: 64, description: 'no máximo 72 bytes em UTF-8' }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    User:
+      type: object
+      required: [id, name, email]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+
+    CreateGroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 60 }
+
+    JoinGroupRequest:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, description: 'ex.: "K7PQ-M2XA" ou "k7pqm2xa"' }
+
+    GroupStatus:
+      type: string
+      enum: [OPEN, DRAWN]
+
+    GroupSummary:
+      type: object
+      required: [id, name, status, participantCount, organizer]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        status: { $ref: '#/components/schemas/GroupStatus' }
+        participantCount: { type: integer }
+        organizer: { type: boolean, description: o usuário da sessão é o organizador }
+
+    Participant:
+      type: object
+      required: [userId, name, organizer]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string }
+        organizer: { type: boolean }
+
+    GroupDetail:
+      type: object
+      required: [id, name, code, status, participants, participantCount, maxParticipants, organizer, canDraw]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        code: { type: string, description: 'formatado "XXXX-XXXX"', example: K7PQ-M2XA }
+        status: { $ref: '#/components/schemas/GroupStatus' }
+        drawnAt: { type: [string, 'null'], format: date-time }
+        participants:
+          type: array
+          description: ordenados por data de entrada; apenas nomes, nunca pares
+          items: { $ref: '#/components/schemas/Participant' }
+        participantCount: { type: integer }
+        maxParticipants: { type: integer, const: 100 }
+        organizer: { type: boolean, description: o usuário da sessão é o organizador }
+        canDraw: { type: boolean, description: 'organizador, status OPEN e ≥ 3 participantes' }
+
+    DrawResult:
+      type: object
+      required: [groupId, status, drawnAt]
+      properties:
+        groupId: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/GroupStatus' }
+        drawnAt: { type: string, format: date-time }
+
+    SecretFriend:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, description: nome de exibição de quem o usuário tirou }
+
+    Problem:
+      type: object
+      description: RFC 9457
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string, description: mensagem em pt-BR para exibir ao usuário }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }

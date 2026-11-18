@@ -1,0 +1,162 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { ApiError } from '../api/client';
+import { leaveGroup, removeParticipant, type Participant } from '../api/groups';
+import { useAuth } from '../auth/AuthProvider';
+import { DrawButton } from '../components/group/DrawButton';
+import { ParticipantList } from '../components/group/ParticipantList';
+import { SecretFriendCard } from '../components/group/SecretFriendCard';
+import { ShareCode } from '../components/group/ShareCode';
+import { Badge } from '../components/ui/Badge';
+import { Button, buttonClasses } from '../components/ui/Button';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { Spinner } from '../components/ui/Spinner';
+import { useToast } from '../components/ui/Toast';
+import { GROUPS_KEY, groupKey, useGroup } from '../hooks/useGroup';
+import { useGroupEvents } from '../hooks/useGroupEvents';
+import { errorMessage } from '../lib/errors';
+
+const drawnDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' });
+
+/**
+ * /grupos/:id (contracts/ui-routes.md). OPEN: código, lista ao vivo, "Realizar sorteio" e "Remover"
+ * para o organizador, "Sair do grupo" para os demais. DRAWN: selo com a data, "Seu amigo secreto" e a
+ * lista só com nomes.
+ */
+export function GroupPage() {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const group = useGroup(id);
+  const [justDrawn, setJustDrawn] = useState(false);
+  const [removing, setRemoving] = useState<Participant | null>(null);
+  const [leaving, setLeaving] = useState(false);
+
+  /** Saiu do grupo (por conta própria ou removido): descarta os dados e volta para a lista. */
+  function exitGroup(message: string, kind: 'success' | 'error') {
+    if (id) queryClient.removeQueries({ queryKey: groupKey(id) });
+    void queryClient.invalidateQueries({ queryKey: GROUPS_KEY });
+    toast.show(message, kind);
+    navigate('/', { replace: true });
+  }
+
+  useGroupEvents(id, {
+    onDrawn: () => setJustDrawn(true),
+    onRevoked: () => exitGroup('Você foi removido deste grupo', 'error'),
+  });
+
+  if (group.isPending) {
+    return (
+      <div className="flex justify-center py-16 text-primary">
+        <Spinner label="Carregando grupo" className="size-8" />
+      </div>
+    );
+  }
+
+  if (group.isError) {
+    const notFound = group.error instanceof ApiError && group.error.status === 404;
+    return (
+      <div className="py-6">
+        <h1 className="text-2xl font-bold text-text">
+          {notFound ? 'Grupo não encontrado' : 'Não foi possível carregar o grupo'}
+        </h1>
+        <p className="mt-2 text-text-muted">
+          {notFound ? 'Ele não existe ou você não participa dele.' : errorMessage(group.error)}
+        </p>
+        <Link to="/" className={`${buttonClasses('secondary')} mt-6`}>
+          Voltar para meus grupos
+        </Link>
+      </div>
+    );
+  }
+
+  const detail = group.data;
+  const drawn = detail.status === 'DRAWN';
+
+  async function confirmRemove() {
+    if (!removing) return;
+    await removeParticipant(detail.id, removing.userId);
+    toast.show(`${removing.name} não participa mais do grupo.`, 'success');
+    setRemoving(null);
+    await queryClient.invalidateQueries({ queryKey: groupKey(detail.id) });
+  }
+
+  async function confirmLeave() {
+    await leaveGroup(detail.id);
+    exitGroup('Você saiu do grupo.', 'success');
+  }
+
+  return (
+    <div className="flex flex-col gap-4 py-6">
+      <div>
+        <h1 className="text-2xl font-bold break-words text-text">{detail.name}</h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Badge tone={drawn ? 'success' : 'primary'}>
+            {drawn ? 'Sorteado' : 'Aguardando sorteio'}
+          </Badge>
+          {drawn && detail.drawnAt && (
+            <span className="text-sm text-text-muted">
+              Sorteio realizado em {drawnDate.format(new Date(detail.drawnAt))}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {drawn && justDrawn && (
+        <p
+          role="status"
+          className="rounded-control border border-success bg-surface px-4 py-3 font-medium text-success"
+        >
+          O sorteio foi realizado! Toque em Revelar para ver quem você tirou.
+        </p>
+      )}
+
+      {drawn ? (
+        <SecretFriendCard groupId={detail.id} />
+      ) : (
+        <>
+          <ShareCode code={detail.code} groupName={detail.name} />
+          <DrawButton group={detail} />
+        </>
+      )}
+
+      <ParticipantList
+        participants={detail.participants}
+        currentUserId={user?.id}
+        onRemove={!drawn && detail.organizer ? setRemoving : undefined}
+      />
+
+      {!drawn && !detail.organizer && (
+        <Button variant="danger" fullWidth onClick={() => setLeaving(true)}>
+          Sair do grupo
+        </Button>
+      )}
+
+      <ConfirmModal
+        open={removing !== null}
+        title="Remover participante?"
+        confirmLabel="Remover"
+        onConfirm={confirmRemove}
+        onClose={() => setRemoving(null)}
+      >
+        <p>
+          {removing?.name} sairá do grupo e será avisado. Enquanto não houver sorteio, poderá entrar
+          de novo com o código.
+        </p>
+      </ConfirmModal>
+
+      <ConfirmModal
+        open={leaving}
+        title="Sair do grupo?"
+        confirmLabel="Sair"
+        onConfirm={confirmLeave}
+        onClose={() => setLeaving(false)}
+      >
+        <p>Você deixará de participar deste amigo secreto. Para voltar, use o código de novo.</p>
+      </ConfirmModal>
+    </div>
+  );
+}

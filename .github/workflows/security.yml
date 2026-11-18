@@ -1,0 +1,206 @@
+# Gate 5 da constituição (Princípio V): achados HIGH/CRITICAL reprovam e bloqueiam o merge.
+# Na varredura semanal (schedule) ou manual, uma falha abre ou atualiza uma issue com as CVEs.
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1' # toda segunda, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TRIVY_IMAGE: aquasec/trivy:0.76.2
+  GITLEAKS_IMAGE: zricethezav/gitleaks:v8.30.1
+
+jobs:
+  codeql:
+    name: codeql (${{ matrix.language }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+      - if: matrix.language == 'java-kotlin'
+        working-directory: backend
+        run: mvn -B -DskipTests package
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:${{ matrix.language }}
+
+  trivy-fs:
+    name: trivy-fs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      # O Trivy lê os POMs do cache local; sem isso ele consulta o Maven Central e pode levar 429
+      - name: Popular o cache Maven
+        working-directory: backend
+        run: mvn -B -q dependency:go-offline
+      # Dependências (pom.xml, package-lock.json) e segredos no código
+      - name: Trivy (dependências e segredos)
+        run: >-
+          docker run --rm -v "$PWD":/src -v "$HOME/.m2":/root/.m2:ro "$TRIVY_IMAGE" fs
+          --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed
+          --format json --output /src/trivy-fs.json /src
+      # Reprova o check se houver achados e gera a tabela usada no resumo do job e na issue
+      - name: Resultado
+        run: bash .github/scripts/trivy-resumo.sh relatorio-trivy-fs.md trivy-fs.json
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: relatorio-trivy-fs
+          path: relatorio-trivy-fs.md
+          if-no-files-found: ignore
+          retention-days: 30
+
+  npm-audit:
+    name: npm-audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.3'
+      - run: npm audit --audit-level=high | tee npm-audit.txt
+      - name: Relatório
+        if: failure()
+        run: |
+          {
+            echo '### npm audit (frontend)'
+            echo
+            echo '```text'
+            cat npm-audit.txt 2>/dev/null || echo 'Sem saída: veja o log do job.'
+            echo '```'
+          } > ../relatorio-npm-audit.md
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: relatorio-npm-audit
+          path: relatorio-npm-audit.md
+          if-no-files-found: ignore
+          retention-days: 30
+
+  trivy-image:
+    name: trivy-image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build das imagens
+        env:
+          POSTGRES_PASSWORD: ci-build-only
+          DRAW_ENCRYPTION_KEY: ci-build-only
+        run: docker compose build
+      - name: Trivy nas 3 imagens
+        run: |
+          for image in amigo-secreto-backend amigo-secreto-frontend amigo-secreto-db; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/out "$TRIVY_IMAGE" image \
+              --severity HIGH,CRITICAL --ignore-unfixed --format json --output "/out/trivy-$image.json" "$image"
+          done
+      - name: Resultado
+        run: >-
+          bash .github/scripts/trivy-resumo.sh relatorio-trivy-image.md
+          trivy-amigo-secreto-backend.json trivy-amigo-secreto-frontend.json trivy-amigo-secreto-db.json
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: relatorio-trivy-image
+          path: relatorio-trivy-image.md
+          if-no-files-found: ignore
+          retention-days: 30
+
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # Histórico completo do repositório
+      - run: docker run --rm -v "$PWD":/repo "$GITLEAKS_IMAGE" detect --source /repo --redact --verbose
+
+  # Varredura semanal ou manual com falha: abre uma issue rastreável (uma aberta por vez; as
+  # falhas seguintes viram comentários nela). Em PR não roda: lá o check vermelho já bloqueia o merge.
+  abrir-issue:
+    name: abrir-issue
+    needs: [trivy-fs, trivy-image, npm-audit, gitleaks]
+    if: ${{ failure() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          pattern: relatorio-*
+          merge-multiple: true
+          path: relatorios
+      - name: Abrir ou atualizar a issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RESULT_TRIVY_FS: ${{ needs.trivy-fs.result }}
+          RESULT_TRIVY_IMAGE: ${{ needs.trivy-image.result }}
+          RESULT_NPM_AUDIT: ${{ needs.npm-audit.result }}
+          RESULT_GITLEAKS: ${{ needs.gitleaks.result }}
+        run: bash .github/scripts/abrir-issue.sh relatorios

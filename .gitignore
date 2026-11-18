@@ -36,3 +36,8 @@ Thumbs.db
 reports/
 dependency-check-report.*
 trivy-report.*
+
+# --- Relatórios das varreduras do CI (gerados em execução) ---
+trivy-*.json
+relatorio-*.md
+npm-audit.txt
