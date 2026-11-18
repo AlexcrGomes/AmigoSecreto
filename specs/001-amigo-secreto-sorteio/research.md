@@ -4,7 +4,8 @@
 
 Versões consultadas em 2026-11-12 nos registros oficiais (npm, Maven Central, Docker Hub,
 nodejs.org). Todas as versões ficam fixadas em `pom.xml`, `package-lock.json` e nos
-`Dockerfile`s; atualizações chegam por PR do Dependabot (Constituição, Stack).
+`Dockerfile`s; atualizações só por falha de segurança (PR do Dependabot ou issue da varredura
+semanal) ou quando uma funcionalidade nova precisar (Constituição, Stack).
 
 ---
 
@@ -267,7 +268,9 @@ desta feature: o roteiro manual do `quickstart.md` cobre o fluxo ponta a ponta.
   `abrir-issue` abre uma issue com a etiqueta `seguranca` listando as CVEs (pacote, versão
   instalada e versão corrigida), ou comenta na issue que já estiver aberta. Segredos aparecem só
   com a regra e o local, nunca com o valor. Em PR esse job não roda: o check vermelho já bloqueia.
-- `dependabot.yml`: Maven, npm, Docker e GitHub Actions, semanal.
+- `dependabot.yml`: só *security updates* (Maven, npm e GitHub Actions); as atualizações de versão
+  ficam desligadas (`open-pull-requests-limit: 0`). Versões só mudam por falha de segurança ou
+  quando uma funcionalidade nova precisar; imagens Docker ficam a cargo do Trivy semanal.
 - Actions de terceiros fixadas por SHA de commit.
 - Proteção da `main` por ruleset: PR obrigatório, todos os jobs do `ci.yml` e do `security.yml`
   como checks obrigatórios, sem push direto e sem bypass para administradores.
