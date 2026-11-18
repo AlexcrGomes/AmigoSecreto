@@ -1,6 +1,7 @@
 package br.com.amigosecreto.config;
 
 import br.com.amigosecreto.common.ProblemResponseWriter;
+import jakarta.servlet.DispatcherType;
 import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,6 +38,9 @@ public class SecurityConfig {
                 // Cookie XSRF-TOKEN legível pelo JS + cabeçalho X-XSRF-TOKEN em toda requisição que altera estado
                 .csrf(csrf -> csrf.spa())
                 .authorizeHttpRequests(auth -> auth
+                        // Fim de uma resposta assíncrona (SSE): a requisição original já foi autorizada
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC)
+                        .permitAll()
                         // Únicas rotas públicas (Constituição III)
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf")
                         .permitAll()

@@ -6,7 +6,10 @@ import { AuthProvider } from './auth/AuthProvider';
 import { GuestOnly, RequireAuth } from './auth/RequireAuth';
 import { AppHeader } from './components/AppHeader';
 import { ToastProvider } from './components/ui/Toast';
+import { CreateGroupPage } from './pages/CreateGroupPage';
+import { GroupPage } from './pages/GroupPage';
 import { HomePage } from './pages/HomePage';
+import { JoinGroupPage } from './pages/JoinGroupPage';
 import { LoginPage } from './pages/LoginPage';
 import { PagePlaceholder } from './pages/PagePlaceholder';
 import { RegisterPage } from './pages/RegisterPage';
@@ -48,9 +51,9 @@ function AppRoutes() {
         </Route>
         <Route element={<RequireAuth />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/grupos/novo" element={<PagePlaceholder title="Criar grupo" />} />
-          <Route path="/entrar-no-grupo" element={<PagePlaceholder title="Entrar com código" />} />
-          <Route path="/grupos/:id" element={<PagePlaceholder title="Grupo" />} />
+          <Route path="/grupos/novo" element={<CreateGroupPage />} />
+          <Route path="/entrar-no-grupo" element={<JoinGroupPage />} />
+          <Route path="/grupos/:id" element={<GroupPage />} />
         </Route>
         <Route path="*" element={<PagePlaceholder title="Página não encontrada" />} />
       </Route>

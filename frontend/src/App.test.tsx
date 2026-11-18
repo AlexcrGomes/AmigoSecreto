@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ApiError } from './api/client';
 import { App, shouldRetry } from './App';
+import { mockGroup, openGroup } from './test/groups';
 import { ANA, mockSession } from './test/render';
 import { server } from './test/server';
 
@@ -13,7 +14,11 @@ function renderAt(path: string) {
 
 describe('App', () => {
   beforeEach(() => {
-    server.use(http.get('/api/v1/auth/csrf', () => new HttpResponse(null, { status: 204 })));
+    server.use(
+      http.get('/api/v1/auth/csrf', () => new HttpResponse(null, { status: 204 })),
+      http.get('/api/v1/groups', () => HttpResponse.json([])),
+    );
+    mockGroup(openGroup({ id: '123' }));
   });
 
   it('pede o token CSRF ao abrir e mostra o layout mobile-first', async () => {
@@ -48,7 +53,7 @@ describe('App', () => {
     ['/', 'Meus grupos'],
     ['/grupos/novo', 'Criar grupo'],
     ['/entrar-no-grupo', 'Entrar com código'],
-    ['/grupos/123', 'Grupo'],
+    ['/grupos/123', 'Natal 2026'],
     ['/nao-existe', 'Página não encontrada'],
   ])('com sessão, a rota %s mostra a tela "%s"', async (path, title) => {
     mockSession(ANA);

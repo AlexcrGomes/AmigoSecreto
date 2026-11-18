@@ -34,3 +34,11 @@ export const loginSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const GROUP_NAME_MESSAGE = 'Dê um nome ao grupo (até 60 caracteres).';
+
+export const createGroupSchema = z.object({
+  name: z.string().trim().min(1, GROUP_NAME_MESSAGE).max(60, GROUP_NAME_MESSAGE),
+});
+
+export type CreateGroupInput = z.infer<typeof createGroupSchema>;
