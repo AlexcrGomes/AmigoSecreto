@@ -44,6 +44,20 @@ imagens, reconstruir costuma bastar. Feche a issue pelo próprio PR da correçã
 Enquanto a correção não entra, **todo PR fica bloqueado** nos checks de segurança, mesmo sem
 relação com o problema. É intencional: nada novo entra na `main` com um HIGH/CRITICAL conhecido.
 
+## Quando atualizar dependências
+
+As versões ficam fixadas e **só mudam por dois motivos**:
+
+1. **Falha de segurança registrada.** Os *security updates* do Dependabot estão ligados: quando
+   sai um alerta para uma dependência Maven, npm ou GitHub Actions do projeto, ele abre sozinho
+   um PR com a menor versão que corrige. Imagens Docker não têm alertas no GitHub; nelas quem
+   avisa é o Trivy da varredura semanal, pela issue descrita acima.
+2. **Uma funcionalidade nova precisa da versão nova.** A atualização entra no próprio PR da
+   funcionalidade, com a justificativa no `plan.md`.
+
+As atualizações de versão "por novidade" estão desligadas no `.github/dependabot.yml`
+(`open-pull-requests-limit: 0`).
+
 ## Configuração única no GitHub (mantenedor)
 
 O repositório é público, então o environment com revisor obrigatório está disponível no plano
