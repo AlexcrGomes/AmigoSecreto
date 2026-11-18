@@ -31,7 +31,12 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-          cache-dependency-path: backend/pom.xml
+          # Cache próprio deste job: o CodeQL e o trivy-fs (security.yml) usam a chave só do
+          # pom.xml e salvam um cache sem os provedores do Surefire, que este job baixaria do
+          # Maven Central a cada execução (e levaria HTTP 429). Incluir o maven.config muda a chave.
+          cache-dependency-path: |
+            backend/pom.xml
+            backend/.mvn/maven.config
       # Testes unitários + integração (Testcontainers usa o Docker do runner),
       # JaCoCo >= 80% e Spotless
       - run: mvn -B verify
