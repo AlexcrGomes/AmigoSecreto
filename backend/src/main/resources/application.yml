@@ -58,8 +58,9 @@ springdoc:
 
 app:
   draw:
-    # Chave AES-256 (base64) dos pares do sorteio — research R9. Sem default: sem a chave o app não sobe.
-    encryption-key: ${DRAW_ENCRYPTION_KEY}
+    # Chave AES-256 (base64, 32 bytes) dos pares do sorteio — research R9. Ausente ou inválida, o app
+    # não sobe (CryptoConfig), com uma mensagem clara e sem mostrar o valor.
+    encryption-key: ${DRAW_ENCRYPTION_KEY:}
   # Limites de tentativas — research R4 (capacidade de tentativas por janela)
   rate-limit:
     login-failure:

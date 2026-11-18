@@ -10,6 +10,10 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
 
     long countByIdGroupId(UUID groupId);
 
+    /** IDs dos membros, na ordem de entrada (entrada do sorteio). */
+    @Query("select m.id.userId from GroupMember m where m.id.groupId = :groupId order by m.joinedAt")
+    List<UUID> findUserIds(@Param("groupId") UUID groupId);
+
     /** Participantes na ordem de entrada (FR-014). */
     @Query("""
             select new br.com.amigosecreto.group.ParticipantView(u.id, u.name)

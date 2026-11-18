@@ -11,8 +11,13 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -86,6 +91,67 @@ public final class ApiClient {
 
     public Response delete(String path) {
         return send(withXsrf(request(path).DELETE()));
+    }
+
+    /** Abre um fluxo SSE e passa a guardar as linhas recebidas, em segundo plano. */
+    public EventStream openEvents(String path) {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .header("Accept", "text/event-stream")
+                .GET()
+                .build();
+        return new EventStream(http.sendAsync(request, HttpResponse.BodyHandlers.ofLines()));
+    }
+
+    /** Linhas de um fluxo SSE aberto. */
+    public static final class EventStream implements AutoCloseable {
+
+        private final List<String> lines = new CopyOnWriteArrayList<>();
+        private final CompletableFuture<HttpResponse<Stream<String>>> response;
+        private final CompletableFuture<Void> reader;
+
+        EventStream(CompletableFuture<HttpResponse<Stream<String>>> response) {
+            this.response = response;
+            this.reader = response.thenAcceptAsync(
+                    r -> {
+                        try (Stream<String> body = r.body()) {
+                            body.forEach(lines::add);
+                        } catch (RuntimeException closed) {
+                            // fluxo encerrado pelo teste
+                        }
+                    },
+                    Executors.newVirtualThreadPerTaskExecutor());
+        }
+
+        public int status() {
+            return response.join().statusCode();
+        }
+
+        public List<String> lines() {
+            return List.copyOf(lines);
+        }
+
+        /** Espera até alguma linha conter o texto. */
+        public boolean awaitLineContaining(String text, Duration timeout) {
+            long deadline = System.nanoTime() + timeout.toNanos();
+            while (System.nanoTime() < deadline) {
+                if (lines.stream().anyMatch(line -> line.contains(text))) {
+                    return true;
+                }
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public void close() {
+            response.thenAccept(r -> r.body().close());
+            reader.cancel(true);
+        }
     }
 
     /** Valor atual de um cookie deste cliente. */

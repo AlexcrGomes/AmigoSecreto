@@ -1,16 +1,26 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { groupKey } from './useGroup';
 
 /** Consulta de contingência enquanto o SSE estiver indisponível (contracts/sse-events.md). */
 export const POLL_INTERVAL_MS = 10_000;
 
+interface GroupEventHandlers {
+  /** O sorteio acabou de acontecer (evento `group-drawn`). */
+  onDrawn?: () => void;
+}
+
 /**
  * Sinais em tempo real do grupo. Os eventos não trazem dados: cada um só manda refazer a consulta do
  * grupo. Sem conexão (erro ou navegador sem SSE), consulta a cada 10 s até reconectar.
  */
-export function useGroupEvents(groupId: string | undefined) {
+export function useGroupEvents(groupId: string | undefined, handlers: GroupEventHandlers = {}) {
   const queryClient = useQueryClient();
+  const handlersRef = useRef(handlers);
+
+  useEffect(() => {
+    handlersRef.current = handlers;
+  });
 
   useEffect(() => {
     if (!groupId) return;
@@ -35,7 +45,10 @@ export function useGroupEvents(groupId: string | undefined) {
     const source = new EventSource(`/api/v1/groups/${encodeURIComponent(groupId)}/events`);
     let disconnected = false;
     source.addEventListener('participants-changed', refresh);
-    source.addEventListener('group-drawn', refresh);
+    source.addEventListener('group-drawn', () => {
+      refresh();
+      handlersRef.current.onDrawn?.();
+    });
     source.onopen = () => {
       if (disconnected) {
         disconnected = false;

@@ -2,6 +2,7 @@ package br.com.amigosecreto.events;
 
 import br.com.amigosecreto.auth.CurrentUser;
 import br.com.amigosecreto.group.GroupService;
+import java.io.IOException;
 import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +28,13 @@ public class GroupEventsController {
     public SseEmitter events(@PathVariable UUID groupId) {
         UUID userId = currentUser.id();
         groupService.requireMember(userId, groupId);
-        return registry.register(groupId, userId);
+        SseEmitter emitter = registry.register(groupId, userId);
+        try {
+            // Força o envio imediato dos cabeçalhos: o cliente sabe na hora que está conectado
+            emitter.send(SseEmitter.event().comment("conectado"));
+        } catch (IOException e) {
+            emitter.completeWithError(e);
+        }
+        return emitter;
     }
 }

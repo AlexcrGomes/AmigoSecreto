@@ -1,0 +1,96 @@
+package br.com.amigosecreto.draw;
+
+import br.com.amigosecreto.common.ConflictException;
+import br.com.amigosecreto.common.ForbiddenException;
+import br.com.amigosecreto.common.NotFoundException;
+import br.com.amigosecreto.common.UnprocessableException;
+import br.com.amigosecreto.draw.dto.DrawResult;
+import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
+import br.com.amigosecreto.group.GroupMemberId;
+import br.com.amigosecreto.group.GroupMemberRepository;
+import br.com.amigosecreto.group.GroupStatus;
+import br.com.amigosecreto.group.SecretGroup;
+import br.com.amigosecreto.group.SecretGroupRepository;
+import br.com.amigosecreto.ratelimit.RateLimitPolicy;
+import br.com.amigosecreto.ratelimit.RateLimiter;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Sorteio (US3, FR-020 a FR-027): único, atômico e no servidor. A linha do grupo fica travada
+ * ({@code FOR UPDATE}) do início ao fim, então dois sorteios simultâneos nunca acontecem: o segundo encontra
+ * o grupo já {@code DRAWN}. Qualquer falha desfaz tudo (rollback) e nenhum aviso é enviado. NUNCA logar
+ * quem tirou quem.
+ */
+@Service
+public class DrawService {
+
+    private static final String GROUP_NOT_FOUND = "Grupo não encontrado.";
+
+    private final SecretGroupRepository groups;
+    private final GroupMemberRepository members;
+    private final DrawAssignmentRepository assignments;
+    private final DerangementGenerator derangement;
+    private final AssignmentCipher cipher;
+    private final RateLimiter rateLimiter;
+    private final Clock clock;
+    private final ApplicationEventPublisher events;
+
+    public DrawService(
+            SecretGroupRepository groups,
+            GroupMemberRepository members,
+            DrawAssignmentRepository assignments,
+            DerangementGenerator derangement,
+            AssignmentCipher cipher,
+            RateLimiter rateLimiter,
+            Clock clock,
+            ApplicationEventPublisher events) {
+        this.groups = groups;
+        this.members = members;
+        this.assignments = assignments;
+        this.derangement = derangement;
+        this.cipher = cipher;
+        this.rateLimiter = rateLimiter;
+        this.clock = clock;
+        this.events = events;
+    }
+
+    @Transactional
+    public DrawResult draw(UUID userId, UUID groupId) {
+        rateLimiter.consume(RateLimitPolicy.DRAW, groupId.toString());
+
+        SecretGroup group = groups.findByIdForUpdate(groupId).orElseThrow(() -> new NotFoundException(GROUP_NOT_FOUND));
+        if (!members.existsById(new GroupMemberId(groupId, userId))) {
+            throw new NotFoundException(GROUP_NOT_FOUND);
+        }
+        if (!group.isOrganizer(userId)) {
+            throw new ForbiddenException("Só o organizador pode realizar o sorteio.");
+        }
+        if (group.getStatus() != GroupStatus.OPEN) {
+            throw new ConflictException("group-already-drawn", "O sorteio deste grupo já foi realizado.");
+        }
+        List<UUID> participants = members.findUserIds(groupId);
+        if (participants.size() < DerangementGenerator.MIN_PARTICIPANTS) {
+            throw new UnprocessableException("not-enough-participants", "São necessários pelo menos 3 participantes.");
+        }
+
+        Map<UUID, UUID> pairs = derangement.generate(participants);
+        Instant now = clock.instant();
+        List<DrawAssignment> rows = pairs.entrySet().stream()
+                .map(pair -> new DrawAssignment(
+                        groupId, pair.getKey(), cipher.encrypt(pair.getValue(), groupId, pair.getKey()), now))
+                .toList();
+        assignments.saveAll(rows);
+        group.markDrawn(now);
+
+        // Entregue aos participantes só depois do commit (SseEmitterRegistry, AFTER_COMMIT)
+        events.publishEvent(new GroupDrawnEvent(groupId, participants.size()));
+        return new DrawResult(groupId, GroupStatus.DRAWN, now);
+    }
+}

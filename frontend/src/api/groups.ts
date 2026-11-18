@@ -46,3 +46,23 @@ export function joinGroup(code: string): Promise<GroupDetail> {
 export function getGroup(id: string, signal?: AbortSignal): Promise<GroupDetail> {
   return apiFetch<GroupDetail>(`/groups/${encodeURIComponent(id)}`, { signal });
 }
+
+/** Schema `DrawResult`: confirmação do sorteio, sem nenhum par. */
+export interface DrawResult {
+  groupId: string;
+  status: GroupStatus;
+  drawnAt: string;
+}
+
+/** Schema `SecretFriend`: só o nome de quem o usuário da sessão tirou. */
+export interface SecretFriend {
+  name: string;
+}
+
+export function drawGroup(id: string): Promise<DrawResult> {
+  return apiFetch<DrawResult>(`/groups/${encodeURIComponent(id)}/draw`, { method: 'POST' });
+}
+
+export function getMySecretFriend(id: string, signal?: AbortSignal): Promise<SecretFriend> {
+  return apiFetch<SecretFriend>(`/groups/${encodeURIComponent(id)}/my-secret-friend`, { signal });
+}
