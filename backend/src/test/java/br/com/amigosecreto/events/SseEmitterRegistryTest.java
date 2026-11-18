@@ -172,6 +172,19 @@ class SseEmitterRegistryTest {
     }
 
     @Test
+    void shutdownClosesEveryConnection() {
+        RecordingEmitter ana = (RecordingEmitter) registry.register(GROUP, ANA);
+        RecordingEmitter bruno = (RecordingEmitter) registry.register(OTHER_GROUP, BRUNO);
+
+        registry.closeAll();
+
+        assertThat(ana.completed).isTrue();
+        assertThat(bruno.completed).isTrue();
+        assertThat(registry.connectionCount(GROUP)).isZero();
+        assertThat(registry.connectionCount(OTHER_GROUP)).isZero();
+    }
+
+    @Test
     void eventsForGroupsWithoutConnectionsAreIgnored() {
         registry.onParticipantsChanged(new ParticipantsChangedEvent(GROUP, GroupStatus.OPEN, 1));
 

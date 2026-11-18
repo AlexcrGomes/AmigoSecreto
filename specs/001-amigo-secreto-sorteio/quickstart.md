@@ -48,10 +48,11 @@ publicada no host. Abra `http://localhost:8080` (no celular: `http://<ip-da-máq
 ## 3. Rodar os testes
 
 Backend (unitários + integração com Testcontainers + cobertura + formatação), num container
-Maven com acesso ao Docker do WSL:
+Maven com acesso ao Docker do WSL. O repositório inteiro é montado porque o teste de contrato
+compara a API com `specs/…/contracts/openapi.yaml`:
 
 ```bash
-docker run --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/backend":/app -v "$HOME/.m2":/root/.m2 -w /app maven:3.10.0-eclipse-temurin-25 mvn -B verify
+docker run --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/repo -v "$HOME/.m2":/root/.m2 -w /repo/backend maven:3.10.0-eclipse-temurin-25 mvn -B verify
 ```
 
 Frontend (lint + formatação + testes + cobertura):

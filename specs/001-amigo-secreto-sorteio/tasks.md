@@ -229,14 +229,14 @@ Testing Library + MSW. Gate de cobertura: 80% de linhas.
 
 **Purpose**: documentação, desempenho, segurança e validação final.
 
-- [ ] T091 [P] Criar `…/config/OpenApiConfig.java` (springdoc só no perfil `dev`) e o teste `test/…/integration/OpenApiContractIT.java`, que, no perfil `dev`, compara os paths e métodos gerados em `/v3/api-docs` com [contracts/openapi.yaml](./contracts/openapi.yaml)
-- [ ] T092 [P] Teste de desempenho `test/…/integration/DrawPerformanceIT.java`: sortear um grupo de **100** membros leva < 1 s; 100 clientes consultando `GET /groups/{id}` em paralelo respondem todos em ≤ 2 s (SC-008)
-- [ ] T093 [P] Revisar os logs: configurar `backend/src/main/resources/logback-spring.xml` (sem log de corpo de requisição e no nível INFO em produção); varrer o código procurando `log.*receiver`, `log.*password` e `log.*code` e corrigir o que aparecer; confirmar que nenhum `toString` de entidade expõe dados sensíveis
-- [ ] T094 [P] Revisão de acessibilidade e responsividade em `frontend/src/**`: em 360px nenhuma tela tem rolagem horizontal; foco visível; contraste AA dos tokens do `@theme`; `aria-live` nos toasts; toda ação com loading/sucesso/erro (FR-033 a FR-035)
-- [ ] T095 [P] Criar o `README.md` da raiz: o que é o projeto, como subir no WSL (link para o [quickstart.md](./quickstart.md)), variáveis do `.env`, como rodar os testes, o fluxo SDD e o **aviso de backup** da `DRAW_ENCRYPTION_KEY` junto com o banco
-- [ ] T096 Rodar `mvn -B verify` (`backend/pom.xml`) e `npm run test:coverage` (`frontend/package.json`) em container (comandos do quickstart) e confirmar cobertura ≥ 80% nos dois (`backend/target/site/jacoco/index.html`, `frontend/coverage/`)
-- [ ] T097 Rodar as varreduras locais (Trivy `fs` e `image`, Gitleaks — comandos do quickstart) e corrigir todo achado HIGH/CRITICAL
-- [ ] T098 Executar o roteiro completo do [quickstart.md](./quickstart.md) (passos 1 a 16 e a verificação de sigilo) com `docker compose up -d --build` no WSL e num celular real ou na emulação de 360px
+- [X] T091 [P] Criar `…/config/OpenApiConfig.java` (springdoc só no perfil `dev`) e o teste `test/…/integration/OpenApiContractIT.java`, que, no perfil `dev`, compara os paths e métodos gerados em `/v3/api-docs` com [contracts/openapi.yaml](./contracts/openapi.yaml)
+- [X] T092 [P] Teste de desempenho `test/…/integration/DrawPerformanceIT.java`: sortear um grupo de **100** membros leva < 1 s; 100 clientes consultando `GET /groups/{id}` em paralelo respondem todos em ≤ 2 s (SC-008)
+- [X] T093 [P] Revisar os logs: configurar `backend/src/main/resources/logback-spring.xml` (sem log de corpo de requisição e no nível INFO em produção); varrer o código procurando `log.*receiver`, `log.*password` e `log.*code` e corrigir o que aparecer; confirmar que nenhum `toString` de entidade expõe dados sensíveis
+- [X] T094 [P] Revisão de acessibilidade e responsividade em `frontend/src/**`: em 360px nenhuma tela tem rolagem horizontal; foco visível; contraste AA dos tokens do `@theme`; `aria-live` nos toasts; toda ação com loading/sucesso/erro (FR-033 a FR-035)
+- [X] T095 [P] Criar o `README.md` da raiz: o que é o projeto, como subir no WSL (link para o [quickstart.md](./quickstart.md)), variáveis do `.env`, como rodar os testes, o fluxo SDD e o **aviso de backup** da `DRAW_ENCRYPTION_KEY` junto com o banco
+- [X] T096 Rodar `mvn -B verify` (`backend/pom.xml`) e `npm run test:coverage` (`frontend/package.json`) em container (comandos do quickstart) e confirmar cobertura ≥ 80% nos dois (`backend/target/site/jacoco/index.html`, `frontend/coverage/`)
+- [X] T097 Rodar as varreduras locais (Trivy `fs` e `image`, Gitleaks — comandos do quickstart) e corrigir todo achado HIGH/CRITICAL
+- [X] T098 Executar o roteiro completo do [quickstart.md](./quickstart.md) (passos 1 a 16 e a verificação de sigilo) com `docker compose up -d --build` no WSL e num celular real ou na emulação de 360px
 - [ ] T099 Configurar no GitHub, conforme o `CONTRIBUTING.md` (feito pelo mantenedor, ou por automação só com a autorização explícita dele): ruleset da `main` com PR obrigatório, todos os jobs de `.github/workflows/ci.yml` (inclusive `aprovacao`) e de `.github/workflows/security.yml` como checks obrigatórios, branch atualizada antes do merge, sem push direto, sem force push e **sem bypass para administradores**; environment `aprovacao-manual` com o mantenedor como revisor obrigatório. Depois, abrir o PR `001-amigo-secreto-sorteio` → `main` e confirmar que o merge fica bloqueado até os checks e a aprovação
 
 ---

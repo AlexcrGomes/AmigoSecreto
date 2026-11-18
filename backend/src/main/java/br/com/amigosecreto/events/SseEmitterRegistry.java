@@ -14,6 +14,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -53,6 +55,25 @@ public class SseEmitterRegistry {
         });
         emitter.onError(error -> unregister(groupId, userId, emitter));
         return emitter;
+    }
+
+    /**
+     * No desligamento, encerra todas as conexões: os navegadores reconectam sozinhos (na nova instância).
+     * Roda no {@link ContextClosedEvent}, ANTES do graceful shutdown do servidor — que, do contrário, ficaria
+     * esperando até 30 s pelas respostas SSE abertas.
+     */
+    @EventListener(ContextClosedEvent.class)
+    public void closeAll() {
+        emitters.values()
+                .forEach(byUser -> byUser.values()
+                        .forEach(set -> set.forEach(emitter -> {
+                            try {
+                                emitter.complete();
+                            } catch (IllegalStateException ignored) {
+                                // já encerrada
+                            }
+                        })));
+        emitters.clear();
     }
 
     SseEmitter createEmitter() {
