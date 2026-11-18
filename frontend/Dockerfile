@@ -9,7 +9,7 @@ COPY . .
 RUN npm run build
 
 # ---- runtime: nginx sem root, porta 8080 ----
-FROM nginxinc/nginx-unprivileged:1.30.6-alpine3.24
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine3.24
 # Correções de segurança do Alpine publicadas depois da imagem base (gate 5: sem HIGH/CRITICAL)
 USER root
 RUN apk upgrade --no-cache
