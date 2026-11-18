@@ -10,7 +10,7 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q -DskipTests package
 
 # ---- runtime ----
-FROM eclipse-temurin:25-jre-alpine-3.24
+FROM eclipse-temurin:27-jre-alpine-3.24
 # Correções de segurança do Alpine publicadas depois da imagem base (gate 5: sem HIGH/CRITICAL)
 RUN apk upgrade --no-cache
 RUN addgroup -S -g 10001 appuser && adduser -S -u 10001 -G appuser appuser
