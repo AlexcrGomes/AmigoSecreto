@@ -36,8 +36,7 @@
   depois do sorteio com aprovação do organizador, incluída como US4 (FR-025 a FR-033, SC-008 e
   SC-009).
 - Iteração 2: todos os itens passam.
-- **Pendência de governança**: a US4 desfaz e refaz o sorteio, o que o Princípio II da
-  constituição ("executado uma única vez") hoje não permite. É preciso emendar a constituição
-  (`/speckit-constitution`) antes do `/speckit-plan`, ou o Constitution Check vai reprovar.
+- **Governança**: a US4 desfaz e refaz o sorteio; resolvido com a emenda da constituição para a
+  v1.2.0 (Princípio II), em 2026-11-18.
 - A menção a "armazenados em UTC" nas Assumptions repete uma regra da constituição; não é
   decisão de implementação desta spec.

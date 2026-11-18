@@ -21,7 +21,7 @@ do sistema.
 
 ### II. Sorteio Justo, Válido e Simultâneo (NÃO NEGOCIÁVEL)
 
-- O sorteio MUST ser executado **uma única vez, no servidor**, para o grupo inteiro, em uma
+- Cada sorteio MUST ser executado **uma única vez, no servidor**, para o grupo inteiro, em uma
   transação atômica — nunca no cliente e nunca de forma parcial ou por usuário.
 - O resultado MUST ser um *derangement*: cada participante dá e recebe exatamente um presente
   e **ninguém tira a si mesmo**. Se uma tentativa produzir auto-sorteio, o sorteio MUST ser
@@ -35,9 +35,19 @@ do sistema.
   é decidido no `plan`.
 - O sorteio MUST exigir no mínimo 3 participantes (com 2, cada um deduziria o par do outro,
   violando o Princípio I).
+- Um sorteio concluído é **definitivo**, com uma única exceção: o organizador aprovar o pedido
+  de saída de um participante que não seja o organizador. Nesse caso, em uma única transação,
+  o participante sai do grupo, **todos os pares do sorteio são descartados de forma definitiva
+  e irrecuperável** (inclusive para quem administra o sistema) e o grupo volta a "aguardando
+  sorteio". Um novo sorteio entre quem permaneceu segue todas as regras deste princípio e é
+  independente do anterior.
+- Ninguém, nem o organizador, pode desfazer ou refazer um sorteio por outro caminho. Quem saiu
+  de um grupo depois do sorteio MUST NOT poder entrar de novo nesse grupo, para impedir que
+  saídas combinadas sejam usadas para sortear até obter um resultado desejado.
 
 **Justificativa**: estas são as regras de negócio centrais; qualquer violação torna o sistema
-incorreto.
+incorreto. A exceção da saída aprovada evita recriar o grupo quando alguém desiste, sem abrir
+caminho para que um sorteio seja refeito à vontade.
 
 ### III. Segurança por Padrão
 
@@ -48,7 +58,7 @@ incorreto.
 - Tokens/sessões MUST ter expiração; se forem usados cookies, MUST ser `HttpOnly`, `Secure` e
   `SameSite`. Tokens MUST NOT ser guardados em `localStorage` sem justificativa no `plan`.
 - Autorização MUST ser verificada no servidor a cada requisição: só membros de um grupo acessam
-  dados desse grupo; só o criador pode iniciar o sorteio.
+  dados desse grupo; só o criador pode iniciar o sorteio e aprovar pedidos de saída.
 - Códigos de grupo MUST ser únicos, não sequenciais e gerados com `SecureRandom` com entropia
   suficiente para impedir adivinhação; login e entrada por código MUST ter limitação de
   tentativas (rate limiting).
@@ -193,4 +203,4 @@ tasks aprovados.
   `plan` com justificativa. Toda aprovação de PR MUST verificar os Princípios I a VIII.
 - Princípios marcados como NÃO NEGOCIÁVEL (I, II, IV) não admitem exceção, apenas emenda.
 
-**Version**: 1.1.0 | **Ratified**: 2026-11-12 | **Last Amended**: 2026-11-12
+**Version**: 1.2.0 | **Ratified**: 2026-11-12 | **Last Amended**: 2026-11-18

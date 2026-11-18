@@ -24,9 +24,10 @@ descritos, salvo o que esta spec altera.
 - **Situação do grupo**: *aguardando sorteio* → *sorteado* → *finalizado* (nova). Uma saída
   aprovada depois do sorteio faz o grupo voltar de *sorteado* para *aguardando sorteio*.
 
-**Atenção (governança)**: a US4 permite desfazer e refazer o sorteio, o que hoje a constituição
-(Princípio II, "executado uma única vez") e a feature 001 (FR-019 e FR-025) proíbem. É preciso
-emendar a constituição antes do plano.
+**Governança**: a US4 desfaz e refaz o sorteio, o que a constituição v1.1.0 (Princípio II) e a
+feature 001 (FR-019 e FR-025) proibiam. A constituição v1.2.0 (2026-11-18) passou a permitir
+exatamente esta exceção: saída aprovada pelo organizador, pares descartados de forma
+irrecuperável e sem reentrada de quem saiu.
 
 ## Clarifications
 
