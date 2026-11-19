@@ -84,7 +84,7 @@ Restrições alteradas ou novas:
 | `markDrawn(now)` | `OPEN → DRAWN` (já existe); passa a zerar `draw_undone_at` |
 | `undoDraw(now)` | `DRAWN → OPEN`, `drawn_at = NULL`, `draw_undone_at = now` |
 | `finishIfDue(now)` | se `DRAWN` e `finalizes_at <= now`: `→ FINISHED`, `finished_at = now`; devolve se mudou |
-| `drawBlockedReason(members, now)` | `event-details-required` / `event-date-passed` / `not-enough-participants` / `participants-pending` / `null` (R16) |
+| `drawBlockedReason(members, now)` | `event-details-required` / `event-date-passed` (agora ≥ `finalizes_at`) / `not-enough-participants` / `participants-pending` / `null` (R16) |
 
 ## 2. `group_member` — Participação (alterada)
 

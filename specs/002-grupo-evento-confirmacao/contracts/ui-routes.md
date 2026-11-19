@@ -48,8 +48,12 @@ simples, com quebras de linha preservadas (FR-007).
     que, se aprovar, o sorteio será refeito para todos → "Pedir para sair";
   - com pedido pendente: aviso "Seu pedido de saída está aguardando o organizador" e botão
     "Cancelar pedido";
-  - pedido recusado ou cancelado automaticamente (aviso não visto): "O organizador recusou seu
-    pedido de saída." / "Seu pedido de saída foi cancelado." com botão "Entendi".
+  - pedido recusado ou cancelado automaticamente (aviso não visto), com botão "Entendi":
+    - recusado: "O organizador recusou seu pedido de saída.";
+    - cancelado com o grupo aguardando sorteio (outra saída desfez o sorteio): "Seu pedido foi
+      cancelado porque o sorteio foi desfeito. Agora você pode sair do grupo diretamente.";
+    - cancelado com o grupo finalizado: "Seu pedido foi cancelado porque o evento aconteceu e o
+      grupo foi finalizado."
 - **Organizador**: seção **Pedidos de saída** (só aparece se houver) com o nome e a data de cada
   pedido e os botões **Aprovar** e **Recusar**, cada um com modal de confirmação. O modal de
   aprovar avisa: "Fulano sairá do grupo, o sorteio será desfeito para todos e você precisará

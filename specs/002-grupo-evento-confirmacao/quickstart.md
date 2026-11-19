@@ -76,6 +76,7 @@ docker compose exec db psql -U amigo -d amigosecreto -c "select count(*) from dr
 ## 5. Cuidado operacional: backups e sorteios desfeitos
 
 A aplicação apaga os pares na aprovação e não guarda cópia (research R18). Um backup do banco
-feito **antes** da aprovação ainda contém os pares antigos, cifrados. Para que o descarte seja
-definitivo também para quem administra, guarde backups pelo menor tempo necessário e nunca
-junto com a `DRAW_ENCRYPTION_KEY`.
+feito **antes** da aprovação ainda contém os pares antigos, cifrados. Pela constituição
+(v1.2.1, Princípio II), backups MUST ter a retenção mínima necessária e ficar guardados
+**separados** da `DRAW_ENCRYPTION_KEY`, para que nem quem administra recupere um sorteio
+desfeito.

@@ -58,12 +58,12 @@ aditivas em `/api/v1`
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Constituição **v1.2.0**.
+Constituição **v1.2.1**.
 
 | # | Princípio | Como o plano cumpre | Pré-pesquisa | Pós-design |
 |---|-----------|---------------------|:---:|:---:|
 | I | Sigilo (não negociável) | Nenhuma rota nova devolve pares; `my-secret-friend` continua a única leitura; pedidos de saída, avisos e SSE sem pares (FR-032); `draw_assignment` ganha só um `DELETE` em massa, nunca leitura do grupo inteiro; teste de integração de sigilo após desfazer (R25) | ✅ | ✅ |
-| II | Sorteio justo e simultâneo (não negociável) | Mesmo `DrawService` (SecureRandom, derangement, lock, mínimo de 3) com as condições novas no mesmo lock (R16); desfazer só pela aprovação de saída, numa transação, com todos os pares apagados e sem cópia (R18); quem saiu não volta (R19); nenhuma outra rota desfaz ou refaz. Restos físicos em backups/WAL documentados como cuidado operacional (quickstart §5) | ✅ | ✅ |
+| II | Sorteio justo e simultâneo (não negociável) | Mesmo `DrawService` (SecureRandom, derangement, lock, mínimo de 3) com as condições novas no mesmo lock (R16); desfazer só pela aprovação de saída, numa transação, com todos os pares apagados e sem cópia (R18); quem saiu não volta (R19); nenhuma outra rota desfaz ou refaz. Backups: retenção mínima e separados da chave, como exige a v1.2.1 (quickstart §5) | ✅ | ✅ |
 | III | Segurança por padrão | Identidade sempre da sessão (confirmar, pedir saída, avisos); só o organizador edita detalhes e decide pedidos (`403`); `404` para não membros; Bean Validation nos corpos novos; CSRF em todas as escritas; texto do usuário nunca interpretado como HTML (FR-007) | ✅ | ✅ |
 | IV | Testes obrigatórios (não negociável) | Teste primeiro em `EventSchedule`, condições do sorteio, desfazer e autorização; Testcontainers para corridas e migração; gate de 80% mantido (R25) | ✅ | ✅ |
 | V | Varredura contínua | Sem mudança: o PR passa pelos mesmos CodeQL, Trivy, `npm audit` e Gitleaks | ✅ | ✅ |
@@ -75,10 +75,10 @@ Constituição **v1.2.0**.
 
 **Resultado**: nenhum desvio. *Complexity Tracking* não se aplica.
 
-**Ponto de atenção registrado (Princípio II)**: o descarte é definitivo no banco em uso, mas um
-backup feito antes da aprovação ainda guarda os pares antigos (cifrados). A aplicação não
-controla backups; o quickstart orienta a retenção. Se isso não for aceitável, o caminho é uma
-emenda que trate backups explicitamente.
+**Backups (Princípio II, v1.2.1)**: o descarte vale para o banco do sistema, onde os pares são
+apagados na mesma transação. Backups feitos antes da aprovação ainda guardam os pares antigos
+(cifrados); a constituição exige retenção mínima e guarda separada da `DRAW_ENCRYPTION_KEY`,
+regra operacional descrita no quickstart §5.
 
 **Pendências herdadas, a fechar nesta implementação**:
 
@@ -194,7 +194,7 @@ sem Spring.
 | Migração quebrar grupos existentes | V5 preenche só o que é seguro (R22); teste de migração a partir de dados da 001 |
 | Finalização atrasar se a aplicação ficar parada | tarefa roda na subida; `finishIfDue` em toda escrita |
 | Contrato OpenAPI dividido se desencontrar | `OpenApiContractIT` compara a união dos dois arquivos com a API gerada (R24) |
-| Backups guardarem pares de sorteios desfeitos | orientação de retenção no quickstart §5; ponto de atenção no Constitution Check |
+| Backups guardarem pares de sorteios desfeitos | retenção mínima e guarda separada da chave (constituição v1.2.1, quickstart §5) |
 
 ## Complexity Tracking
 

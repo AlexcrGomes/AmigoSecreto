@@ -427,7 +427,7 @@ components:
             - $ref: '#/components/schemas/EventDetails'
             - type: 'null'
         eventDetailsMissing: { type: boolean, description: 'NOVO; grupo antigo sem data e local (FR-034)' }
-        eventDatePassed: { type: boolean, description: 'NOVO; status OPEN e a data já passou (US3-5)' }
+        eventDatePassed: { type: boolean, description: 'NOVO; status OPEN e o evento já aconteceu (agora ≥ momento de finalizar, research R16; US3-5)' }
         detailsVersion: { type: integer, description: 'NOVO; enviar ao confirmar (FR-035)' }
         confirmedCount: { type: integer, description: NOVO }
         myConfirmation: { type: string, enum: [PENDING, CONFIRMED], description: NOVO }

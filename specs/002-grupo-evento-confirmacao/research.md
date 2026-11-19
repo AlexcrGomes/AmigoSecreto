@@ -89,9 +89,12 @@ verificações novas, nesta ordem (a primeira que falhar responde):
 | Ordem | Condição | Resposta |
 |-------|----------|----------|
 | 1 | grupo sem detalhes do evento (grupo antigo) | `422 event-details-required` |
-| 2 | data do evento já passou | `422 event-date-passed` |
+| 2 | o evento já aconteceu: agora ≥ `finalizes_at` (no horário, se informado; senão no fim do dia) | `422 event-date-passed` |
 | 3 | menos de 3 participantes | `422 not-enough-participants` (já existe) |
 | 4 | algum participante pendente | `422 participants-pending`, com os nomes de quem falta em `pending` |
+
+Usar `finalizes_at` (e não só a data) evita sortear um grupo cujo evento foi hoje mais cedo, que
+seria finalizado no minuto seguinte. `eventDatePassed` no `GroupDetail` segue a mesma regra.
 
 O `GroupDetail` passa a ter `drawBlockedReason` (o mesmo código, ou `null`) para o botão dizer
 por que está bloqueado sem precisar tentar (FR-014).
@@ -158,8 +161,8 @@ o `SKIP LOCKED` já protege se um dia houver duas.
 do banco na mesma transação; a aplicação não guarda cópia, log nem histórico do sorteio
 desfeito, e não existe rota que os leia. Restos físicos fora do controle da aplicação — linhas
 mortas até o *autovacuum*, WAL e backups feitos **antes** da aprovação — continuam cifrados e só
-seriam legíveis por quem tem a chave e o backup. Isso é documentado no quickstart como cuidado
-operacional (retenção de backups).
+seriam legíveis por quem tem a chave e o backup. A constituição v1.2.1 trata esse caso:
+backups com retenção mínima e guardados separados da chave (quickstart §5).
 
 **Alternatives considered**:
 - *Crypto-shredding* (chave por sorteio, apagada ao desfazer) — a chave apagada também ficaria
@@ -262,7 +265,9 @@ celular (Constituição VI).
 **Decision**: o [contrato desta feature](./contracts/openapi.yaml) lista só o que é novo ou
 mudou. O `OpenApiContractIT` passa a ler os dois arquivos (001 e 002) e comparar a **união** das
 rotas com as geradas pelo springdoc. Rotas alteradas aparecem nos dois arquivos; a união
-elimina a repetição.
+elimina a repetição. Como a feature é entregue em vários PRs e a `main` exige CI verde, a
+comparação é feita em dois modos: durante as histórias, toda rota gerada precisa estar
+documentada (geradas ⊆ união); quando a US4 termina, volta a igualdade completa.
 
 **Rationale**: mantém a spec 001 como registro do que foi entregue e deixa a revisão da 002
 focada no que muda, sem perder a verificação automática de que a API e o contrato batem.

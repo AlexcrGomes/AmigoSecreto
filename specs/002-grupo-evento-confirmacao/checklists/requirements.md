@@ -38,5 +38,8 @@
 - Iteração 2: todos os itens passam.
 - **Governança**: a US4 desfaz e refaz o sorteio; resolvido com a emenda da constituição para a
   v1.2.0 (Princípio II), em 2026-11-18.
+- Iteração 3 (após `/speckit-analyze`): caso-limite de data vencida alinhado à FR-015, FR-013
+  passa a usar o momento do evento, e a constituição v1.2.1 esclarece o descarte frente a
+  backups. Todos os itens continuam passando.
 - A menção a "armazenados em UTC" nas Assumptions repete uma regra da constituição; não é
   decisão de implementação desta spec.

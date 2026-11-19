@@ -27,7 +27,8 @@ descritos, salvo o que esta spec altera.
 **Governança**: a US4 desfaz e refaz o sorteio, o que a constituição v1.1.0 (Princípio II) e a
 feature 001 (FR-019 e FR-025) proibiam. A constituição v1.2.0 (2026-11-18) passou a permitir
 exatamente esta exceção: saída aprovada pelo organizador, pares descartados de forma
-irrecuperável e sem reentrada de quem saiu.
+irrecuperável e sem reentrada de quem saiu. A v1.2.1 esclareceu que o descarte vale para o
+banco do sistema e que backups têm retenção mínima e ficam separados da chave dos pares.
 
 ## Clarifications
 
@@ -209,8 +210,11 @@ o organizador sorteia de novo e os 3 que ficaram recebem novos amigos secretos, 
 - **Confirmar depois de sair ou ser removido**: o sistema recusa, pois a pessoa já não é
   participante.
 - **Data do evento passou sem sorteio**: o sorteio fica bloqueado até o organizador informar uma
-  nova data (hoje ou no futuro); confirmações e participantes são mantidos.
-- **Data do evento hoje**: é permitida; o sorteio pode ser feito no próprio dia.
+  nova data (hoje ou no futuro). Enquanto a data não muda, participantes e confirmações são
+  mantidos; ao informar a nova data, vale a FR-015 e todos, exceto o organizador, confirmam de
+  novo.
+- **Data do evento hoje**: é permitida; o sorteio pode ser feito no próprio dia, até o horário
+  do evento (ou, sem horário, até o fim do dia).
 - **Horário não informado**: a data é exibida sem horário; o evento é considerado acontecido ao
   fim desse dia.
 - **Descrição com quebras de linha ou texto longo**: as quebras de linha são preservadas na
@@ -269,7 +273,8 @@ o organizador sorteia de novo e os 3 que ficaram recebem novos amigos secretos, 
   está pendente, e a contagem de confirmados sobre o total; a lista MUST ser atualizada sem
   recarregar a página quando alguém confirma.
 - **FR-013**: O sorteio MUST ser liberado somente quando, no momento em que é processado, o grupo
-  tem pelo menos 3 participantes, todos confirmados, e a data do evento não passou. Caso
+  tem pelo menos 3 participantes, todos confirmados, e o evento ainda não aconteceu (antes do
+  horário informado ou, sem horário, até o fim do dia do evento — o mesmo momento da FR-017). Caso
   contrário, o sistema MUST recusar e informar o motivo (quem falta confirmar, ou que a data
   precisa ser atualizada).
 - **FR-014**: O organizador MUST ver, antes de sortear, quantos e quais participantes ainda estão
