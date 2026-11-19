@@ -42,6 +42,16 @@ irrecuperável e sem reentrada de quem saiu.
 - Q (levantada pelo usuário): E se alguém quiser sair de um grupo já sorteado? → A: A pessoa
   pede para sair; o organizador aprova ou recusa. Aprovado, ela sai, o sorteio é desfeito e o
   organizador pode sortear de novo com quem permaneceu.
+- Q: Como grupos sorteados antes desta feature, sem data do evento, chegam a *finalizado*? → A:
+  Continuam *sorteados*; o organizador vê um aviso para informar data e local e, a partir daí,
+  o grupo finaliza como os demais.
+- Q: Se alguém confirma no mesmo instante em que o organizador muda a data ou o local, a
+  confirmação vale? → A: Não; ela é recusada, a pessoa vê os detalhes novos e confirma de novo.
+- Q: Como quem pediu para sair fica sabendo da decisão se não estiver com o sistema aberto? →
+  A: A decisão fica guardada e aparece na próxima entrada (recusa na tela do grupo, aprovação na
+  tela inicial) até a pessoa ver; sem e-mail ou push.
+- Q: Depois de um pedido de saída recusado, a pessoa pode pedir de novo? → A: Sim, sem limite,
+  desde que tenha no máximo um pedido pendente por vez.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -168,7 +178,8 @@ o organizador sorteia de novo e os 3 que ficaram recebem novos amigos secretos, 
 2. **Given** um pedido pendente, **When** o próprio participante o cancela, **Then** o pedido
    deixa de existir e nada muda no grupo.
 3. **Given** um pedido pendente, **When** o organizador recusa, **Then** o participante continua no
-   grupo com o mesmo amigo secreto e é informado de que o pedido foi recusado.
+   grupo com o mesmo amigo secreto, é informado de que o pedido foi recusado e pode pedir de
+   novo depois.
 4. **Given** um pedido pendente, **When** o organizador aprova, **Then** o participante sai do grupo
    e perde o acesso a ele, o sorteio é desfeito para todos (ninguém consegue mais ver o amigo
    secreto anterior), o grupo volta a *aguardando sorteio* e todos com o grupo aberto são
@@ -192,6 +203,9 @@ o organizador sorteia de novo e os 3 que ficaram recebem novos amigos secretos, 
   recusado e o organizador vê quem falta.
 - **Confirmação repetida** (dois toques, duas abas): a pessoa continua confirmada uma única vez;
   não há erro.
+- **Confirmar enquanto o organizador muda a data ou o local**: se os detalhes mudaram depois de
+  a tela ser carregada, a confirmação é recusada; a pessoa vê os detalhes novos e confirma de
+  novo (FR-035).
 - **Confirmar depois de sair ou ser removido**: o sistema recusa, pois a pessoa já não é
   participante.
 - **Data do evento passou sem sorteio**: o sorteio fica bloqueado até o organizador informar uma
@@ -205,7 +219,9 @@ o organizador sorteia de novo e os 3 que ficaram recebem novos amigos secretos, 
   interpretado como conteúdo da página.
 - **Grupos criados antes desta feature** (aguardando sorteio): ficam sem detalhes do evento e com
   os participantes não organizadores pendentes; o organizador precisa preencher data e local e
-  todos precisam confirmar antes do sorteio. Grupos já sorteados continuam sorteados.
+  todos precisam confirmar antes do sorteio. Grupos já sorteados continuam sorteados, sem
+  detalhes; o organizador vê um aviso para informar data e local e, enquanto não informar, o
+  grupo não é finalizado (FR-034).
 - **Fuso horário**: datas e horários são exibidos no horário de Brasília.
 - **Dois pedidos de saída pendentes ao mesmo tempo**: ao aprovar um deles, o sorteio é desfeito e
   os demais pedidos são cancelados; essas pessoas são avisadas de que agora podem sair
@@ -262,6 +278,9 @@ o organizador sorteia de novo e os 3 que ficaram recebem novos amigos secretos, 
   confirmação de todos os participantes, exceto a do organizador, MUST voltar a pendente, e quem
   está com o grupo aberto MUST ser avisado de que precisa confirmar de novo. Alterar só a
   descrição não afeta as confirmações.
+- **FR-035**: Uma confirmação MUST valer somente para a versão dos detalhes do evento que a
+  pessoa viu. Se a data, o horário ou o local mudaram depois disso, a confirmação MUST ser
+  recusada e a pessoa MUST ver os detalhes atualizados para confirmar de novo.
 - **FR-016**: Após o sorteio, a confirmação deixa de ser exigida ou alterável; alterações nos
   detalhes do evento não afetam o sorteio já feito.
 
@@ -277,6 +296,9 @@ o organizador sorteia de novo e os 3 que ficaram recebem novos amigos secretos, 
 - **FR-020**: A tela inicial MUST separar os grupos finalizados dos grupos em andamento.
 - **FR-021**: A mudança para *finalizado* MUST aparecer para quem está com o grupo aberto sem
   recarregar a página.
+- **FR-034**: Grupos sorteados antes desta feature MUST continuar *sorteados* e sem detalhes do
+  evento; o organizador MUST ver um aviso para informar data e local, e só a partir daí o grupo
+  segue a FR-017. Enquanto não houver data, o grupo não é finalizado.
 
 **Sigilo, segurança e experiência** (reforçam a feature 001)
 
@@ -292,9 +314,13 @@ o organizador sorteia de novo e os 3 que ficaram recebem novos amigos secretos, 
 
 - **FR-025**: Em um grupo *sorteado*, um participante (exceto o organizador) MUST poder pedir para
   sair; cada participante tem no máximo um pedido pendente por vez e MUST poder cancelá-lo
-  enquanto estiver pendente.
+  enquanto estiver pendente. Depois de um pedido recusado ou cancelado, a pessoa MUST poder
+  pedir de novo, sem limite de vezes.
 - **FR-026**: Somente o organizador MUST poder aprovar ou recusar pedidos de saída; ele MUST ver os
-  pedidos pendentes na tela do grupo, e o solicitante MUST ser informado da decisão.
+  pedidos pendentes na tela do grupo. O solicitante MUST ser informado da decisão ou do
+  cancelamento automático do pedido (FR-028, FR-033): na hora, se estiver com o sistema aberto;
+  senão, na próxima vez que entrar — a recusa na tela do grupo e a aprovação na tela inicial
+  ("Você saiu do grupo X"). O aviso some depois de visto.
 - **FR-027**: Enquanto um pedido estiver pendente, o sorteio MUST continuar valendo e cada
   participante continua vendo o próprio amigo secreto.
 - **FR-028**: Ao aprovar um pedido, o sistema MUST, de uma só vez: retirar o participante do
@@ -319,8 +345,8 @@ o organizador sorteia de novo e os 3 que ficaram recebem novos amigos secretos, 
 - **Participação** (alterada): ganha a situação de confirmação (*pendente* / *confirmado*) e a
   data da confirmação.
 - **Pedido de saída** (novo): participante que pede para sair, grupo, data do pedido, situação
-  (*pendente* / *aprovado* / *recusado* / *cancelado*) e data da decisão. Só existe para grupos
-  sorteados.
+  (*pendente* / *aprovado* / *recusado* / *cancelado*), data da decisão e se o solicitante já
+  viu o aviso da decisão. Só existe para grupos sorteados.
 - **Saída após sorteio** (novo): registro de que uma pessoa saiu de um grupo depois do sorteio,
   usado para impedir que ela entre de novo (FR-030).
 
@@ -367,7 +393,9 @@ o organizador sorteia de novo e os 3 que ficaram recebem novos amigos secretos, 
 - Os detalhes do evento podem ser alterados depois do sorteio (por exemplo, mudança de local),
   mas isso não reabre confirmações nem afeta o sorteio.
 - O sistema não envia e-mails nem notificações push sobre confirmações, mudanças nos detalhes ou
-  finalização; os avisos aparecem só dentro do sistema, para quem está com ele aberto.
+  finalização; os avisos aparecem só dentro do sistema, para quem está com ele aberto. A única
+  exceção é a decisão sobre um pedido de saída, que fica guardada até o solicitante vê-la
+  (FR-026).
 - **Fora do escopo desta versão**: lembretes da data do evento, mapa ou geolocalização do local,
   valor sugerido do presente como campo próprio (pode ir na descrição), lista de desejos, prazo
   para confirmar, convidar por e-mail, reabrir um grupo finalizado, excluir grupo, motivo do
