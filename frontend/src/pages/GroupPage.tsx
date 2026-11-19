@@ -2,15 +2,25 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../api/client';
-import { leaveGroup, removeParticipant, type Participant } from '../api/groups';
+import {
+  leaveGroup,
+  removeParticipant,
+  updateEventDetails,
+  type EventDetailsBody,
+  type Participant,
+} from '../api/groups';
 import { useAuth } from '../auth/AuthProvider';
 import { DrawButton } from '../components/group/DrawButton';
+import { EventDetailsCard } from '../components/group/EventDetailsCard';
+import { EventDetailsForm } from '../components/group/EventDetailsForm';
 import { ParticipantList } from '../components/group/ParticipantList';
 import { SecretFriendCard } from '../components/group/SecretFriendCard';
 import { ShareCode } from '../components/group/ShareCode';
 import { Badge } from '../components/ui/Badge';
 import { Button, buttonClasses } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
 import { GROUPS_KEY, groupKey, useGroup } from '../hooks/useGroup';
@@ -34,6 +44,7 @@ export function GroupPage() {
   const [justDrawn, setJustDrawn] = useState(false);
   const [removing, setRemoving] = useState<Participant | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
 
   /** Saiu do grupo (por conta própria ou removido): descarta os dados e volta para a lista. */
   function exitGroup(message: string, kind: 'success' | 'error') {
@@ -89,6 +100,18 @@ export function GroupPage() {
     exitGroup('Você saiu do grupo.', 'success');
   }
 
+  /** Organizador, com o grupo aberto ou sorteado (FR-005, FR-006). */
+  const canEditDetails =
+    detail.organizer && (detail.status === 'OPEN' || detail.status === 'DRAWN');
+
+  async function saveDetails(details: EventDetailsBody) {
+    const updated = await updateEventDetails(detail.id, details);
+    queryClient.setQueryData(groupKey(detail.id), updated);
+    void queryClient.invalidateQueries({ queryKey: GROUPS_KEY });
+    setEditingDetails(false);
+    toast.show('Detalhes do evento atualizados.', 'success');
+  }
+
   return (
     <div className="flex flex-col gap-4 py-6">
       <div>
@@ -104,6 +127,27 @@ export function GroupPage() {
           )}
         </div>
       </div>
+
+      {detail.eventDetails ? (
+        <EventDetailsCard
+          details={detail.eventDetails}
+          onEdit={canEditDetails ? () => setEditingDetails(true) : undefined}
+        />
+      ) : canEditDetails ? (
+        <Card className="border border-primary">
+          <p className="font-semibold text-text">Informe a data e o local do evento</p>
+          <p className="mt-1 text-sm text-text-muted">
+            Este grupo foi criado antes de existirem os detalhes do evento.
+          </p>
+          <Button fullWidth className="mt-4" onClick={() => setEditingDetails(true)}>
+            Informar detalhes
+          </Button>
+        </Card>
+      ) : (
+        <p className="text-text-muted">
+          O organizador ainda vai informar a data e o local do evento.
+        </p>
+      )}
 
       {drawn && justDrawn && (
         <p
@@ -134,6 +178,23 @@ export function GroupPage() {
           Sair do grupo
         </Button>
       )}
+
+      <Modal
+        open={editingDetails}
+        title={detail.eventDetails ? 'Editar detalhes do evento' : 'Detalhes do evento'}
+        onClose={() => setEditingDetails(false)}
+      >
+        <EventDetailsForm
+          initial={detail.eventDetails}
+          submitLabel="Salvar"
+          onSubmit={saveDetails}
+          footer={
+            <Button variant="ghost" fullWidth onClick={() => setEditingDetails(false)}>
+              Cancelar
+            </Button>
+          }
+        />
+      </Modal>
 
       <ConfirmModal
         open={removing !== null}

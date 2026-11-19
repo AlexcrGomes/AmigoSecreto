@@ -7,7 +7,8 @@ import java.util.UUID;
 
 /**
  * Schema {@code GroupDetail}. {@code code} vem formatado ({@code XXXX-XXXX}); {@code canDraw} = organizador,
- * {@code OPEN} e pelo menos 3 participantes. Nunca contém pares do sorteio.
+ * {@code OPEN} e pelo menos 3 participantes. {@code eventDetails} é nulo (e {@code eventDetailsMissing}
+ * verdadeiro) só em grupo antigo ainda sem data e local. Nunca contém pares do sorteio.
  */
 public record GroupDetail(
         UUID id,
@@ -19,4 +20,7 @@ public record GroupDetail(
         int participantCount,
         int maxParticipants,
         boolean organizer,
-        boolean canDraw) {}
+        boolean canDraw,
+        EventDetailsResponse eventDetails,
+        boolean eventDetailsMissing,
+        int detailsVersion) {}

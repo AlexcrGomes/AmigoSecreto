@@ -26,7 +26,8 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
     @Query("""
             select new br.com.amigosecreto.group.GroupSummaryView(
                 g.id, g.name, g.status, g.organizerId,
-                (select count(m2) from GroupMember m2 where m2.id.groupId = g.id))
+                (select count(m2) from GroupMember m2 where m2.id.groupId = g.id),
+                g.eventStartsAt, g.eventHasTime)
             from GroupMember m join SecretGroup g on g.id = m.id.groupId
             where m.id.userId = :userId
             order by g.createdAt desc""")

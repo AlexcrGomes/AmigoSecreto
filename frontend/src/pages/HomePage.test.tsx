@@ -27,6 +27,45 @@ function renderHome(groups: GroupSummary[] | 'erro') {
 }
 
 describe('HomePage', () => {
+  it('mostra a data do evento de cada grupo', async () => {
+    renderHome([
+      {
+        id: 'g-1',
+        name: 'Natal 2026',
+        status: 'OPEN',
+        participantCount: 4,
+        organizer: true,
+        eventDate: '2026-12-19',
+        eventTime: '19:00',
+      },
+      {
+        id: 'g-2',
+        name: 'Firma',
+        status: 'OPEN',
+        participantCount: 3,
+        organizer: false,
+        eventDate: '2026-12-19',
+        eventTime: null,
+      },
+      {
+        id: 'g-3',
+        name: 'Antigo',
+        status: 'DRAWN',
+        participantCount: 5,
+        organizer: false,
+        eventDate: null,
+        eventTime: null,
+      },
+    ]);
+
+    const natal = await screen.findByRole('link', { name: /Natal 2026/ });
+    expect(within(natal).getByText('sábado, 19 de dezembro de 2026, às 19:00')).toBeInTheDocument();
+    const firma = screen.getByRole('link', { name: /Firma/ });
+    expect(within(firma).getByText('sábado, 19 de dezembro de 2026')).toBeInTheDocument();
+    const old = screen.getByRole('link', { name: /Antigo/ });
+    expect(within(old).getByText('Data do evento a definir')).toBeInTheDocument();
+  });
+
   it('lista os grupos com contagem e selos', async () => {
     renderHome([
       {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isPastDate, isPastTimeToday } from './eventDate';
 
 /** Mensagens iguais às do backend (data-model.md, "Mensagens de validação"). */
 export const MESSAGES = {
@@ -37,8 +38,59 @@ export type LoginInput = z.infer<typeof loginSchema>;
 
 export const GROUP_NAME_MESSAGE = 'Dê um nome ao grupo (até 60 caracteres).';
 
-export const createGroupSchema = z.object({
-  name: z.string().trim().min(1, GROUP_NAME_MESSAGE).max(60, GROUP_NAME_MESSAGE),
-});
+/** Mensagens dos detalhes do evento, iguais às do backend (data-model.md da 002, "Validações"). */
+export const EVENT_MESSAGES = {
+  description: 'A descrição pode ter até 500 caracteres.',
+  dateRequired: 'Informe a data do evento.',
+  datePast: 'A data do evento precisa ser hoje ou no futuro.',
+  timeFormat: 'Informe o horário no formato HH:mm.',
+  timePast: 'Esse horário já passou.',
+  location: 'Informe o local do evento (até 120 caracteres).',
+} as const;
 
-export type CreateGroupInput = z.infer<typeof createGroupSchema>;
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const groupName = z.string().trim().min(1, GROUP_NAME_MESSAGE).max(60, GROUP_NAME_MESSAGE);
+
+/**
+ * Formulário de detalhes do evento (com o nome do grupo na criação). Data e horário vazios são `''`.
+ * Ao editar, a data só é validada se data ou horário mudarem (research R14): `original` traz os valores
+ * salvos.
+ */
+export function eventDetailsSchema(
+  options: { withName?: boolean; original?: { eventDate: string; eventTime: string } } = {},
+) {
+  const { withName = false, original } = options;
+  return z
+    .object({
+      name: withName ? groupName : z.string(),
+      description: z.string().trim().max(500, EVENT_MESSAGES.description),
+      eventDate: z.string().min(1, EVENT_MESSAGES.dateRequired),
+      eventTime: z
+        .string()
+        .refine((value) => value === '' || TIME_PATTERN.test(value), EVENT_MESSAGES.timeFormat),
+      location: z.string().trim().min(1, EVENT_MESSAGES.location).max(120, EVENT_MESSAGES.location),
+    })
+    .superRefine((values, ctx) => {
+      if (!values.eventDate) return;
+      const unchanged =
+        original !== undefined &&
+        original.eventDate === values.eventDate &&
+        original.eventTime === values.eventTime;
+      if (unchanged) return;
+      if (isPastDate(values.eventDate)) {
+        ctx.addIssue({ code: 'custom', path: ['eventDate'], message: EVENT_MESSAGES.datePast });
+      } else if (
+        TIME_PATTERN.test(values.eventTime) &&
+        isPastTimeToday(values.eventDate, values.eventTime)
+      ) {
+        ctx.addIssue({ code: 'custom', path: ['eventTime'], message: EVENT_MESSAGES.timePast });
+      }
+    });
+}
+
+export type EventDetailsInput = z.infer<ReturnType<typeof eventDetailsSchema>>;
+
+export const createGroupSchema = eventDetailsSchema({ withName: true });
+
+export type CreateGroupInput = EventDetailsInput;

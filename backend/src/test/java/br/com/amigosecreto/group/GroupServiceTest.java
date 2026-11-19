@@ -11,10 +11,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import br.com.amigosecreto.common.ConflictException;
+import br.com.amigosecreto.common.ForbiddenException;
 import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.common.RateLimitExceededException;
+import br.com.amigosecreto.common.UnprocessableException;
+import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.group.dto.CreateGroupRequest;
+import br.com.amigosecreto.group.dto.EventDetailsRequest;
+import br.com.amigosecreto.group.dto.EventDetailsResponse;
 import br.com.amigosecreto.group.dto.GroupDetail;
 import br.com.amigosecreto.group.dto.GroupSummary;
 import br.com.amigosecreto.group.dto.JoinGroupRequest;
@@ -22,6 +27,9 @@ import br.com.amigosecreto.ratelimit.RateLimitPolicy;
 import br.com.amigosecreto.ratelimit.RateLimiter;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +44,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -44,6 +53,7 @@ class GroupServiceTest {
     private static final Instant NOW = Instant.parse("2026-11-18T12:00:00Z");
     private static final UUID ANA = UUID.randomUUID();
     private static final UUID BRUNO = UUID.randomUUID();
+    private static final LocalDate DEC_19 = LocalDate.of(2026, 12, 19);
 
     @Mock
     private SecretGroupRepository groups;
@@ -67,7 +77,20 @@ class GroupServiceTest {
         when(codes.generate()).thenReturn("K7PQM2XA");
         when(groups.save(any(SecretGroup.class))).thenAnswer(inv -> inv.getArgument(0));
         when(members.save(any(GroupMember.class))).thenAnswer(inv -> inv.getArgument(0));
-        service = new GroupService(groups, members, codes, rateLimiter, Clock.fixed(NOW, ZoneOffset.UTC), events);
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        service = new GroupService(
+                groups,
+                members,
+                codes,
+                rateLimiter,
+                clock,
+                new EventSchedule(clock, ZoneId.of("America/Sao_Paulo")),
+                events);
+    }
+
+    /** Pedido de criação com detalhes válidos: 19/12/2026 às 19:00 (hoje é 18/11/2026 em Brasília). */
+    private static CreateGroupRequest createRequest(String name) {
+        return new CreateGroupRequest(name, null, DEC_19, "19:00", "Casa da Ana");
     }
 
     private SecretGroup openGroup(UUID organizer) {
@@ -89,7 +112,7 @@ class GroupServiceTest {
     void createSavesAnOpenGroupWithTheCreatorAsMember() {
         when(members.findParticipants(any())).thenReturn(List.of(new ParticipantView(ANA, "Ana")));
 
-        GroupDetail detail = service.create(ANA, new CreateGroupRequest("Natal 2026"));
+        GroupDetail detail = service.create(ANA, createRequest("Natal 2026"));
 
         ArgumentCaptor<SecretGroup> group = ArgumentCaptor.forClass(SecretGroup.class);
         verify(groups).save(group.capture());
@@ -117,7 +140,7 @@ class GroupServiceTest {
         when(groups.existsByCode("BBBBBBBB")).thenReturn(true);
         when(members.findParticipants(any())).thenReturn(List.of(new ParticipantView(ANA, "Ana")));
 
-        GroupDetail detail = service.create(ANA, new CreateGroupRequest("Natal"));
+        GroupDetail detail = service.create(ANA, createRequest("Natal"));
 
         assertThat(detail.code()).isEqualTo("CCCC-CCCC");
         verify(codes, times(3)).generate();
@@ -127,10 +150,131 @@ class GroupServiceTest {
     void givesUpAfterFiveCollisions() {
         when(groups.existsByCode(anyString())).thenReturn(true);
 
-        assertThatThrownBy(() -> service.create(ANA, new CreateGroupRequest("Natal")))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.create(ANA, createRequest("Natal"))).isInstanceOf(IllegalStateException.class);
         verify(codes, times(5)).generate();
         verify(groups, never()).save(any());
+    }
+
+    @Test
+    void createSavesTheEventDetailsAndTheOrganizerAlreadyConfirmed() {
+        when(members.findParticipants(any())).thenReturn(List.of(new ParticipantView(ANA, "Ana")));
+
+        GroupDetail detail = service.create(
+                ANA, new CreateGroupRequest("Natal", "Traga um prato\nE um sorriso", DEC_19, null, "Casa da Ana"));
+
+        ArgumentCaptor<SecretGroup> group = ArgumentCaptor.forClass(SecretGroup.class);
+        verify(groups).save(group.capture());
+        assertThat(group.getValue().getLocation()).isEqualTo("Casa da Ana");
+        assertThat(group.getValue().getEventStartsAt()).isEqualTo(Instant.parse("2026-12-19T03:00:00Z"));
+        assertThat(group.getValue().getFinalizesAt()).isEqualTo(Instant.parse("2026-12-20T03:00:00Z"));
+
+        ArgumentCaptor<GroupMember> member = ArgumentCaptor.forClass(GroupMember.class);
+        verify(members).save(member.capture());
+        assertThat(member.getValue().isConfirmed()).isTrue();
+
+        assertThat(detail.eventDetails())
+                .isEqualTo(new EventDetailsResponse("Traga um prato\nE um sorriso", DEC_19, null, "Casa da Ana"));
+        assertThat(detail.eventDetailsMissing()).isFalse();
+        assertThat(detail.detailsVersion()).isEqualTo(1);
+    }
+
+    @Test
+    void createRejectsAPastDateOrATimeThatAlreadyPassedToday() {
+        LocalDate today = LocalDate.of(2026, 11, 18); // 09:00 em Brasília
+
+        assertThatThrownBy(() ->
+                        service.create(ANA, new CreateGroupRequest("Natal", null, today.minusDays(1), null, "Casa")))
+                .isInstanceOf(UnprocessableException.class)
+                .hasFieldOrPropertyWithValue("type", "event-date-in-past");
+        assertThatThrownBy(() -> service.create(ANA, new CreateGroupRequest("Natal", null, today, "08:00", "Casa")))
+                .isInstanceOf(UnprocessableException.class)
+                .hasFieldOrPropertyWithValue("type", "event-time-in-past");
+        verify(groups, never()).save(any());
+        verify(members, never()).save(any());
+    }
+
+    // ---- updateEventDetails ----
+
+    private SecretGroup lockedGroupWithDetails(UUID organizer, UUID... others) {
+        SecretGroup group = openGroup(organizer);
+        group.updateEventDetails(new EventDetails(null, DEC_19, LocalTime.of(19, 0), "Casa da Ana"), schedule());
+        when(groups.findByIdForUpdate(group.getId())).thenReturn(Optional.of(group));
+        when(members.existsById(new GroupMemberId(group.getId(), organizer))).thenReturn(true);
+        for (UUID other : others) {
+            when(members.existsById(new GroupMemberId(group.getId(), other))).thenReturn(true);
+        }
+        UUID[] everyone = new UUID[others.length + 1];
+        everyone[0] = organizer;
+        System.arraycopy(others, 0, everyone, 1, others.length);
+        givenParticipants(group, everyone);
+        return group;
+    }
+
+    private static EventSchedule schedule() {
+        return new EventSchedule(Clock.fixed(NOW, ZoneOffset.UTC), ZoneId.of("America/Sao_Paulo"));
+    }
+
+    @Test
+    void organizerUpdatesTheEventDetailsUnderLockAndEveryoneIsNotified() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+
+        GroupDetail detail = service.updateEventDetails(
+                ANA, group.getId(), new EventDetailsRequest("Amigo da onça", DEC_19, "20:00", "Salão"));
+
+        verify(groups).findByIdForUpdate(group.getId());
+        assertThat(detail.eventDetails())
+                .isEqualTo(new EventDetailsResponse("Amigo da onça", DEC_19, "20:00", "Salão"));
+        assertThat(detail.detailsVersion()).isEqualTo(2);
+        verify(events).publishEvent(new GroupUpdatedEvent(group.getId(), GroupStatus.OPEN, 2, false));
+    }
+
+    @Test
+    void onlyTheOrganizerUpdatesTheEventDetails() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+
+        assertThatThrownBy(() -> service.updateEventDetails(
+                        BRUNO, group.getId(), new EventDetailsRequest(null, DEC_19, null, "Salão")))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("Só o organizador pode alterar os detalhes do evento.");
+        assertThat(group.getLocation()).isEqualTo("Casa da Ana");
+        verify(events, never()).publishEvent(any());
+    }
+
+    @Test
+    void nonMemberOrMissingGroupGetsNotFound() {
+        SecretGroup group = lockedGroupWithDetails(ANA);
+        UUID missing = UUID.randomUUID();
+        EventDetailsRequest request = new EventDetailsRequest(null, DEC_19, null, "Salão");
+
+        assertThatThrownBy(() -> service.updateEventDetails(BRUNO, group.getId(), request))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.updateEventDetails(ANA, missing, request))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void finishedGroupDetailsCannotChange() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+        ReflectionTestUtils.setField(group, "status", GroupStatus.FINISHED);
+
+        assertThatThrownBy(() -> service.updateEventDetails(
+                        ANA, group.getId(), new EventDetailsRequest(null, DEC_19, null, "Salão")))
+                .isInstanceOf(ConflictException.class)
+                .hasFieldOrPropertyWithValue("type", "group-finished");
+        verify(events, never()).publishEvent(any());
+    }
+
+    @Test
+    void oldGroupWithoutDetailsIsFlaggedForTheOrganizer() {
+        SecretGroup old = openGroup(ANA);
+        when(groups.findById(old.getId())).thenReturn(Optional.of(old));
+        when(members.existsById(new GroupMemberId(old.getId(), ANA))).thenReturn(true);
+        givenParticipants(old, ANA);
+
+        GroupDetail detail = service.getDetail(ANA, old.getId());
+
+        assertThat(detail.eventDetails()).isNull();
+        assertThat(detail.eventDetailsMissing()).isTrue();
     }
 
     // ---- join ----
@@ -311,16 +455,21 @@ class GroupServiceTest {
     void listMineBringsCountAndOrganizerFlag() {
         UUID g1 = UUID.randomUUID();
         UUID g2 = UUID.randomUUID();
+        UUID g3 = UUID.randomUUID();
         when(members.findSummaries(BRUNO))
                 .thenReturn(List.of(
-                        new GroupSummaryView(g1, "Natal", GroupStatus.OPEN, BRUNO, 4L),
-                        new GroupSummaryView(g2, "Firma", GroupStatus.DRAWN, ANA, 12L)));
+                        new GroupSummaryView(
+                                g1, "Natal", GroupStatus.OPEN, BRUNO, 4L, Instant.parse("2026-12-19T22:00:00Z"), true),
+                        new GroupSummaryView(
+                                g2, "Firma", GroupStatus.DRAWN, ANA, 12L, Instant.parse("2026-12-19T03:00:00Z"), false),
+                        new GroupSummaryView(g3, "Antigo", GroupStatus.DRAWN, ANA, 3L, null, null)));
 
         List<GroupSummary> mine = service.listMine(BRUNO);
 
         assertThat(mine)
                 .containsExactly(
-                        new GroupSummary(g1, "Natal", GroupStatus.OPEN, 4, true),
-                        new GroupSummary(g2, "Firma", GroupStatus.DRAWN, 12, false));
+                        new GroupSummary(g1, "Natal", GroupStatus.OPEN, 4, true, DEC_19, "19:00"),
+                        new GroupSummary(g2, "Firma", GroupStatus.DRAWN, 12, false, DEC_19, null),
+                        new GroupSummary(g3, "Antigo", GroupStatus.DRAWN, 3, false, null, null));
     }
 }

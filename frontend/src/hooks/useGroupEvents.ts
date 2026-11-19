@@ -47,6 +47,8 @@ export function useGroupEvents(groupId: string | undefined, handlers: GroupEvent
     const source = new EventSource(`/api/v1/groups/${encodeURIComponent(groupId)}/events`);
     let disconnected = false;
     source.addEventListener('participants-changed', refresh);
+    // Detalhes do evento, confirmações ou pedidos de saída mudaram (contracts/sse-events.md da 002)
+    source.addEventListener('group-updated', refresh);
     source.addEventListener('group-drawn', () => {
       refresh();
       handlersRef.current.onDrawn?.();

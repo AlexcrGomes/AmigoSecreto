@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card';
 import { Spinner } from '../components/ui/Spinner';
 import { GROUPS_KEY } from '../hooks/useGroup';
 import { errorMessage } from '../lib/errors';
+import { formatEventDate } from '../lib/eventDate';
 
 function GroupCard({ group }: { group: GroupSummary }) {
   return (
@@ -21,6 +22,11 @@ function GroupCard({ group }: { group: GroupSummary }) {
             <h2 className="min-w-0 text-lg font-semibold break-words text-text">{group.name}</h2>
             {group.organizer && <Badge tone="primary">Organizador</Badge>}
           </div>
+          <p className="mt-1 text-sm text-text">
+            {group.eventDate
+              ? formatEventDate(group.eventDate, group.eventTime)
+              : 'Data do evento a definir'}
+          </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-text-muted">
             <span>{participantsLabel(group.participantCount)}</span>
             <Badge tone={group.status === 'DRAWN' ? 'success' : 'neutral'}>

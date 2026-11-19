@@ -1,5 +1,7 @@
 package br.com.amigosecreto.group;
 
+import br.com.amigosecreto.common.ConflictException;
+import br.com.amigosecreto.common.UnprocessableException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -110,6 +112,47 @@ public class SecretGroup implements Persistable<UUID> {
 
     public boolean isOrganizer(UUID userId) {
         return organizerId.equals(userId);
+    }
+
+    /**
+     * Grava descrição, data, horário e local (FR-001, FR-005, FR-006). Só com o grupo {@code OPEN} ou
+     * {@code DRAWN}. A data só é validada quando data ou horário mudam (research R14): editar o local de um
+     * grupo com a data vencida é permitido. Mudar data, horário ou local de detalhes já existentes aumenta
+     * {@code detailsVersion} (FR-035); a descrição não conta (FR-015).
+     *
+     * @return se data, horário ou local mudaram (ou foram informados pela primeira vez)
+     */
+    public boolean updateEventDetails(EventDetails details, EventSchedule schedule) {
+        Objects.requireNonNull(details, "details");
+        if (status == GroupStatus.FINISHED) {
+            throw new ConflictException("group-finished", "Este grupo já foi finalizado.");
+        }
+        Optional<EventDetails> current = eventDetails(schedule);
+        boolean dateOrTimeChanged = current.isEmpty()
+                || !current.get().eventDate().equals(details.eventDate())
+                || !Objects.equals(current.get().eventTime(), details.eventTime());
+        if (dateOrTimeChanged) {
+            if (schedule.isPast(details.eventDate())) {
+                throw new UnprocessableException(
+                        "event-date-in-past", "A data do evento precisa ser hoje ou no futuro.");
+            }
+            if (details.eventTime() != null && schedule.isTimePast(details.eventDate(), details.eventTime())) {
+                throw new UnprocessableException("event-time-in-past", "Esse horário já passou.");
+            }
+        }
+
+        this.description = details.description();
+        boolean scheduleChanged = current.map(c -> !c.sameSchedule(details)).orElse(true);
+        if (scheduleChanged) {
+            this.location = details.location();
+            this.eventStartsAt = schedule.startsAt(details.eventDate(), details.eventTime());
+            this.eventHasTime = details.eventTime() != null;
+            this.finalizesAt = schedule.finalizesAt(details.eventDate(), details.eventTime());
+            if (current.isPresent()) {
+                this.detailsVersion++;
+            }
+        }
+        return scheduleChanged;
     }
 
     /** Os detalhes do evento, ou vazio em grupo antigo que ainda espera o organizador (FR-034). */

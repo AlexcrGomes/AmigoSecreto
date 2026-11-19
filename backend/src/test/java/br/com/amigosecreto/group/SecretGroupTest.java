@@ -2,17 +2,163 @@ package br.com.amigosecreto.group;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import br.com.amigosecreto.common.ConflictException;
+import br.com.amigosecreto.common.UnprocessableException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class SecretGroupTest {
 
     private static final Instant NOW = Instant.parse("2026-11-18T12:00:00Z");
+    private static final ZoneId BRASILIA = ZoneId.of("America/Sao_Paulo");
+    /** Hoje em Brasília é 18/11/2026, 09:00. */
+    private static final EventSchedule SCHEDULE = scheduleAt(NOW);
+
+    private static final LocalDate DEC_19 = LocalDate.of(2026, 12, 19);
+    private static final EventDetails PARTY =
+            new EventDetails("Traga um prato", DEC_19, LocalTime.of(19, 0), "Casa da Ana");
+
+    private static EventSchedule scheduleAt(Instant instant) {
+        return new EventSchedule(Clock.fixed(instant, ZoneOffset.UTC), BRASILIA);
+    }
+
+    private static SecretGroup groupWith(EventDetails details) {
+        SecretGroup group = new SecretGroup("Natal", "K7PQM2XA", UUID.randomUUID(), NOW);
+        group.updateEventDetails(details, SCHEDULE);
+        return group;
+    }
+
+    // ---- detalhes do evento (US1) ----
+
+    @Test
+    void firstEventDetailsFillEveryFieldWithoutBumpingTheVersion() {
+        SecretGroup group = groupWith(PARTY);
+
+        assertThat(group.eventDetails(SCHEDULE)).contains(PARTY);
+        assertThat(group.getDescription()).isEqualTo("Traga um prato");
+        assertThat(group.getLocation()).isEqualTo("Casa da Ana");
+        assertThat(group.getEventHasTime()).isTrue();
+        assertThat(group.getEventStartsAt()).isEqualTo(Instant.parse("2026-12-19T22:00:00Z"));
+        assertThat(group.getFinalizesAt()).isEqualTo(Instant.parse("2026-12-19T22:00:00Z"));
+        assertThat(group.getDetailsVersion()).isEqualTo(1);
+    }
+
+    @Test
+    void oldGroupGetsEveryFieldAtOnce() {
+        SecretGroup old = new SecretGroup("Antigo", "K7PQM2XA", UUID.randomUUID(), NOW);
+        assertThat(old.eventDetails(SCHEDULE)).isEmpty();
+
+        boolean changed = old.updateEventDetails(new EventDetails(null, DEC_19, null, "Escritório"), SCHEDULE);
+
+        assertThat(changed).isTrue();
+        assertThat(old.getDescription()).isNull();
+        assertThat(old.getEventHasTime()).isFalse();
+        assertThat(old.getEventStartsAt()).isEqualTo(Instant.parse("2026-12-19T03:00:00Z"));
+        assertThat(old.getFinalizesAt()).isEqualTo(Instant.parse("2026-12-20T03:00:00Z"));
+    }
+
+    @Test
+    void changingDateTimeOrLocationBumpsTheVersionAndRecalculates() {
+        SecretGroup group = groupWith(PARTY);
+
+        assertThat(group.updateEventDetails(
+                        new EventDetails("Traga um prato", DEC_19.plusDays(1), LocalTime.of(19, 0), "Casa da Ana"),
+                        SCHEDULE))
+                .isTrue();
+        assertThat(group.getDetailsVersion()).isEqualTo(2);
+        assertThat(group.getEventStartsAt()).isEqualTo(Instant.parse("2026-12-20T22:00:00Z"));
+
+        assertThat(group.updateEventDetails(
+                        new EventDetails("Traga um prato", DEC_19.plusDays(1), null, "Casa da Ana"), SCHEDULE))
+                .isTrue();
+        assertThat(group.getDetailsVersion()).isEqualTo(3);
+        assertThat(group.getEventHasTime()).isFalse();
+        assertThat(group.getFinalizesAt()).isEqualTo(Instant.parse("2026-12-21T03:00:00Z"));
+
+        assertThat(group.updateEventDetails(
+                        new EventDetails("Traga um prato", DEC_19.plusDays(1), null, "Salão"), SCHEDULE))
+                .isTrue();
+        assertThat(group.getDetailsVersion()).isEqualTo(4);
+        assertThat(group.getLocation()).isEqualTo("Salão");
+    }
+
+    @Test
+    void changingOnlyTheDescriptionKeepsTheVersion() {
+        SecretGroup group = groupWith(PARTY);
+
+        boolean changed = group.updateEventDetails(
+                new EventDetails("  Amigo da onça  ", DEC_19, LocalTime.of(19, 0), "Casa da Ana"), SCHEDULE);
+
+        assertThat(changed).isFalse();
+        assertThat(group.getDetailsVersion()).isEqualTo(1);
+        assertThat(group.getDescription()).isEqualTo("Amigo da onça");
+
+        group.updateEventDetails(new EventDetails("   ", DEC_19, LocalTime.of(19, 0), "Casa da Ana"), SCHEDULE);
+        assertThat(group.getDescription()).isNull();
+        assertThat(group.getDetailsVersion()).isEqualTo(1);
+    }
+
+    @Test
+    void dateBeforeTodayOrTimeAlreadyPassedTodayIsRejected() {
+        SecretGroup group = groupWith(PARTY);
+        LocalDate today = LocalDate.of(2026, 11, 18);
+
+        assertThatThrownBy(() -> group.updateEventDetails(
+                        new EventDetails(null, today.minusDays(1), null, "Casa da Ana"), SCHEDULE))
+                .isInstanceOf(UnprocessableException.class)
+                .hasFieldOrPropertyWithValue("type", "event-date-in-past")
+                .hasMessage("A data do evento precisa ser hoje ou no futuro.");
+        // 09:00 em Brasília: 08:59 já passou, 09:01 não
+        assertThatThrownBy(() -> group.updateEventDetails(
+                        new EventDetails(null, today, LocalTime.of(8, 59), "Casa da Ana"), SCHEDULE))
+                .isInstanceOf(UnprocessableException.class)
+                .hasFieldOrPropertyWithValue("type", "event-time-in-past")
+                .hasMessage("Esse horário já passou.");
+        assertThat(group.getDetailsVersion()).isEqualTo(1);
+        assertThat(group.eventDetails(SCHEDULE)).contains(PARTY);
+
+        group.updateEventDetails(new EventDetails(null, today, LocalTime.of(9, 1), "Casa da Ana"), SCHEDULE);
+        group.updateEventDetails(new EventDetails(null, today, null, "Casa da Ana"), SCHEDULE);
+        assertThat(group.getDetailsVersion()).isEqualTo(3);
+    }
+
+    @Test
+    void dateIsOnlyValidatedWhenDateOrTimeChange() {
+        SecretGroup group = groupWith(PARTY);
+        EventSchedule afterTheParty = scheduleAt(Instant.parse("2026-12-25T12:00:00Z"));
+
+        group.updateEventDetails(new EventDetails("Foi ótimo", DEC_19, LocalTime.of(19, 0), "Salão"), afterTheParty);
+
+        assertThat(group.getLocation()).isEqualTo("Salão");
+        assertThat(group.getDetailsVersion()).isEqualTo(2);
+        assertThatThrownBy(() -> group.updateEventDetails(
+                        new EventDetails(null, DEC_19, LocalTime.of(20, 0), "Salão"), afterTheParty))
+                .isInstanceOf(UnprocessableException.class);
+    }
+
+    @Test
+    void eventDetailsCanBeEditedAfterTheDrawButNotOnceFinished() {
+        SecretGroup group = groupWith(PARTY);
+        group.markDrawn(NOW);
+
+        group.updateEventDetails(new EventDetails(null, DEC_19, LocalTime.of(19, 0), "Salão"), SCHEDULE);
+        assertThat(group.getLocation()).isEqualTo("Salão");
+
+        ReflectionTestUtils.setField(group, "status", GroupStatus.FINISHED);
+        assertThatThrownBy(() -> group.updateEventDetails(PARTY, SCHEDULE))
+                .isInstanceOf(ConflictException.class)
+                .hasFieldOrPropertyWithValue("type", "group-finished");
+        assertThat(group.getLocation()).isEqualTo("Salão");
+    }
 
     @Test
     void newGroupIsOpenWithTrimmedName() {

@@ -79,8 +79,24 @@ export function listGroups(signal?: AbortSignal): Promise<GroupSummary[]> {
   return apiFetch<GroupSummary[]>('/groups', { signal });
 }
 
-export function createGroup(name: string): Promise<GroupDetail> {
-  return apiFetch<GroupDetail>('/groups', { method: 'POST', body: { name } });
+/** Corpo de criar e de editar os detalhes do evento (schema `EventDetailsRequest`). */
+export interface EventDetailsBody {
+  description: string | null;
+  eventDate: string;
+  eventTime: string | null;
+  location: string;
+}
+
+export function createGroup(name: string, details: EventDetailsBody): Promise<GroupDetail> {
+  return apiFetch<GroupDetail>('/groups', { method: 'POST', body: { name, ...details } });
+}
+
+/** O organizador altera descrição, data, horário e local. */
+export function updateEventDetails(id: string, details: EventDetailsBody): Promise<GroupDetail> {
+  return apiFetch<GroupDetail>(`/groups/${encodeURIComponent(id)}/event-details`, {
+    method: 'PUT',
+    body: details,
+  });
 }
 
 export function joinGroup(code: string): Promise<GroupDetail> {
