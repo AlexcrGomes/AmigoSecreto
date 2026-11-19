@@ -41,6 +41,11 @@ do sistema.
   e irrecuperável** (inclusive para quem administra o sistema) e o grupo volta a "aguardando
   sorteio". Um novo sorteio entre quem permaneceu segue todas as regras deste princípio e é
   independente do anterior.
+- O descarte vale para o banco de dados do sistema: os pares MUST ser apagados na mesma
+  transação, e a aplicação MUST NOT guardar cópia, log ou histórico do sorteio desfeito.
+  Backups do banco são cópias externas à aplicação e MUST ter a retenção mínima necessária e
+  ficar guardados separados da chave de criptografia dos pares, para que ninguém, nem quem
+  administra, combine um backup antigo com a chave para recuperar um sorteio desfeito.
 - Ninguém, nem o organizador, pode desfazer ou refazer um sorteio por outro caminho. Quem saiu
   de um grupo depois do sorteio MUST NOT poder entrar de novo nesse grupo, para impedir que
   saídas combinadas sejam usadas para sortear até obter um resultado desejado.
@@ -203,4 +208,4 @@ tasks aprovados.
   `plan` com justificativa. Toda aprovação de PR MUST verificar os Princípios I a VIII.
 - Princípios marcados como NÃO NEGOCIÁVEL (I, II, IV) não admitem exceção, apenas emenda.
 
-**Version**: 1.2.0 | **Ratified**: 2026-11-12 | **Last Amended**: 2026-11-18
+**Version**: 1.2.1 | **Ratified**: 2026-11-12 | **Last Amended**: 2026-11-18
