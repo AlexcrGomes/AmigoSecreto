@@ -27,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class GroupService {
 
     public static final int MAX_PARTICIPANTS = 100;
-    public static final int MIN_PARTICIPANTS_TO_DRAW = 3;
     static final int CODE_ATTEMPTS = 5;
 
     static final String GROUP_NOT_FOUND = "Grupo não encontrado.";
@@ -108,7 +107,9 @@ public class GroupService {
 
     /**
      * O organizador altera descrição, data, horário e local (FR-005, FR-006). Trava a linha do grupo, como
-     * entrar e sortear. Não membro recebe 404, como em qualquer rota do grupo.
+     * entrar, confirmar e sortear. Não membro recebe 404, como em qualquer rota do grupo. Antes do sorteio,
+     * mudar data, horário ou local volta todos, menos o organizador, a pendente (FR-015); depois do sorteio,
+     * nada muda nas confirmações (FR-016).
      */
     @Transactional
     public GroupDetail updateEventDetails(UUID userId, UUID groupId, EventDetailsRequest request) {
@@ -117,9 +118,13 @@ public class GroupService {
         if (!group.isOrganizer(userId)) {
             throw new ForbiddenException("Só o organizador pode alterar os detalhes do evento.");
         }
-        group.updateEventDetails(request.toEventDetails(), schedule);
+        boolean scheduleChanged = group.updateEventDetails(request.toEventDetails(), schedule);
+        boolean confirmationsReset = scheduleChanged && group.getStatus() == GroupStatus.OPEN;
+        if (confirmationsReset) {
+            members.resetConfirmations(groupId, group.getOrganizerId());
+        }
         int count = (int) members.countByIdGroupId(groupId);
-        events.publishEvent(new GroupUpdatedEvent(groupId, group.getStatus(), count, false));
+        events.publishEvent(new GroupUpdatedEvent(groupId, group.getStatus(), count, confirmationsReset));
         return detail(group, userId);
     }
 
@@ -166,13 +171,22 @@ public class GroupService {
         throw new IllegalStateException("Não foi possível gerar um código de grupo único");
     }
 
-    private GroupDetail detail(SecretGroup group, UUID userId) {
-        List<Participant> participants = members.findParticipants(group.getId()).stream()
-                .map(view -> new Participant(view.userId(), view.name(), group.isOrganizer(view.userId())))
+    /** O grupo visto por um membro (usado também pela confirmação). */
+    GroupDetail detail(SecretGroup group, UUID userId) {
+        List<ParticipantView> views = members.findParticipants(group.getId());
+        List<Participant> participants = views.stream()
+                .map(view ->
+                        new Participant(view.userId(), view.name(), group.isOrganizer(view.userId()), view.confirmed()))
                 .toList();
+        int confirmedCount =
+                (int) views.stream().filter(ParticipantView::confirmed).count();
+        boolean meConfirmed = views.stream().anyMatch(view -> view.userId().equals(userId) && view.confirmed());
+        boolean open = group.getStatus() == GroupStatus.OPEN;
+        DrawBlockedReason blocked = open
+                ? group.drawBlockedReason(participants.size(), participants.size() - confirmedCount, schedule)
+                : null;
         boolean organizer = group.isOrganizer(userId);
-        boolean canDraw =
-                organizer && group.getStatus() == GroupStatus.OPEN && participants.size() >= MIN_PARTICIPANTS_TO_DRAW;
+        boolean canDraw = organizer && open && blocked == null;
         EventDetailsResponse eventDetails =
                 group.eventDetails(schedule).map(EventDetailsResponse::from).orElse(null);
         return new GroupDetail(
@@ -188,6 +202,9 @@ public class GroupService {
                 canDraw,
                 eventDetails,
                 eventDetails == null,
-                group.getDetailsVersion());
+                group.getDetailsVersion(),
+                confirmedCount,
+                meConfirmed ? ConfirmationStatus.CONFIRMED : ConfirmationStatus.PENDING,
+                blocked == null ? null : blocked.code());
     }
 }

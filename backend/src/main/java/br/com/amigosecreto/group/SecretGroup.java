@@ -30,6 +30,9 @@ import org.springframework.data.domain.Persistable;
 @Table(name = "secret_group")
 public class SecretGroup implements Persistable<UUID> {
 
+    /** O sorteio precisa de pelo menos 3 participantes (FR-020 da 001). */
+    public static final int MIN_PARTICIPANTS_TO_DRAW = 3;
+
     @Id
     private UUID id;
 
@@ -153,6 +156,29 @@ public class SecretGroup implements Persistable<UUID> {
             }
         }
         return scheduleChanged;
+    }
+
+    /**
+     * Por que o sorteio não pode acontecer agora, na ordem de research R16, ou {@code null} se pode. Não
+     * olha a situação do grupo: quem chama já recusou o que não está {@code OPEN}.
+     *
+     * @param totalParticipants participantes do grupo, contando o organizador
+     * @param pendingCount participantes que ainda não confirmaram
+     */
+    public DrawBlockedReason drawBlockedReason(int totalParticipants, long pendingCount, EventSchedule schedule) {
+        if (location == null) {
+            return DrawBlockedReason.EVENT_DETAILS_REQUIRED;
+        }
+        if (schedule.hasHappened(finalizesAt)) {
+            return DrawBlockedReason.EVENT_DATE_PASSED;
+        }
+        if (totalParticipants < MIN_PARTICIPANTS_TO_DRAW) {
+            return DrawBlockedReason.NOT_ENOUGH_PARTICIPANTS;
+        }
+        if (pendingCount > 0) {
+            return DrawBlockedReason.PARTICIPANTS_PENDING;
+        }
+        return null;
     }
 
     /** Os detalhes do evento, ou vazio em grupo antigo que ainda espera o organizador (FR-034). */

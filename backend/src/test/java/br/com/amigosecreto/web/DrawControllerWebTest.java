@@ -29,6 +29,7 @@ import br.com.amigosecreto.group.GroupStatus;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,6 +104,22 @@ class DrawControllerWebTest {
         mvc.perform(post("/api/v1/groups/{id}/draw", GROUP_ID).with(ana()).with(spaCsrf()))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().string("Retry-After", "60"));
+    }
+
+    @Test
+    void pendingParticipantsAreListedInThe422() throws Exception {
+        when(drawService.draw(ANA.id(), GROUP_ID))
+                .thenThrow(new UnprocessableException(
+                        "participants-pending",
+                        "Faltam 2 confirmar: Bruno, Carla.",
+                        Map.of("pending", List.of("Bruno", "Carla"))));
+
+        mvc.perform(post("/api/v1/groups/{id}/draw", GROUP_ID).with(ana()).with(spaCsrf()))
+                .andExpect(status().is(422))
+                .andExpect(jsonPath("$.type").value("/problems/participants-pending"))
+                .andExpect(jsonPath("$.detail").value("Faltam 2 confirmar: Bruno, Carla."))
+                .andExpect(jsonPath("$.pending[0]").value("Bruno"))
+                .andExpect(jsonPath("$.pending[1]").value("Carla"));
     }
 
     @Test

@@ -10,6 +10,7 @@ import {
   type Participant,
 } from '../api/groups';
 import { useAuth } from '../auth/AuthProvider';
+import { ConfirmParticipationCard } from '../components/group/ConfirmParticipationCard';
 import { DrawButton } from '../components/group/DrawButton';
 import { EventDetailsCard } from '../components/group/EventDetailsCard';
 import { EventDetailsForm } from '../components/group/EventDetailsForm';
@@ -25,13 +26,14 @@ import { Spinner } from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
 import { GROUPS_KEY, groupKey, useGroup } from '../hooks/useGroup';
 import { useGroupEvents } from '../hooks/useGroupEvents';
-import { errorMessage } from '../lib/errors';
+import { CONFIRMATIONS_RESET, errorMessage } from '../lib/errors';
 
 const drawnDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' });
 
 /**
- * /grupos/:id (contracts/ui-routes.md). OPEN: código, lista ao vivo, "Realizar sorteio" e "Remover"
- * para o organizador, "Sair do grupo" para os demais. DRAWN: selo com a data, "Seu amigo secreto" e a
+ * /grupos/:id (contracts/ui-routes.md). OPEN: código, lista ao vivo com quem confirmou, "Realizar
+ * sorteio" e "Remover" para o organizador, "Confirmar participação" para quem está pendente e "Sair do
+ * grupo" para os demais. DRAWN: selo com a data, "Seu amigo secreto" e a
  * lista só com nomes.
  */
 export function GroupPage() {
@@ -45,6 +47,7 @@ export function GroupPage() {
   const [removing, setRemoving] = useState<Participant | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
+  const [confirmationsReset, setConfirmationsReset] = useState(false);
 
   /** Saiu do grupo (por conta própria ou removido): descarta os dados e volta para a lista. */
   function exitGroup(message: string, kind: 'success' | 'error') {
@@ -57,6 +60,10 @@ export function GroupPage() {
   useGroupEvents(id, {
     onDrawn: () => setJustDrawn(true),
     onRevoked: () => exitGroup('Você foi removido deste grupo', 'error'),
+    // O organizador mudou data, horário ou local: quem não é organizador precisa confirmar de novo
+    onConfirmationsReset: () => {
+      if (group.data && !group.data.organizer) setConfirmationsReset(true);
+    },
   });
 
   if (group.isPending) {
@@ -86,6 +93,9 @@ export function GroupPage() {
 
   const detail = group.data;
   const drawn = detail.status === 'DRAWN';
+  const open = detail.status === 'OPEN';
+  const pending = open && detail.myConfirmation === 'PENDING' && !detail.eventDetailsMissing;
+  const confirmedGuest = open && !detail.organizer && detail.myConfirmation === 'CONFIRMED';
 
   async function confirmRemove() {
     if (!removing) return;
@@ -120,6 +130,7 @@ export function GroupPage() {
           <Badge tone={drawn ? 'success' : 'primary'}>
             {drawn ? 'Sorteado' : 'Aguardando sorteio'}
           </Badge>
+          {confirmedGuest && <Badge tone="success">Você confirmou</Badge>}
           {drawn && detail.drawnAt && (
             <span className="text-sm text-text-muted">
               Sorteio realizado em {drawnDate.format(new Date(detail.drawnAt))}
@@ -149,6 +160,14 @@ export function GroupPage() {
         </p>
       )}
 
+      {pending && (
+        <ConfirmParticipationCard
+          group={detail}
+          onLeave={() => setLeaving(true)}
+          notice={confirmationsReset ? CONFIRMATIONS_RESET : null}
+        />
+      )}
+
       {drawn && justDrawn && (
         <p
           role="status"
@@ -171,9 +190,11 @@ export function GroupPage() {
         participants={detail.participants}
         currentUserId={user?.id}
         onRemove={!drawn && detail.organizer ? setRemoving : undefined}
+        showConfirmation={open}
       />
 
-      {!drawn && !detail.organizer && (
+      {/* O pendente já tem "Não vou participar" no cartão de confirmação */}
+      {!drawn && !detail.organizer && !pending && (
         <Button variant="danger" fullWidth onClick={() => setLeaving(true)}>
           Sair do grupo
         </Button>
@@ -188,6 +209,9 @@ export function GroupPage() {
           initial={detail.eventDetails}
           submitLabel="Salvar"
           onSubmit={saveDetails}
+          scheduleChangeWarning={
+            open ? 'Todos os participantes precisarão confirmar de novo.' : undefined
+          }
           footer={
             <Button variant="ghost" fullWidth onClick={() => setEditingDetails(false)}>
               Cancelar

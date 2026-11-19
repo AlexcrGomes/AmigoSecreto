@@ -3,6 +3,7 @@ package br.com.amigosecreto.group;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,13 +15,31 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
     @Query("select m.id.userId from GroupMember m where m.id.groupId = :groupId order by m.joinedAt")
     List<UUID> findUserIds(@Param("groupId") UUID groupId);
 
-    /** Participantes na ordem de entrada (FR-014). */
+    /** Participantes na ordem de entrada (FR-014), com a situação de confirmação (FR-012 da 002). */
     @Query("""
-            select new br.com.amigosecreto.group.ParticipantView(u.id, u.name)
+            select new br.com.amigosecreto.group.ParticipantView(u.id, u.name, m.confirmedAt)
             from GroupMember m join AppUser u on u.id = m.id.userId
             where m.id.groupId = :groupId
             order by m.joinedAt, u.name""")
     List<ParticipantView> findParticipants(@Param("groupId") UUID groupId);
+
+    /** Nomes de quem ainda não confirmou, na ordem de entrada (FR-014 da 002). */
+    @Query("""
+            select u.name
+            from GroupMember m join AppUser u on u.id = m.id.userId
+            where m.id.groupId = :groupId and m.confirmedAt is null
+            order by m.joinedAt, u.name""")
+    List<String> findPendingNames(@Param("groupId") UUID groupId);
+
+    /**
+     * Volta todos, menos o organizador, a pendente (FR-015): data, horário ou local mudaram antes do
+     * sorteio. Quem chama já tem o lock do grupo.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            update GroupMember m set m.confirmedAt = null
+            where m.id.groupId = :groupId and m.id.userId <> :organizerId""")
+    int resetConfirmations(@Param("groupId") UUID groupId, @Param("organizerId") UUID organizerId);
 
     /** Grupos do usuário, mais recentes primeiro, com a contagem de membros (FR-016). */
     @Query("""

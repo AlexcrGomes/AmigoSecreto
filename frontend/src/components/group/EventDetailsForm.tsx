@@ -19,6 +19,8 @@ interface EventDetailsFormProps {
   onSubmit: (details: EventDetailsBody, name: string) => Promise<void>;
   /** Ações abaixo do botão de salvar (ex.: Cancelar). */
   footer?: ReactNode;
+  /** Aviso mostrado quando data, horário ou local mudam em relação a `initial` (FR-015). */
+  scheduleChangeWarning?: string;
 }
 
 /**
@@ -31,6 +33,7 @@ export function EventDetailsForm({
   submitLabel,
   onSubmit,
   footer,
+  scheduleChangeWarning,
 }: EventDetailsFormProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const descriptionId = useId();
@@ -61,6 +64,15 @@ export function EventDetailsForm({
     },
   });
   const descriptionLength = useWatch({ control, name: 'description' }).length;
+  const [eventDate, eventTime, location] = useWatch({
+    control,
+    name: ['eventDate', 'eventTime', 'location'],
+  });
+  const scheduleChanged =
+    initial != null &&
+    (eventDate !== initial.eventDate ||
+      eventTime !== (initial.eventTime ?? '') ||
+      location.trim() !== initial.location);
 
   const submit = handleSubmit(async (values) => {
     setFormError(null);
@@ -158,6 +170,11 @@ export function EventDetailsForm({
           </p>
         )}
       </div>
+      {scheduleChangeWarning && scheduleChanged && (
+        <p role="note" className="rounded-control border border-primary px-3 py-2 text-text">
+          {scheduleChangeWarning}
+        </p>
+      )}
       <Button type="submit" loading={isSubmitting} fullWidth>
         {submitLabel}
       </Button>

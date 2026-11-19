@@ -47,6 +47,7 @@ class DrawPerformanceIT extends AbstractIntegrationTest {
         for (ApiClient member : users.subList(1, users.size())) {
             assertThat(member.post("/api/v1/groups/join", Map.of("code", code)).status())
                     .isEqualTo(200);
+            assertThat(member.confirm(groupId).status()).isEqualTo(200);
         }
 
         long start = System.nanoTime();

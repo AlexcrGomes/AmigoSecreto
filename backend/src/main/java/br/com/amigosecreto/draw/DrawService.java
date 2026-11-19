@@ -6,6 +6,8 @@ import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.common.UnprocessableException;
 import br.com.amigosecreto.draw.dto.DrawResult;
 import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
+import br.com.amigosecreto.group.DrawBlockedReason;
+import br.com.amigosecreto.group.EventSchedule;
 import br.com.amigosecreto.group.GroupMemberId;
 import br.com.amigosecreto.group.GroupMemberRepository;
 import br.com.amigosecreto.group.GroupStatus;
@@ -23,7 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Sorteio (US3, FR-020 a FR-027): único, atômico e no servidor. A linha do grupo fica travada
+ * Sorteio (US3, FR-020 a FR-027; condições novas na 002, FR-013): único, atômico e no servidor. A linha do grupo fica travada
  * ({@code FOR UPDATE}) do início ao fim, então dois sorteios simultâneos nunca acontecem: o segundo encontra
  * o grupo já {@code DRAWN}. Qualquer falha desfaz tudo (rollback) e nenhum aviso é enviado. NUNCA logar
  * quem tirou quem.
@@ -40,6 +42,7 @@ public class DrawService {
     private final AssignmentCipher cipher;
     private final RateLimiter rateLimiter;
     private final Clock clock;
+    private final EventSchedule schedule;
     private final ApplicationEventPublisher events;
 
     public DrawService(
@@ -50,6 +53,7 @@ public class DrawService {
             AssignmentCipher cipher,
             RateLimiter rateLimiter,
             Clock clock,
+            EventSchedule schedule,
             ApplicationEventPublisher events) {
         this.groups = groups;
         this.members = members;
@@ -58,6 +62,7 @@ public class DrawService {
         this.cipher = cipher;
         this.rateLimiter = rateLimiter;
         this.clock = clock;
+        this.schedule = schedule;
         this.events = events;
     }
 
@@ -75,9 +80,16 @@ public class DrawService {
         if (group.getStatus() != GroupStatus.OPEN) {
             throw new ConflictException("group-already-drawn", "O sorteio deste grupo já foi realizado.");
         }
+        // Condições da 002, na ordem de research R16; dentro do lock, então ninguém entra nem muda a data no meio
         List<UUID> participants = members.findUserIds(groupId);
-        if (participants.size() < DerangementGenerator.MIN_PARTICIPANTS) {
-            throw new UnprocessableException("not-enough-participants", "São necessários pelo menos 3 participantes.");
+        List<String> pending = members.findPendingNames(groupId);
+        DrawBlockedReason blocked = group.drawBlockedReason(participants.size(), pending.size(), schedule);
+        if (blocked == DrawBlockedReason.PARTICIPANTS_PENDING) {
+            throw new UnprocessableException(
+                    blocked.code(), DrawBlockedReason.pendingMessage(pending), Map.of("pending", pending));
+        }
+        if (blocked != null) {
+            throw new UnprocessableException(blocked.code(), blocked.message());
         }
 
         Map<UUID, UUID> pairs = derangement.generate(participants);

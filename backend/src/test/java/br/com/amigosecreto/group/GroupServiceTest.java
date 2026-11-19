@@ -93,14 +93,24 @@ class GroupServiceTest {
         return new CreateGroupRequest(name, null, DEC_19, "19:00", "Casa da Ana");
     }
 
+    /** Grupo aberto com o evento em 19/12/2026 às 19:00. */
     private SecretGroup openGroup(UUID organizer) {
-        return new SecretGroup("Natal 2026", "K7PQM2XA", organizer, NOW);
+        SecretGroup group = new SecretGroup("Natal 2026", "K7PQM2XA", organizer, NOW);
+        group.updateEventDetails(new EventDetails(null, DEC_19, LocalTime.of(19, 0), "Casa da Ana"), schedule());
+        return group;
     }
 
+    /** Participantes todos confirmados. */
     private void givenParticipants(SecretGroup group, UUID... userIds) {
+        givenParticipants(group, List.of(), userIds);
+    }
+
+    /** Participantes confirmados, menos os de {@code pending}. */
+    private void givenParticipants(SecretGroup group, List<UUID> pending, UUID... userIds) {
         List<ParticipantView> views = new ArrayList<>();
         for (UUID id : userIds) {
-            views.add(new ParticipantView(id, "Pessoa " + id.toString().substring(0, 4)));
+            views.add(new ParticipantView(
+                    id, "Pessoa " + id.toString().substring(0, 4), pending.contains(id) ? null : NOW));
         }
         when(members.findParticipants(group.getId())).thenReturn(views);
         when(members.countByIdGroupId(group.getId())).thenReturn((long) userIds.length);
@@ -110,7 +120,7 @@ class GroupServiceTest {
 
     @Test
     void createSavesAnOpenGroupWithTheCreatorAsMember() {
-        when(members.findParticipants(any())).thenReturn(List.of(new ParticipantView(ANA, "Ana")));
+        when(members.findParticipants(any())).thenReturn(List.of(new ParticipantView(ANA, "Ana", NOW)));
 
         GroupDetail detail = service.create(ANA, createRequest("Natal 2026"));
 
@@ -138,7 +148,7 @@ class GroupServiceTest {
         when(codes.generate()).thenReturn("AAAAAAAA", "BBBBBBBB", "CCCCCCCC");
         when(groups.existsByCode("AAAAAAAA")).thenReturn(true);
         when(groups.existsByCode("BBBBBBBB")).thenReturn(true);
-        when(members.findParticipants(any())).thenReturn(List.of(new ParticipantView(ANA, "Ana")));
+        when(members.findParticipants(any())).thenReturn(List.of(new ParticipantView(ANA, "Ana", NOW)));
 
         GroupDetail detail = service.create(ANA, createRequest("Natal"));
 
@@ -157,7 +167,7 @@ class GroupServiceTest {
 
     @Test
     void createSavesTheEventDetailsAndTheOrganizerAlreadyConfirmed() {
-        when(members.findParticipants(any())).thenReturn(List.of(new ParticipantView(ANA, "Ana")));
+        when(members.findParticipants(any())).thenReturn(List.of(new ParticipantView(ANA, "Ana", NOW)));
 
         GroupDetail detail = service.create(
                 ANA, new CreateGroupRequest("Natal", "Traga um prato\nE um sorriso", DEC_19, null, "Casa da Ana"));
@@ -197,7 +207,6 @@ class GroupServiceTest {
 
     private SecretGroup lockedGroupWithDetails(UUID organizer, UUID... others) {
         SecretGroup group = openGroup(organizer);
-        group.updateEventDetails(new EventDetails(null, DEC_19, LocalTime.of(19, 0), "Casa da Ana"), schedule());
         when(groups.findByIdForUpdate(group.getId())).thenReturn(Optional.of(group));
         when(members.existsById(new GroupMemberId(group.getId(), organizer))).thenReturn(true);
         for (UUID other : others) {
@@ -225,7 +234,30 @@ class GroupServiceTest {
         assertThat(detail.eventDetails())
                 .isEqualTo(new EventDetailsResponse("Amigo da onça", DEC_19, "20:00", "Salão"));
         assertThat(detail.detailsVersion()).isEqualTo(2);
+        verify(members).resetConfirmations(group.getId(), ANA);
+        verify(events).publishEvent(new GroupUpdatedEvent(group.getId(), GroupStatus.OPEN, 2, true));
+    }
+
+    @Test
+    void changingOnlyTheDescriptionKeepsTheConfirmations() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+
+        service.updateEventDetails(
+                ANA, group.getId(), new EventDetailsRequest("Amigo da onça", DEC_19, "19:00", "Casa da Ana"));
+
+        verify(members, never()).resetConfirmations(any(), any());
         verify(events).publishEvent(new GroupUpdatedEvent(group.getId(), GroupStatus.OPEN, 2, false));
+    }
+
+    @Test
+    void changingTheDetailsAfterTheDrawNeverResetsTheConfirmations() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+        group.markDrawn(NOW);
+
+        service.updateEventDetails(ANA, group.getId(), new EventDetailsRequest(null, DEC_19, "20:00", "Salão"));
+
+        verify(members, never()).resetConfirmations(any(), any());
+        verify(events).publishEvent(new GroupUpdatedEvent(group.getId(), GroupStatus.DRAWN, 2, false));
     }
 
     @Test
@@ -266,7 +298,7 @@ class GroupServiceTest {
 
     @Test
     void oldGroupWithoutDetailsIsFlaggedForTheOrganizer() {
-        SecretGroup old = openGroup(ANA);
+        SecretGroup old = new SecretGroup("Antigo", "K7PQM2XA", ANA, NOW);
         when(groups.findById(old.getId())).thenReturn(Optional.of(old));
         when(members.existsById(new GroupMemberId(old.getId(), ANA))).thenReturn(true);
         givenParticipants(old, ANA);
@@ -275,6 +307,8 @@ class GroupServiceTest {
 
         assertThat(detail.eventDetails()).isNull();
         assertThat(detail.eventDetailsMissing()).isTrue();
+        assertThat(detail.drawBlockedReason()).isEqualTo("event-details-required");
+        assertThat(detail.canDraw()).isFalse();
     }
 
     // ---- join ----
@@ -292,6 +326,7 @@ class GroupServiceTest {
         ArgumentCaptor<GroupMember> member = ArgumentCaptor.forClass(GroupMember.class);
         verify(members).save(member.capture());
         assertThat(member.getValue().getId()).isEqualTo(new GroupMemberId(group.getId(), BRUNO));
+        assertThat(member.getValue().isConfirmed()).isFalse();
         assertThat(detail.organizer()).isFalse();
         verify(events).publishEvent(new ParticipantsChangedEvent(group.getId(), GroupStatus.OPEN, 3));
     }
@@ -411,7 +446,7 @@ class GroupServiceTest {
         when(groups.findById(group.getId())).thenReturn(Optional.of(group));
         when(members.existsById(new GroupMemberId(group.getId(), BRUNO))).thenReturn(true);
         when(members.findParticipants(group.getId()))
-                .thenReturn(List.of(new ParticipantView(ANA, "Ana"), new ParticipantView(BRUNO, "Bruno")));
+                .thenReturn(List.of(new ParticipantView(ANA, "Ana", NOW), new ParticipantView(BRUNO, "Bruno", null)));
 
         GroupDetail detail = service.getDetail(BRUNO, group.getId());
 
@@ -439,6 +474,32 @@ class GroupServiceTest {
 
         group.markDrawn(NOW);
         assertThat(service.getDetail(ANA, group.getId()).canDraw()).isFalse();
+        assertThat(service.getDetail(ANA, group.getId()).drawBlockedReason()).isNull();
+    }
+
+    @Test
+    void detailShowsWhoConfirmedAndBlocksTheDrawWhileSomeoneIsPending() {
+        SecretGroup group = openGroup(ANA);
+        UUID carla = UUID.randomUUID();
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+        when(members.existsById(any())).thenReturn(true);
+        givenParticipants(group, List.of(BRUNO), ANA, BRUNO, carla);
+
+        GroupDetail forAna = service.getDetail(ANA, group.getId());
+        GroupDetail forBruno = service.getDetail(BRUNO, group.getId());
+
+        assertThat(forAna.participants()).extracting("confirmed").containsExactly(true, false, true);
+        assertThat(forAna.confirmedCount()).isEqualTo(2);
+        assertThat(forAna.myConfirmation()).isEqualTo(ConfirmationStatus.CONFIRMED);
+        assertThat(forBruno.myConfirmation()).isEqualTo(ConfirmationStatus.PENDING);
+        assertThat(forAna.drawBlockedReason()).isEqualTo("participants-pending");
+        assertThat(forAna.canDraw()).isFalse();
+
+        givenParticipants(group, ANA, BRUNO, carla);
+        GroupDetail allConfirmed = service.getDetail(ANA, group.getId());
+        assertThat(allConfirmed.confirmedCount()).isEqualTo(3);
+        assertThat(allConfirmed.drawBlockedReason()).isNull();
+        assertThat(allConfirmed.canDraw()).isTrue();
     }
 
     @Test

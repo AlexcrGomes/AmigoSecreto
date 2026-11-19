@@ -111,6 +111,8 @@ class MembershipFlowIT extends AbstractIntegrationTest {
                 .post("/api/v1/groups/join", Map.of("code", group.get("code").asString()));
         carla.client()
                 .post("/api/v1/groups/join", Map.of("code", group.get("code").asString()));
+        bruno.client().confirm(groupId);
+        carla.client().confirm(groupId);
         assertThat(ana.client().post("/api/v1/groups/" + groupId + "/draw").status())
                 .isEqualTo(200);
 
