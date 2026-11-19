@@ -12,7 +12,10 @@ import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Persistable;
 
-/** Participação de um usuário em um grupo (tabela {@code group_member}). */
+/**
+ * Participação de um usuário em um grupo (tabela {@code group_member}). {@code confirmedAt} nulo = pendente
+ * (FR-008): quem entra pelo código começa pendente; o organizador nasce confirmado.
+ */
 @Entity
 @Table(name = "group_member")
 public class GroupMember implements Persistable<GroupMemberId> {
@@ -23,14 +26,25 @@ public class GroupMember implements Persistable<GroupMemberId> {
     @Column(name = "joined_at", nullable = false)
     private Instant joinedAt;
 
+    @Column(name = "confirmed_at")
+    private Instant confirmedAt;
+
     @Transient
     private boolean isNew = true;
 
     protected GroupMember() {}
 
+    /** Participante que entrou pelo código: pendente até confirmar. */
     public GroupMember(UUID groupId, UUID userId, Instant joinedAt) {
         this.id = new GroupMemberId(Objects.requireNonNull(groupId), Objects.requireNonNull(userId));
         this.joinedAt = Objects.requireNonNull(joinedAt, "joinedAt");
+    }
+
+    /** O organizador, que cria o grupo já confirmado e nunca volta a pendente. */
+    public static GroupMember organizer(UUID groupId, UUID userId, Instant now) {
+        GroupMember member = new GroupMember(groupId, userId, now);
+        member.confirmedAt = member.joinedAt;
+        return member;
     }
 
     @PostLoad
@@ -51,5 +65,13 @@ public class GroupMember implements Persistable<GroupMemberId> {
 
     public Instant getJoinedAt() {
         return joinedAt;
+    }
+
+    public Instant getConfirmedAt() {
+        return confirmedAt;
+    }
+
+    public boolean isConfirmed() {
+        return confirmedAt != null;
     }
 }

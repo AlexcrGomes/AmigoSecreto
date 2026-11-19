@@ -1,6 +1,9 @@
 package br.com.amigosecreto.events;
 
+import br.com.amigosecreto.events.GroupEvents.DrawUndoneEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
+import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
+import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
 import br.com.amigosecreto.events.GroupEvents.MembershipRevokedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.events.GroupEvents.RevocationReason;
@@ -109,9 +112,30 @@ public class SseEmitterRegistry {
         broadcast(event.groupId(), "group-drawn", signal(event.groupId(), GroupStatus.DRAWN, event.participantCount()));
     }
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onGroupUpdated(GroupUpdatedEvent event) {
+        Map<String, Object> data = signalData(event.groupId(), event.status(), event.participantCount());
+        data.put("confirmationsReset", event.confirmationsReset());
+        broadcast(event.groupId(), "group-updated", jsonMapper.writeValueAsString(data));
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onDrawUndone(DrawUndoneEvent event) {
+        broadcast(event.groupId(), "draw-undone", signal(event.groupId(), GroupStatus.OPEN, event.participantCount()));
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onGroupFinished(GroupFinishedEvent event) {
+        broadcast(
+                event.groupId(),
+                "group-finished",
+                signal(event.groupId(), GroupStatus.FINISHED, event.participantCount()));
+    }
+
     /**
-     * Quem deixou de ser membro perde as conexões do grupo. Só quem foi removido recebe antes o aviso
-     * {@code membership-revoked} — e só ele, nunca os demais participantes.
+     * Quem deixou de ser membro perde as conexões do grupo. Quem foi removido ou teve a saída aprovada recebe
+     * antes o aviso {@code membership-revoked}, com o motivo — e só ele, nunca os demais participantes. Quem
+     * saiu por conta própria não recebe aviso.
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onMembershipRevoked(MembershipRevokedEvent event) {
@@ -120,9 +144,13 @@ public class SseEmitterRegistry {
         if (connections == null) {
             return;
         }
-        String json = jsonMapper.writeValueAsString(Map.of("groupId", event.groupId()));
+        String notice = noticeReason(event.reason());
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("groupId", event.groupId());
+        data.put("reason", notice);
+        String json = jsonMapper.writeValueAsString(data);
         for (SseEmitter emitter : Set.copyOf(connections)) {
-            if (event.reason() == RevocationReason.REMOVED) {
+            if (notice != null) {
                 send(
                         event.groupId(),
                         event.userId(),
@@ -145,12 +173,25 @@ public class SseEmitterRegistry {
                 emitter -> send(groupId, userId, emitter, SseEmitter.event().comment("ping")))));
     }
 
+    /** O {@code reason} do aviso, ou {@code null} quando a pessoa saiu sozinha e não há aviso. */
+    private static String noticeReason(RevocationReason reason) {
+        return switch (reason) {
+            case LEFT -> null;
+            case REMOVED -> "removed";
+            case EXIT_APPROVED -> "exit-approved";
+        };
+    }
+
     private String signal(UUID groupId, GroupStatus status, int participantCount) {
+        return jsonMapper.writeValueAsString(signalData(groupId, status, participantCount));
+    }
+
+    private static Map<String, Object> signalData(UUID groupId, GroupStatus status, int participantCount) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("groupId", groupId);
         data.put("status", status);
         data.put("participantCount", participantCount);
-        return jsonMapper.writeValueAsString(data);
+        return data;
     }
 
     private void broadcast(UUID groupId, String name, String json) {

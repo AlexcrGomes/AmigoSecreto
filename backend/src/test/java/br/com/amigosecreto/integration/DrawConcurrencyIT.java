@@ -27,7 +27,7 @@ class DrawConcurrencyIT extends AbstractIntegrationTest {
     void tenSimultaneousDrawsProduceExactlyOneDraw() throws Exception {
         ApiClient ana = newClient();
         ana.register("Ana", "ana." + UUID.randomUUID() + "@ex.com", "senha-forte");
-        JsonNode group = ana.post("/api/v1/groups", Map.of("name", "Firma")).json();
+        JsonNode group = ana.createGroup("Firma").json();
         String groupId = group.get("id").asString();
         seedMembers(UUID.fromString(groupId), 9); // 10 membros
 

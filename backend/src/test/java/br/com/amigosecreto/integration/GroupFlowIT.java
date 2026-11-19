@@ -46,7 +46,7 @@ class GroupFlowIT extends AbstractIntegrationTest {
         User carla = newUser("Carla");
         User davi = newUser("Davi");
 
-        ApiClient.Response created = ana.client().post("/api/v1/groups", Map.of("name", "  Natal 2026 "));
+        ApiClient.Response created = ana.client().createGroup("  Natal 2026 ");
         assertThat(created.status()).isEqualTo(201);
         JsonNode group = created.json();
         String groupId = group.get("id").asString();
@@ -111,8 +111,7 @@ class GroupFlowIT extends AbstractIntegrationTest {
     @Test
     void concurrentJoinsNeverExceedOneHundredMembers() throws Exception {
         User ana = newUser("Ana");
-        JsonNode group =
-                ana.client().post("/api/v1/groups", Map.of("name", "Firma")).json();
+        JsonNode group = ana.client().createGroup("Firma").json();
         String groupId = group.get("id").asString();
         String code = group.get("code").asString();
         seedMembers(UUID.fromString(groupId), 94); // 1 + 94 = 95

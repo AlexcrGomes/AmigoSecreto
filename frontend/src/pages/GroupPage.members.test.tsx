@@ -9,7 +9,7 @@ import { ANA, mockSession, renderWithProviders } from '../test/render';
 import { server } from '../test/server';
 import { GroupPage } from './GroupPage';
 
-const CARLA = { userId: 'c-3', name: 'Carla', organizer: false };
+const CARLA = { userId: 'c-3', name: 'Carla', organizer: false, confirmed: true };
 const ORGANIZER_VIEW = openGroup({
   participants: [...openGroup().participants, CARLA],
   participantCount: 3,
@@ -19,8 +19,8 @@ const ORGANIZER_VIEW = openGroup({
 const MEMBER_VIEW = openGroup({
   organizer: false,
   participants: [
-    { userId: BRUNO_ID, name: 'Bruno', organizer: true },
-    { userId: ANA.id, name: 'Ana', organizer: false },
+    { userId: BRUNO_ID, name: 'Bruno', organizer: true, confirmed: true },
+    { userId: ANA.id, name: 'Ana', organizer: false, confirmed: true },
   ],
 });
 

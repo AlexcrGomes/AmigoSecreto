@@ -9,7 +9,10 @@ import { GroupPage } from './GroupPage';
 const READY = openGroup({
   participantCount: 3,
   canDraw: true,
-  participants: [...openGroup().participants, { userId: 'c-3', name: 'Carla', organizer: false }],
+  participants: [
+    ...openGroup().participants,
+    { userId: 'c-3', name: 'Carla', organizer: false, confirmed: true },
+  ],
 });
 const DRAWN = {
   ...READY,

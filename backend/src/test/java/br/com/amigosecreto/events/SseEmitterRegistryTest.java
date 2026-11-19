@@ -2,7 +2,10 @@ package br.com.amigosecreto.events;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import br.com.amigosecreto.events.GroupEvents.DrawUndoneEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
+import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
+import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
 import br.com.amigosecreto.events.GroupEvents.MembershipRevokedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.events.GroupEvents.RevocationReason;
@@ -145,12 +148,72 @@ class SseEmitterRegistryTest {
                     .singleElement()
                     .asString()
                     .contains("event:membership-revoked")
-                    .contains("data:{\"groupId\":\"" + GROUP + "\"}");
+                    .contains("data:{\"groupId\":\"" + GROUP + "\",\"reason\":\"removed\"}");
             assertThat(emitter.completed).isTrue();
         }
         assertThat(ana.sent).isEmpty();
         assertThat(ana.completed).isFalse();
         assertThat(registry.connectionCount(GROUP)).isEqualTo(1);
+    }
+
+    @Test
+    void approvedExitNoticeGoesOnlyToWhoLeftWithTheReason() {
+        RecordingEmitter ana = (RecordingEmitter) registry.register(GROUP, ANA);
+        RecordingEmitter bruno = (RecordingEmitter) registry.register(GROUP, BRUNO);
+
+        registry.onMembershipRevoked(new MembershipRevokedEvent(GROUP, BRUNO, RevocationReason.EXIT_APPROVED));
+
+        assertThat(bruno.sent)
+                .singleElement()
+                .asString()
+                .contains("event:membership-revoked")
+                .contains("data:{\"groupId\":\"" + GROUP + "\",\"reason\":\"exit-approved\"}");
+        assertThat(bruno.completed).isTrue();
+        assertThat(ana.sent).isEmpty();
+        assertThat(registry.connectionCount(GROUP)).isEqualTo(1);
+    }
+
+    @Test
+    void groupUpdatedCarriesWhetherConfirmationsWereReset() {
+        RecordingEmitter ana = (RecordingEmitter) registry.register(GROUP, ANA);
+        RecordingEmitter otherGroup = (RecordingEmitter) registry.register(OTHER_GROUP, BRUNO);
+
+        registry.onGroupUpdated(new GroupUpdatedEvent(GROUP, GroupStatus.OPEN, 7, true));
+        registry.onGroupUpdated(new GroupUpdatedEvent(GROUP, GroupStatus.DRAWN, 7, false));
+
+        assertThat(ana.sent)
+                .containsExactly(
+                        event(
+                                "group-updated",
+                                "{\"groupId\":\"" + GROUP
+                                        + "\",\"status\":\"OPEN\",\"participantCount\":7,\"confirmationsReset\":true}"),
+                        event(
+                                "group-updated",
+                                "{\"groupId\":\"" + GROUP
+                                        + "\",\"status\":\"DRAWN\",\"participantCount\":7,\"confirmationsReset\":false}"));
+        assertThat(otherGroup.sent).isEmpty();
+    }
+
+    @Test
+    void drawUndoneAndGroupFinishedAreSignalsWithTheNewStatus() {
+        RecordingEmitter ana = (RecordingEmitter) registry.register(GROUP, ANA);
+        RecordingEmitter bruno = (RecordingEmitter) registry.register(GROUP, BRUNO);
+
+        registry.onDrawUndone(new DrawUndoneEvent(GROUP, 6));
+        registry.onGroupFinished(new GroupFinishedEvent(GROUP, 6));
+
+        for (RecordingEmitter emitter : List.of(ana, bruno)) {
+            assertThat(emitter.sent)
+                    .containsExactly(
+                            event(
+                                    "draw-undone",
+                                    "{\"groupId\":\"" + GROUP + "\",\"status\":\"OPEN\",\"participantCount\":6}"),
+                            event(
+                                    "group-finished",
+                                    "{\"groupId\":\"" + GROUP + "\",\"status\":\"FINISHED\",\"participantCount\":6}"));
+            assertThat(emitter.sent)
+                    .noneMatch(sent -> sent.contains(ANA.toString()) || sent.contains(BRUNO.toString()));
+        }
     }
 
     @Test
@@ -189,5 +252,10 @@ class SseEmitterRegistryTest {
         registry.onParticipantsChanged(new ParticipantsChangedEvent(GROUP, GroupStatus.OPEN, 1));
 
         assertThat(registry.connectionCount(GROUP)).isZero();
+    }
+
+    /** Texto que o {@link RecordingEmitter} guarda para um evento com nome e dados. */
+    private static String event(String name, String json) {
+        return "event:" + name + "\ndata:" + json + "\n\n";
     }
 }

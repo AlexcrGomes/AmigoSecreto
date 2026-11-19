@@ -102,7 +102,7 @@ describe('GroupPage — status OPEN', () => {
       openGroup({
         participants: [
           ...openGroup().participants,
-          { userId: 'c-3', name: 'Carla', organizer: false },
+          { userId: 'c-3', name: 'Carla', organizer: false, confirmed: true },
         ],
         participantCount: 3,
       }),
@@ -121,8 +121,8 @@ describe('GroupPage — status OPEN', () => {
       openGroup({
         organizer: false,
         participants: [
-          { userId: BRUNO_ID, name: 'Bruno', organizer: true },
-          { userId: ANA.id, name: 'Ana', organizer: false },
+          { userId: BRUNO_ID, name: 'Bruno', organizer: true, confirmed: true },
+          { userId: ANA.id, name: 'Ana', organizer: false, confirmed: true },
         ],
       }),
     );

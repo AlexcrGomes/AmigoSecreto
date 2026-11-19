@@ -29,8 +29,24 @@ function renderHome(groups: GroupSummary[] | 'erro') {
 describe('HomePage', () => {
   it('lista os grupos com contagem e selos', async () => {
     renderHome([
-      { id: 'g-1', name: 'Natal 2026', status: 'OPEN', participantCount: 4, organizer: true },
-      { id: 'g-2', name: 'Firma', status: 'DRAWN', participantCount: 1, organizer: false },
+      {
+        id: 'g-1',
+        name: 'Natal 2026',
+        status: 'OPEN',
+        participantCount: 4,
+        organizer: true,
+        eventDate: null,
+        eventTime: null,
+      },
+      {
+        id: 'g-2',
+        name: 'Firma',
+        status: 'DRAWN',
+        participantCount: 1,
+        organizer: false,
+        eventDate: null,
+        eventTime: null,
+      },
     ]);
 
     const natal = await screen.findByRole('link', { name: /Natal 2026/ });

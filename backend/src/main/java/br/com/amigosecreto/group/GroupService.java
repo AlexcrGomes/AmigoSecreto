@@ -55,7 +55,7 @@ public class GroupService {
     @Transactional
     public GroupDetail create(UUID userId, CreateGroupRequest request) {
         SecretGroup group = groups.save(new SecretGroup(request.name(), uniqueCode(), userId, clock.instant()));
-        members.save(new GroupMember(group.getId(), userId, clock.instant()));
+        members.save(GroupMember.organizer(group.getId(), userId, clock.instant()));
         events.publishEvent(new ParticipantsChangedEvent(group.getId(), GroupStatus.OPEN, 1));
         return detail(group, userId);
     }

@@ -3,7 +3,10 @@ package br.com.amigosecreto.group;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -35,6 +38,35 @@ class SecretGroupTest {
         assertThat(group.getDrawnAt()).isEqualTo(NOW.plusSeconds(60));
         assertThatIllegalStateException().isThrownBy(() -> group.markDrawn(NOW.plusSeconds(120)));
         assertThat(group.getDrawnAt()).isEqualTo(NOW.plusSeconds(60));
+    }
+
+    @Test
+    void newGroupHasNoEventDetailsUntilTheyAreInformed() {
+        SecretGroup group = new SecretGroup("Natal", "K7PQM2XA", UUID.randomUUID(), NOW);
+        EventSchedule schedule = new EventSchedule(Clock.fixed(NOW, ZoneOffset.UTC), ZoneId.of("America/Sao_Paulo"));
+
+        assertThat(group.eventDetails(schedule)).isEmpty();
+        assertThat(group.getDetailsVersion()).isEqualTo(1);
+        assertThat(group.getLocation()).isNull();
+        assertThat(group.getEventStartsAt()).isNull();
+        assertThat(group.getFinalizesAt()).isNull();
+        assertThat(group.getFinishedAt()).isNull();
+        assertThat(group.getDrawUndoneAt()).isNull();
+    }
+
+    @Test
+    void organizerIsBornConfirmedAndOthersStartPending() {
+        UUID groupId = UUID.randomUUID();
+
+        GroupMember organizer = GroupMember.organizer(groupId, UUID.randomUUID(), NOW);
+        GroupMember guest = new GroupMember(groupId, UUID.randomUUID(), NOW.plusSeconds(60));
+
+        assertThat(organizer.isConfirmed()).isTrue();
+        assertThat(organizer.getConfirmedAt())
+                .isEqualTo(organizer.getJoinedAt())
+                .isEqualTo(NOW);
+        assertThat(guest.isConfirmed()).isFalse();
+        assertThat(guest.getConfirmedAt()).isNull();
     }
 
     @Test
