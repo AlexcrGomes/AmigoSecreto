@@ -48,7 +48,7 @@ class SecrecyIT extends AbstractIntegrationTest {
             members.add(newMember(name));
         }
         Member organizer = members.getFirst();
-        ApiClient.Response created = organizer.client().post("/api/v1/groups", Map.of("name", "Sigilo"));
+        ApiClient.Response created = organizer.client().createGroup("Sigilo");
         String groupId = created.json().get("id").asString();
         String code = created.json().get("code").asString();
         for (Member member : members.subList(1, members.size())) {

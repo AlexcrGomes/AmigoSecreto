@@ -11,6 +11,9 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -73,6 +76,31 @@ public final class ApiClient {
         }
     }
 
+    // ---- grupos ----
+
+    /**
+     * Cria um grupo com detalhes do evento válidos: data daqui a 30 dias (em Brasília) e um local fixo. Os
+     * testes que não tratam dos detalhes do evento usam esta forma.
+     */
+    public Response createGroup(String name) {
+        return createGroup(
+                name,
+                Map.of(
+                        "eventDate",
+                        LocalDate.now(ZoneId.of("America/Sao_Paulo"))
+                                .plusDays(30)
+                                .toString(),
+                        "location",
+                        "Local de teste"));
+    }
+
+    /** Cria um grupo com os detalhes do evento informados (os testes da US1 da 002). */
+    public Response createGroup(String name, Map<String, Object> eventDetails) {
+        Map<String, Object> body = new LinkedHashMap<>(eventDetails);
+        body.put("name", name);
+        return post("/api/v1/groups", body);
+    }
+
     // ---- verbos ----
 
     public Response get(String path) {
@@ -87,6 +115,12 @@ public final class ApiClient {
 
     public Response post(String path) {
         return send(withXsrf(request(path).POST(HttpRequest.BodyPublishers.noBody())));
+    }
+
+    public Response put(String path, Object body) {
+        return send(withXsrf(request(path)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(toJson(body)))));
     }
 
     public Response delete(String path) {

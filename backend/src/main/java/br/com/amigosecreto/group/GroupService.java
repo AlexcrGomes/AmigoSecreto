@@ -1,9 +1,13 @@
 package br.com.amigosecreto.group;
 
 import br.com.amigosecreto.common.ConflictException;
+import br.com.amigosecreto.common.ForbiddenException;
 import br.com.amigosecreto.common.NotFoundException;
+import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.group.dto.CreateGroupRequest;
+import br.com.amigosecreto.group.dto.EventDetailsRequest;
+import br.com.amigosecreto.group.dto.EventDetailsResponse;
 import br.com.amigosecreto.group.dto.GroupDetail;
 import br.com.amigosecreto.group.dto.GroupSummary;
 import br.com.amigosecreto.group.dto.JoinGroupRequest;
@@ -34,6 +38,7 @@ public class GroupService {
     private final GroupCodeGenerator codes;
     private final RateLimiter rateLimiter;
     private final Clock clock;
+    private final EventSchedule schedule;
     private final ApplicationEventPublisher events;
 
     public GroupService(
@@ -42,20 +47,27 @@ public class GroupService {
             GroupCodeGenerator codes,
             RateLimiter rateLimiter,
             Clock clock,
+            EventSchedule schedule,
             ApplicationEventPublisher events) {
         this.groups = groups;
         this.members = members;
         this.codes = codes;
         this.rateLimiter = rateLimiter;
         this.clock = clock;
+        this.schedule = schedule;
         this.events = events;
     }
 
-    /** O criador vira organizador e participante (FR-008, FR-009). */
+    /**
+     * O criador vira organizador e participante já confirmado (FR-008, FR-009 da 001). O grupo nasce com os
+     * detalhes do evento (FR-001 a FR-003 da 002): data no passado não cria nada.
+     */
     @Transactional
     public GroupDetail create(UUID userId, CreateGroupRequest request) {
-        SecretGroup group = groups.save(new SecretGroup(request.name(), uniqueCode(), userId, clock.instant()));
-        members.save(new GroupMember(group.getId(), userId, clock.instant()));
+        SecretGroup newGroup = new SecretGroup(request.name(), uniqueCode(), userId, clock.instant());
+        newGroup.updateEventDetails(request.eventDetails(), schedule);
+        SecretGroup group = groups.save(newGroup);
+        members.save(GroupMember.organizer(group.getId(), userId, clock.instant()));
         events.publishEvent(new ParticipantsChangedEvent(group.getId(), GroupStatus.OPEN, 1));
         return detail(group, userId);
     }
@@ -94,6 +106,23 @@ public class GroupService {
         return detail(group, userId);
     }
 
+    /**
+     * O organizador altera descrição, data, horário e local (FR-005, FR-006). Trava a linha do grupo, como
+     * entrar e sortear. Não membro recebe 404, como em qualquer rota do grupo.
+     */
+    @Transactional
+    public GroupDetail updateEventDetails(UUID userId, UUID groupId, EventDetailsRequest request) {
+        SecretGroup group = groups.findByIdForUpdate(groupId).orElseThrow(() -> new NotFoundException(GROUP_NOT_FOUND));
+        requireMember(userId, groupId);
+        if (!group.isOrganizer(userId)) {
+            throw new ForbiddenException("Só o organizador pode alterar os detalhes do evento.");
+        }
+        group.updateEventDetails(request.toEventDetails(), schedule);
+        int count = (int) members.countByIdGroupId(groupId);
+        events.publishEvent(new GroupUpdatedEvent(groupId, group.getStatus(), count, false));
+        return detail(group, userId);
+    }
+
     /** Detalhes para um membro. Grupo inexistente e não-membro respondem igual (FR-017). */
     @Transactional(readOnly = true)
     public GroupDetail getDetail(UUID userId, UUID groupId) {
@@ -110,7 +139,12 @@ public class GroupService {
                         view.name(),
                         view.status(),
                         view.participantCount().intValue(),
-                        view.organizerId().equals(userId)))
+                        view.organizerId().equals(userId),
+                        view.eventStartsAt() == null ? null : schedule.toLocalDate(view.eventStartsAt()),
+                        view.eventStartsAt() == null
+                                ? null
+                                : EventDetailsResponse.formatTime(
+                                        schedule.toLocalTime(view.eventStartsAt(), view.eventHasTime()))))
                 .toList();
     }
 
@@ -139,6 +173,8 @@ public class GroupService {
         boolean organizer = group.isOrganizer(userId);
         boolean canDraw =
                 organizer && group.getStatus() == GroupStatus.OPEN && participants.size() >= MIN_PARTICIPANTS_TO_DRAW;
+        EventDetailsResponse eventDetails =
+                group.eventDetails(schedule).map(EventDetailsResponse::from).orElse(null);
         return new GroupDetail(
                 group.getId(),
                 group.getName(),
@@ -149,6 +185,9 @@ public class GroupService {
                 participants.size(),
                 MAX_PARTICIPANTS,
                 organizer,
-                canDraw);
+                canDraw,
+                eventDetails,
+                eventDetails == null,
+                group.getDetailsVersion());
     }
 }

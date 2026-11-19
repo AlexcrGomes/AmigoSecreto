@@ -41,8 +41,7 @@ class DrawPerformanceIT extends AbstractIntegrationTest {
         }
 
         ApiClient organizer = users.getFirst();
-        var group =
-                organizer.post("/api/v1/groups", Map.of("name", "Firma grande")).json();
+        var group = organizer.createGroup("Firma grande").json();
         String groupId = group.get("id").asString();
         String code = group.get("code").asString();
         for (ApiClient member : users.subList(1, users.size())) {

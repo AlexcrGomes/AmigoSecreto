@@ -10,7 +10,10 @@ import { DrawButton } from './DrawButton';
 const THREE = openGroup({
   participantCount: 3,
   canDraw: true,
-  participants: [...openGroup().participants, { userId: 'c-3', name: 'Carla', organizer: false }],
+  participants: [
+    ...openGroup().participants,
+    { userId: 'c-3', name: 'Carla', organizer: false, confirmed: true },
+  ],
 });
 
 describe('DrawButton', () => {

@@ -34,8 +34,7 @@ class MembershipFlowIT extends AbstractIntegrationTest {
         User bruno = newUser("Bruno");
         User carla = newUser("Carla");
         User davi = newUser("Davi");
-        JsonNode group =
-                ana.client().post("/api/v1/groups", Map.of("name", "Natal")).json();
+        JsonNode group = ana.client().createGroup("Natal").json();
         String groupId = group.get("id").asString();
         String code = group.get("code").asString();
         for (User user : List.of(bruno, carla, davi)) {
@@ -106,8 +105,7 @@ class MembershipFlowIT extends AbstractIntegrationTest {
         User ana = newUser("Ana");
         User bruno = newUser("Bruno");
         User carla = newUser("Carla");
-        JsonNode group =
-                ana.client().post("/api/v1/groups", Map.of("name", "Firma")).json();
+        JsonNode group = ana.client().createGroup("Firma").json();
         String groupId = group.get("id").asString();
         bruno.client()
                 .post("/api/v1/groups/join", Map.of("code", group.get("code").asString()));

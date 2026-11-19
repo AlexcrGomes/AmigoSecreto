@@ -1,7 +1,31 @@
 import { apiFetch } from './client';
 
-/** Tipos dos schemas de contracts/openapi.yaml. */
-export type GroupStatus = 'OPEN' | 'DRAWN';
+/** Tipos dos schemas de contracts/openapi.yaml (feature 001 e as mudanças da 002). */
+export type GroupStatus = 'OPEN' | 'DRAWN' | 'FINISHED';
+
+/** Detalhes do evento. Data `AAAA-MM-DD` e horário `HH:mm` em horário de Brasília. */
+export interface EventDetails {
+  description: string | null;
+  eventDate: string;
+  eventTime: string | null;
+  location: string;
+}
+
+/** Por que o sorteio ainda não pode ser feito (research R16), ou `null` se pode. */
+export type DrawBlockedReason =
+  | 'event-details-required'
+  | 'event-date-passed'
+  | 'not-enough-participants'
+  | 'participants-pending'
+  | null;
+
+/** Pedido de saída pendente, depois do sorteio. */
+export interface ExitRequest {
+  id: string;
+  userId: string;
+  name: string;
+  requestedAt: string;
+}
 
 export interface GroupSummary {
   id: string;
@@ -9,12 +33,16 @@ export interface GroupSummary {
   status: GroupStatus;
   participantCount: number;
   organizer: boolean;
+  /** `null` em grupos antigos que ainda esperam a data. */
+  eventDate: string | null;
+  eventTime: string | null;
 }
 
 export interface Participant {
   userId: string;
   name: string;
   organizer: boolean;
+  confirmed: boolean;
 }
 
 export interface GroupDetail {
@@ -29,14 +57,46 @@ export interface GroupDetail {
   maxParticipants: number;
   organizer: boolean;
   canDraw: boolean;
+  /** `null` em grupo antigo ainda sem data e local (FR-034). */
+  eventDetails: EventDetails | null;
+  eventDetailsMissing: boolean;
+  /** Grupo aberto cujo evento já aconteceu: o sorteio fica bloqueado até nova data. */
+  eventDatePassed: boolean;
+  /** Enviar ao confirmar (FR-035). */
+  detailsVersion: number;
+  confirmedCount: number;
+  myConfirmation: 'PENDING' | 'CONFIRMED';
+  drawBlockedReason: DrawBlockedReason;
+  finishedAt: string | null;
+  /** O último sorteio foi desfeito por uma saída aprovada. */
+  drawUndone: boolean;
+  myExitRequest: ExitRequest | null;
+  /** Só para o organizador; vazio para os demais. */
+  pendingExitRequests: ExitRequest[];
 }
 
 export function listGroups(signal?: AbortSignal): Promise<GroupSummary[]> {
   return apiFetch<GroupSummary[]>('/groups', { signal });
 }
 
-export function createGroup(name: string): Promise<GroupDetail> {
-  return apiFetch<GroupDetail>('/groups', { method: 'POST', body: { name } });
+/** Corpo de criar e de editar os detalhes do evento (schema `EventDetailsRequest`). */
+export interface EventDetailsBody {
+  description: string | null;
+  eventDate: string;
+  eventTime: string | null;
+  location: string;
+}
+
+export function createGroup(name: string, details: EventDetailsBody): Promise<GroupDetail> {
+  return apiFetch<GroupDetail>('/groups', { method: 'POST', body: { name, ...details } });
+}
+
+/** O organizador altera descrição, data, horário e local. */
+export function updateEventDetails(id: string, details: EventDetailsBody): Promise<GroupDetail> {
+  return apiFetch<GroupDetail>(`/groups/${encodeURIComponent(id)}/event-details`, {
+    method: 'PUT',
+    body: details,
+  });
 }
 
 export function joinGroup(code: string): Promise<GroupDetail> {

@@ -2,6 +2,7 @@ package br.com.amigosecreto.group;
 
 import br.com.amigosecreto.auth.CurrentUser;
 import br.com.amigosecreto.group.dto.CreateGroupRequest;
+import br.com.amigosecreto.group.dto.EventDetailsRequest;
 import br.com.amigosecreto.group.dto.GroupDetail;
 import br.com.amigosecreto.group.dto.GroupSummary;
 import br.com.amigosecreto.group.dto.JoinGroupRequest;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -63,6 +65,12 @@ public class GroupController {
     @PostMapping("/join")
     public GroupDetail join(@Valid @RequestBody JoinGroupRequest body) {
         return groupService.join(currentUser.id(), body);
+    }
+
+    /** O organizador (usuário da sessão) altera descrição, data, horário e local do evento. */
+    @PutMapping("/{groupId}/event-details")
+    public GroupDetail updateEventDetails(@PathVariable UUID groupId, @Valid @RequestBody EventDetailsRequest body) {
+        return groupService.updateEventDetails(currentUser.id(), groupId, body);
     }
 
     @GetMapping("/{groupId}")
