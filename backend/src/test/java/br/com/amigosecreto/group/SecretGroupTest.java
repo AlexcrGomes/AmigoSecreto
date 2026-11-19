@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -158,6 +159,65 @@ class SecretGroupTest {
                 .isInstanceOf(ConflictException.class)
                 .hasFieldOrPropertyWithValue("type", "group-finished");
         assertThat(group.getLocation()).isEqualTo("Salão");
+    }
+
+    // ---- condições do sorteio (US2, research R16) ----
+
+    @Test
+    void drawBlockedReasonFollowsTheOrderOfResearchR16() {
+        SecretGroup old = new SecretGroup("Antigo", "K7PQM2XA", UUID.randomUUID(), NOW);
+        assertThat(old.drawBlockedReason(2, 1, SCHEDULE)).isEqualTo(DrawBlockedReason.EVENT_DETAILS_REQUIRED);
+
+        SecretGroup group = groupWith(PARTY);
+        EventSchedule afterTheParty = scheduleAt(Instant.parse("2026-12-25T12:00:00Z"));
+        assertThat(group.drawBlockedReason(2, 1, afterTheParty)).isEqualTo(DrawBlockedReason.EVENT_DATE_PASSED);
+        assertThat(group.drawBlockedReason(2, 1, SCHEDULE)).isEqualTo(DrawBlockedReason.NOT_ENOUGH_PARTICIPANTS);
+        assertThat(group.drawBlockedReason(3, 1, SCHEDULE)).isEqualTo(DrawBlockedReason.PARTICIPANTS_PENDING);
+        assertThat(group.drawBlockedReason(3, 0, SCHEDULE)).isNull();
+    }
+
+    @Test
+    void eventDatePassedStartsAtTheEventTime() {
+        SecretGroup group = groupWith(PARTY); // 19/12 às 19:00 de Brasília = 22:00 UTC
+
+        assertThat(group.drawBlockedReason(3, 0, scheduleAt(Instant.parse("2026-12-19T21:59:00Z"))))
+                .isNull();
+        assertThat(group.drawBlockedReason(3, 0, scheduleAt(Instant.parse("2026-12-19T22:00:00Z"))))
+                .isEqualTo(DrawBlockedReason.EVENT_DATE_PASSED);
+    }
+
+    @Test
+    void withoutTimeTheWholeEventDayStillAllowsTheDraw() {
+        SecretGroup group = groupWith(new EventDetails(null, DEC_19, null, "Casa da Ana"));
+
+        // 23:59 de 19/12 em Brasília = 02:59 UTC de 20/12
+        assertThat(group.drawBlockedReason(3, 0, scheduleAt(Instant.parse("2026-12-20T02:59:00Z"))))
+                .isNull();
+        assertThat(group.drawBlockedReason(3, 0, scheduleAt(Instant.parse("2026-12-20T03:00:00Z"))))
+                .isEqualTo(DrawBlockedReason.EVENT_DATE_PASSED);
+    }
+
+    @Test
+    void drawBlockedReasonsHaveTheContractCodes() {
+        assertThat(DrawBlockedReason.EVENT_DETAILS_REQUIRED.code()).isEqualTo("event-details-required");
+        assertThat(DrawBlockedReason.EVENT_DATE_PASSED.code()).isEqualTo("event-date-passed");
+        assertThat(DrawBlockedReason.NOT_ENOUGH_PARTICIPANTS.code()).isEqualTo("not-enough-participants");
+        assertThat(DrawBlockedReason.PARTICIPANTS_PENDING.code()).isEqualTo("participants-pending");
+        assertThat(DrawBlockedReason.NOT_ENOUGH_PARTICIPANTS.message())
+                .isEqualTo("São necessários pelo menos 3 participantes.");
+        assertThat(DrawBlockedReason.pendingMessage(List.of("Carla"))).isEqualTo("Falta 1 confirmar: Carla.");
+        assertThat(DrawBlockedReason.pendingMessage(List.of("Bruno", "Carla")))
+                .isEqualTo("Faltam 2 confirmar: Bruno, Carla.");
+    }
+
+    @Test
+    void confirmIsIdempotent() {
+        GroupMember guest = new GroupMember(UUID.randomUUID(), UUID.randomUUID(), NOW);
+
+        assertThat(guest.confirm(NOW.plusSeconds(60))).isTrue();
+        assertThat(guest.getConfirmedAt()).isEqualTo(NOW.plusSeconds(60));
+        assertThat(guest.confirm(NOW.plusSeconds(120))).isFalse();
+        assertThat(guest.getConfirmedAt()).isEqualTo(NOW.plusSeconds(60));
     }
 
     @Test

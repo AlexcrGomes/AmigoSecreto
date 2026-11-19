@@ -79,7 +79,11 @@ class DrawConcurrencyIT extends AbstractIntegrationTest {
                     "{bcrypt}nao-usado",
                     now);
             jdbc.update(
-                    "insert into group_member (group_id, user_id, joined_at) values (?, ?, ?)", groupId, userId, now);
+                    "insert into group_member (group_id, user_id, joined_at, confirmed_at) values (?, ?, ?, ?)",
+                    groupId,
+                    userId,
+                    now,
+                    now);
         }
     }
 }

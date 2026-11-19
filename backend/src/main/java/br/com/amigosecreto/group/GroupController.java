@@ -1,6 +1,7 @@
 package br.com.amigosecreto.group;
 
 import br.com.amigosecreto.auth.CurrentUser;
+import br.com.amigosecreto.group.dto.ConfirmationRequest;
 import br.com.amigosecreto.group.dto.CreateGroupRequest;
 import br.com.amigosecreto.group.dto.EventDetailsRequest;
 import br.com.amigosecreto.group.dto.GroupDetail;
@@ -27,12 +28,17 @@ public class GroupController {
 
     private final GroupService groupService;
     private final GroupMembershipService membershipService;
+    private final GroupConfirmationService confirmationService;
     private final CurrentUser currentUser;
 
     public GroupController(
-            GroupService groupService, GroupMembershipService membershipService, CurrentUser currentUser) {
+            GroupService groupService,
+            GroupMembershipService membershipService,
+            GroupConfirmationService confirmationService,
+            CurrentUser currentUser) {
         this.groupService = groupService;
         this.membershipService = membershipService;
+        this.confirmationService = confirmationService;
         this.currentUser = currentUser;
     }
 
@@ -71,6 +77,12 @@ public class GroupController {
     @PutMapping("/{groupId}/event-details")
     public GroupDetail updateEventDetails(@PathVariable UUID groupId, @Valid @RequestBody EventDetailsRequest body) {
         return groupService.updateEventDetails(currentUser.id(), groupId, body);
+    }
+
+    /** O usuário da sessão confirma a própria participação, na versão dos detalhes que viu (FR-009, FR-035). */
+    @PostMapping("/{groupId}/confirmation")
+    public GroupDetail confirm(@PathVariable UUID groupId, @Valid @RequestBody ConfirmationRequest body) {
+        return confirmationService.confirm(currentUser.id(), groupId, body);
     }
 
     @GetMapping("/{groupId}")

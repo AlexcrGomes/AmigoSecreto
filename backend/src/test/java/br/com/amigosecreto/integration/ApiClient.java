@@ -101,6 +101,16 @@ public final class ApiClient {
         return post("/api/v1/groups", body);
     }
 
+    /**
+     * O usuário deste cliente confirma a participação na versão atual dos detalhes do evento (US2 da 002),
+     * lida do próprio grupo, como a tela faz.
+     */
+    public Response confirm(String groupId) {
+        int version =
+                get("/api/v1/groups/" + groupId).json().get("detailsVersion").asInt();
+        return post("/api/v1/groups/" + groupId + "/confirmation", Map.of("detailsVersion", version));
+    }
+
     // ---- verbos ----
 
     public Response get(String path) {

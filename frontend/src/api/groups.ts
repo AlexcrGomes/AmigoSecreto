@@ -99,6 +99,17 @@ export function updateEventDetails(id: string, details: EventDetailsBody): Promi
   });
 }
 
+/**
+ * O usuário da sessão confirma a própria participação na versão dos detalhes que viu (FR-009, FR-035).
+ * Se os detalhes mudaram nesse meio-tempo, responde 409 `details-changed`.
+ */
+export function confirmParticipation(id: string, detailsVersion: number): Promise<GroupDetail> {
+  return apiFetch<GroupDetail>(`/groups/${encodeURIComponent(id)}/confirmation`, {
+    method: 'POST',
+    body: { detailsVersion },
+  });
+}
+
 export function joinGroup(code: string): Promise<GroupDetail> {
   return apiFetch<GroupDetail>('/groups/join', { method: 'POST', body: { code } });
 }

@@ -1,8 +1,38 @@
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
 import { ApiError } from '../api/client';
+import type { GroupDetail } from '../api/groups';
 
 export const TOO_MANY_ATTEMPTS = 'Muitas tentativas. Tente novamente em alguns minutos.';
 const UNKNOWN_ERROR = 'Algo deu errado. Tente novamente.';
+
+/** A confirmação foi recusada porque os detalhes mudaram depois de a tela carregar (FR-035). */
+export const DETAILS_CHANGED = 'Os detalhes mudaram. Confira e confirme de novo.';
+/** Aviso a quem não é organizador quando a data, o horário ou o local mudaram (FR-015). */
+export const CONFIRMATIONS_RESET = 'Os detalhes do evento mudaram. Confira e confirme de novo.';
+
+/** O problema é do tipo informado (ex.: `details-changed`)? */
+export function isProblem(error: unknown, type: string): boolean {
+  return error instanceof ApiError && error.type === `/problems/${type}`;
+}
+
+/** Por que o botão de sortear está desabilitado (contracts/ui-routes.md), ou `null`. */
+export function drawBlockedMessage(group: GroupDetail): string | null {
+  switch (group.drawBlockedReason) {
+    case 'participants-pending': {
+      const pending = group.participants.filter((participant) => !participant.confirmed);
+      const verb = pending.length === 1 ? 'Falta' : 'Faltam';
+      return `${verb} ${pending.length} confirmar: ${pending.map((p) => p.name).join(', ')}`;
+    }
+    case 'not-enough-participants':
+      return 'São necessários pelo menos 3 participantes';
+    case 'event-date-passed':
+      return 'A data do evento já passou. Atualize a data para sortear.';
+    case 'event-details-required':
+      return 'Informe a data e o local do evento para sortear.';
+    default:
+      return null;
+  }
+}
 
 /** Mensagem para o usuário a partir de qualquer erro de uma ação (FR-035). */
 export function errorMessage(error: unknown): string {

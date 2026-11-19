@@ -70,6 +70,9 @@ class GroupFlowIT extends AbstractIntegrationTest {
         assertThat(again.status()).isEqualTo(200);
         assertThat(again.json().get("participantCount").asInt()).isEqualTo(3);
 
+        // Quem entrou começa pendente; com todos confirmados, só o organizador pode sortear
+        assertThat(bruno.client().confirm(groupId).status()).isEqualTo(200);
+        assertThat(carla.client().confirm(groupId).status()).isEqualTo(200);
         for (User member : List.of(ana, bruno, carla)) {
             JsonNode seen = member.client().get("/api/v1/groups/" + groupId).json();
             assertThat(names(seen)).containsExactly("Ana", "Bruno", "Carla");

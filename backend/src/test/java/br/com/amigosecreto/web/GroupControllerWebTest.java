@@ -26,10 +26,13 @@ import br.com.amigosecreto.common.UnprocessableException;
 import br.com.amigosecreto.config.SecurityConfig;
 import br.com.amigosecreto.events.GroupEventsController;
 import br.com.amigosecreto.events.SseEmitterRegistry;
+import br.com.amigosecreto.group.ConfirmationStatus;
+import br.com.amigosecreto.group.GroupConfirmationService;
 import br.com.amigosecreto.group.GroupController;
 import br.com.amigosecreto.group.GroupMembershipService;
 import br.com.amigosecreto.group.GroupService;
 import br.com.amigosecreto.group.GroupStatus;
+import br.com.amigosecreto.group.dto.ConfirmationRequest;
 import br.com.amigosecreto.group.dto.EventDetailsResponse;
 import br.com.amigosecreto.group.dto.GroupDetail;
 import br.com.amigosecreto.group.dto.GroupSummary;
@@ -70,6 +73,9 @@ class GroupControllerWebTest {
     @MockitoBean
     private GroupMembershipService membershipService;
 
+    @MockitoBean
+    private GroupConfirmationService confirmationService;
+
     private static RequestPostProcessor ana() {
         return authentication(UsernamePasswordAuthenticationToken.authenticated(ANA, null, List.of()));
     }
@@ -97,14 +103,17 @@ class GroupControllerWebTest {
                 "K7PQ-M2XA",
                 GroupStatus.OPEN,
                 null,
-                List.of(new Participant(ANA.id(), "Ana", true)),
+                List.of(new Participant(ANA.id(), "Ana", true, true)),
                 1,
                 100,
                 true,
                 false,
                 new EventDetailsResponse("Traga um prato", LocalDate.of(2026, 12, 19), "19:00", "Casa da Ana"),
                 false,
-                1);
+                1,
+                1,
+                ConfirmationStatus.CONFIRMED,
+                "not-enough-participants");
     }
 
     /** O corpo válido com um campo trocado ({@code null} remove o campo). */
@@ -404,5 +413,56 @@ class GroupControllerWebTest {
         mvc.perform(delete("/api/v1/groups/{id}/participants/me", GROUP_ID).with(ana()))
                 .andExpect(status().isForbidden());
         verify(membershipService, never()).leave(any(), any());
+    }
+
+    // ---- confirmação (US2 da 002) ----
+
+    @Test
+    void confirmUsesTheSessionUserAndReturnsTheGroup() throws Exception {
+        when(confirmationService.confirm(ANA.id(), GROUP_ID, new ConfirmationRequest(2)))
+                .thenReturn(detail());
+
+        mvc.perform(postJson("/api/v1/groups/" + GROUP_ID + "/confirmation", "{\"detailsVersion\":2}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participants[0].confirmed").value(true))
+                .andExpect(jsonPath("$.confirmedCount").value(1))
+                .andExpect(jsonPath("$.myConfirmation").value("CONFIRMED"))
+                .andExpect(jsonPath("$.drawBlockedReason").value("not-enough-participants"));
+        verify(confirmationService).confirm(ANA.id(), GROUP_ID, new ConfirmationRequest(2));
+    }
+
+    @Test
+    void confirmWithoutAValidVersionIs400() throws Exception {
+        String path = "/api/v1/groups/" + GROUP_ID + "/confirmation";
+        mvc.perform(postJson(path, "{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("detailsVersion"));
+        mvc.perform(postJson(path, "{\"detailsVersion\":0}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("detailsVersion"));
+        mvc.perform(post(path).with(ana()).with(spaCsrf())).andExpect(status().isBadRequest());
+        verify(confirmationService, never()).confirm(any(), any(), any());
+    }
+
+    @Test
+    void confirmRequiresXsrf() throws Exception {
+        mvc.perform(post("/api/v1/groups/{id}/confirmation", GROUP_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"detailsVersion\":1}")
+                        .with(ana()))
+                .andExpect(status().isForbidden());
+        verify(confirmationService, never()).confirm(any(), any(), any());
+    }
+
+    @Test
+    void detailsChangedIs409() throws Exception {
+        when(confirmationService.confirm(ANA.id(), GROUP_ID, new ConfirmationRequest(1)))
+                .thenThrow(new ConflictException(
+                        "details-changed", "Os detalhes do evento mudaram. Confira e confirme de novo."));
+
+        mvc.perform(postJson("/api/v1/groups/" + GROUP_ID + "/confirmation", "{\"detailsVersion\":1}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("/problems/details-changed"))
+                .andExpect(jsonPath("$.detail").value("Os detalhes do evento mudaram. Confira e confirme de novo."));
     }
 }

@@ -1,5 +1,6 @@
 package br.com.amigosecreto.common;
 
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 
 /**
@@ -12,12 +13,23 @@ public abstract class ApiException extends RuntimeException {
     private final HttpStatus status;
     private final String type;
     private final String title;
+    private final Map<String, Object> properties;
 
     protected ApiException(HttpStatus status, String type, String title, String detail) {
+        this(status, type, title, detail, Map.of());
+    }
+
+    /**
+     * Com propriedades extras no problema (ex.: {@code pending} em {@code participants-pending}). Valem as
+     * mesmas regras da mensagem: nunca pares do sorteio.
+     */
+    protected ApiException(
+            HttpStatus status, String type, String title, String detail, Map<String, Object> properties) {
         super(detail);
         this.status = status;
         this.type = type;
         this.title = title;
+        this.properties = Map.copyOf(properties);
     }
 
     public HttpStatus getStatus() {
@@ -31,5 +43,10 @@ public abstract class ApiException extends RuntimeException {
 
     public String getTitle() {
         return title;
+    }
+
+    /** Propriedades extras do problema, além de {@code type}, {@code title}, {@code status} e {@code detail}. */
+    public Map<String, Object> getProperties() {
+        return properties;
     }
 }

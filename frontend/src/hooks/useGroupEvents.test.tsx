@@ -37,6 +37,35 @@ describe('useGroupEvents', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: groupKey('g-1') });
   });
 
+  it('group-updated invalida a consulta e avisa quando as confirmações voltaram a pendente', () => {
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    const onConfirmationsReset = vi.fn();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    renderHook(() => useGroupEvents('g-1', { onConfirmationsReset }), { wrapper });
+
+    act(() =>
+      FakeEventSource.latest().emit('group-updated', {
+        status: 'OPEN',
+        participantCount: 3,
+        confirmationsReset: false,
+      }),
+    );
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: groupKey('g-1') });
+    expect(onConfirmationsReset).not.toHaveBeenCalled();
+
+    act(() =>
+      FakeEventSource.latest().emit('group-updated', {
+        status: 'OPEN',
+        participantCount: 3,
+        confirmationsReset: true,
+      }),
+    );
+    expect(onConfirmationsReset).toHaveBeenCalledTimes(1);
+  });
+
   it('em erro refaz a consulta e passa a consultar a cada 10 s até reconectar', () => {
     const { invalidate } = setup();
     const source = FakeEventSource.latest();

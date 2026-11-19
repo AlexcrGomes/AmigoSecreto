@@ -8,17 +8,33 @@ interface ParticipantListProps {
   currentUserId: string | undefined;
   /** Só para o organizador, com o grupo OPEN: mostra "Remover" nos demais participantes. */
   onRemove?: (participant: Participant) => void;
+  /** Antes do sorteio: selos Confirmado/Pendente e "N de M confirmados" (FR-012). */
+  showConfirmation?: boolean;
 }
 
 export function participantsLabel(count: number): string {
   return count === 1 ? '1 participante' : `${count} participantes`;
 }
 
-/** Lista de participantes (só nomes e o selo do organizador — nunca quem tirou quem). */
-export function ParticipantList({ participants, currentUserId, onRemove }: ParticipantListProps) {
+/**
+ * Lista de participantes: nomes, o selo do organizador e, antes do sorteio, quem já confirmou — nunca quem
+ * tirou quem.
+ */
+export function ParticipantList({
+  participants,
+  currentUserId,
+  onRemove,
+  showConfirmation = false,
+}: ParticipantListProps) {
+  const confirmed = participants.filter((participant) => participant.confirmed).length;
   return (
     <Card>
       <h2 className="text-lg font-semibold text-text">{participantsLabel(participants.length)}</h2>
+      {showConfirmation && (
+        <p className="mt-1 text-sm text-text-muted">
+          {confirmed} de {participants.length} confirmados
+        </p>
+      )}
       <ul aria-label="Participantes" className="mt-3 divide-y divide-border">
         {participants.map((participant) => {
           const isMe = participant.userId === currentUserId;
@@ -34,6 +50,12 @@ export function ParticipantList({ participants, currentUserId, onRemove }: Parti
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 {participant.organizer && <Badge tone="primary">Organizador</Badge>}
+                {showConfirmation &&
+                  (participant.confirmed ? (
+                    <Badge tone="success">Confirmado</Badge>
+                  ) : (
+                    <Badge>Pendente</Badge>
+                  ))}
                 {removable && (
                   <Button
                     variant="ghost"

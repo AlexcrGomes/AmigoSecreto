@@ -10,6 +10,19 @@ interface GroupEventHandlers {
   onDrawn?: () => void;
   /** O próprio usuário foi removido do grupo (evento `membership-revoked`). */
   onRevoked?: () => void;
+  /** Data, horário ou local mudaram e as confirmações voltaram a pendente (`group-updated`). */
+  onConfirmationsReset?: () => void;
+}
+
+/** Lê `confirmationsReset` do sinal; um corpo inválido conta como `false`. */
+function confirmationsReset(event: Event): boolean {
+  if (!(event instanceof MessageEvent) || typeof event.data !== 'string') return false;
+  try {
+    const data = JSON.parse(event.data) as { confirmationsReset?: unknown };
+    return data.confirmationsReset === true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -48,7 +61,10 @@ export function useGroupEvents(groupId: string | undefined, handlers: GroupEvent
     let disconnected = false;
     source.addEventListener('participants-changed', refresh);
     // Detalhes do evento, confirmações ou pedidos de saída mudaram (contracts/sse-events.md da 002)
-    source.addEventListener('group-updated', refresh);
+    source.addEventListener('group-updated', (event) => {
+      refresh();
+      if (confirmationsReset(event)) handlersRef.current.onConfirmationsReset?.();
+    });
     source.addEventListener('group-drawn', () => {
       refresh();
       handlersRef.current.onDrawn?.();

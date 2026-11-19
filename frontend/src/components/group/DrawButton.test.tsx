@@ -40,6 +40,52 @@ describe('DrawButton', () => {
     expect(button).toHaveAccessibleDescription('São necessários pelo menos 3 participantes');
   });
 
+  it.each([
+    [
+      'participants-pending' as const,
+      'Faltam 2 confirmar: Bruno, Carla',
+      [
+        { userId: 'b-2', name: 'Bruno', organizer: false, confirmed: false },
+        { userId: 'c-3', name: 'Carla', organizer: false, confirmed: false },
+      ],
+    ],
+    [
+      'participants-pending' as const,
+      'Falta 1 confirmar: Carla',
+      [{ userId: 'c-3', name: 'Carla', organizer: false, confirmed: false }],
+    ],
+    ['event-date-passed' as const, 'A data do evento já passou. Atualize a data para sortear.', []],
+    ['event-details-required' as const, 'Informe a data e o local do evento para sortear.', []],
+  ])('bloqueado por %s mostra "%s"', (reason, text, others) => {
+    mockSession(ANA);
+    renderWithProviders(
+      <DrawButton
+        group={openGroup({
+          canDraw: false,
+          drawBlockedReason: reason,
+          participants: [
+            { userId: ANA.id, name: 'Ana', organizer: true, confirmed: true },
+            ...others,
+          ],
+        })}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: 'Realizar sorteio' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(text);
+  });
+
+  it('liberado não mostra nenhum motivo', () => {
+    mockSession(ANA);
+    renderWithProviders(<DrawButton group={{ ...THREE, drawBlockedReason: null }} />);
+
+    expect(screen.getByRole('button', { name: 'Realizar sorteio' })).toBeEnabled();
+    expect(
+      screen.getByRole('button', { name: 'Realizar sorteio' }),
+    ).not.toHaveAccessibleDescription();
+  });
+
   it('o modal avisa que ninguém mais poderá entrar ou sair, e cancelar não sorteia', async () => {
     mockSession(ANA);
     renderWithProviders(<DrawButton group={THREE} />);

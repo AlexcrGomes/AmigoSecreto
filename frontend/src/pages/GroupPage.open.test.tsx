@@ -162,4 +162,156 @@ describe('GroupPage — status OPEN', () => {
     expect(await screen.findByText('Sorteado')).toBeInTheDocument();
     expect(screen.queryByText('K7PQ-M2XA')).not.toBeInTheDocument();
   });
+
+  // ---- confirmação (US2 da 002) ----
+
+  /** Ana entrou pelo código e ainda não confirmou; Bruno é o organizador. */
+  const ANA_PENDING = openGroup({
+    organizer: false,
+    myConfirmation: 'PENDING',
+    confirmedCount: 1,
+    drawBlockedReason: 'participants-pending',
+    participants: [
+      { userId: BRUNO_ID, name: 'Bruno', organizer: true, confirmed: true },
+      { userId: ANA.id, name: 'Ana', organizer: false, confirmed: false },
+    ],
+  });
+
+  it('a lista mostra quem confirmou, quem falta e "N de M confirmados"', async () => {
+    mockGroup(ANA_PENDING);
+    renderGroup();
+
+    const list = await screen.findByRole('list', { name: 'Participantes' });
+    const [bruno, ana] = within(list).getAllByRole('listitem');
+    expect(within(bruno as HTMLElement).getByText('Confirmado')).toBeInTheDocument();
+    expect(within(ana as HTMLElement).getByText('Pendente')).toBeInTheDocument();
+    expect(screen.getByText('1 de 2 confirmados')).toBeInTheDocument();
+  });
+
+  it('o pendente vê o cartão para confirmar, e "Não vou participar" pede para sair', async () => {
+    mockGroup(ANA_PENDING);
+    renderGroup();
+
+    expect(
+      await screen.findByRole('heading', { name: 'Confirme sua participação' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar participação' })).toBeInTheDocument();
+    expect(screen.queryByText('Você confirmou')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Não vou participar' }));
+    expect(screen.getByRole('dialog', { name: 'Sair do grupo?' })).toBeInTheDocument();
+  });
+
+  it('confirmar mostra "Você confirmou" e atualiza a lista', async () => {
+    const confirmed = openGroup({
+      ...ANA_PENDING,
+      myConfirmation: 'CONFIRMED',
+      confirmedCount: 2,
+      drawBlockedReason: 'not-enough-participants',
+      participants: [
+        { userId: BRUNO_ID, name: 'Bruno', organizer: true, confirmed: true },
+        { userId: ANA.id, name: 'Ana', organizer: false, confirmed: true },
+      ],
+    });
+    mockGroup(ANA_PENDING, confirmed);
+    server.use(http.post('/api/v1/groups/g-1/confirmation', () => HttpResponse.json(confirmed)));
+    renderGroup();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar participação' }));
+
+    expect(await screen.findByText('Você confirmou')).toBeInTheDocument();
+    expect(screen.getByText('2 de 2 confirmados')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Confirmar participação' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('o organizador não vê o cartão para confirmar', async () => {
+    mockGroup(openGroup());
+    renderGroup();
+
+    await screen.findByRole('list', { name: 'Participantes' });
+    expect(
+      screen.queryByRole('button', { name: 'Confirmar participação' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Você confirmou')).not.toBeInTheDocument();
+  });
+
+  it('confirmationsReset avisa quem não é organizador para conferir e confirmar de novo', async () => {
+    const confirmed = openGroup({
+      ...ANA_PENDING,
+      myConfirmation: 'CONFIRMED',
+      confirmedCount: 2,
+    });
+    mockGroup(confirmed, ANA_PENDING);
+    renderGroup();
+    expect(await screen.findByText('Você confirmou')).toBeInTheDocument();
+
+    act(() =>
+      FakeEventSource.latest().emit('group-updated', {
+        status: 'OPEN',
+        participantCount: 2,
+        confirmationsReset: true,
+      }),
+    );
+
+    expect(
+      await screen.findByText('Os detalhes do evento mudaram. Confira e confirme de novo.'),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Confirmar participação' }),
+    ).toBeInTheDocument();
+  });
+
+  it('o organizador não recebe o aviso de confirmar de novo', async () => {
+    mockGroup(openGroup());
+    renderGroup();
+    await screen.findByRole('list', { name: 'Participantes' });
+
+    act(() =>
+      FakeEventSource.latest().emit('group-updated', {
+        status: 'OPEN',
+        participantCount: 2,
+        confirmationsReset: true,
+      }),
+    );
+
+    expect(
+      screen.queryByText('Os detalhes do evento mudaram. Confira e confirme de novo.'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('ao mudar o local com o grupo aberto, o organizador é avisado antes de salvar', async () => {
+    mockGroup(openGroup());
+    renderGroup();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar detalhes' }));
+    const warning = 'Todos os participantes precisarão confirmar de novo.';
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText('Descrição (opcional)'), 'Traga um prato');
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+
+    const location = screen.getByLabelText('Local do evento');
+    await userEvent.clear(location);
+    await userEvent.type(location, 'Salão');
+    expect(screen.getByText(warning)).toBeInTheDocument();
+  });
+
+  it('depois do sorteio, mudar o local não avisa sobre confirmações', async () => {
+    mockGroup(openGroup({ status: 'DRAWN', drawnAt: '2026-12-01T12:00:00Z' }));
+    server.use(
+      http.get('/api/v1/groups/g-1/my-secret-friend', () => HttpResponse.json({ name: 'Bruno' })),
+    );
+    renderGroup();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar detalhes' }));
+    const location = screen.getByLabelText('Local do evento');
+    await userEvent.clear(location);
+    await userEvent.type(location, 'Salão');
+
+    expect(
+      screen.queryByText('Todos os participantes precisarão confirmar de novo.'),
+    ).not.toBeInTheDocument();
+  });
 });

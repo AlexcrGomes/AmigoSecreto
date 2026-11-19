@@ -34,6 +34,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ProblemDetail> handleApiException(ApiException ex) {
         ProblemDetail problem = Problems.of(ex.getStatus(), ex.getType(), ex.getTitle(), ex.getMessage());
+        ex.getProperties().forEach(problem::setProperty);
         ResponseEntity.BodyBuilder response =
                 ResponseEntity.status(ex.getStatus()).contentType(MediaType.APPLICATION_PROBLEM_JSON);
         if (ex instanceof RateLimitExceededException rateLimit) {

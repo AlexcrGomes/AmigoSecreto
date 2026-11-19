@@ -47,6 +47,20 @@ public class GroupMember implements Persistable<GroupMemberId> {
         return member;
     }
 
+    /**
+     * Confirma a participação (FR-009). Idempotente: quem já confirmou continua com a data da primeira
+     * confirmação (FR-010).
+     *
+     * @return se a situação mudou
+     */
+    public boolean confirm(Instant now) {
+        if (confirmedAt != null) {
+            return false;
+        }
+        this.confirmedAt = Objects.requireNonNull(now, "now");
+        return true;
+    }
+
     @PostLoad
     @PostPersist
     void markNotNew() {

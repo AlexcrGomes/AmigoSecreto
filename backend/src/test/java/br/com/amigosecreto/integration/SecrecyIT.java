@@ -56,6 +56,7 @@ class SecrecyIT extends AbstractIntegrationTest {
                             .post("/api/v1/groups/join", Map.of("code", code))
                             .status())
                     .isEqualTo(200);
+            assertThat(member.client().confirm(groupId).status()).isEqualTo(200);
         }
 
         List<ApiClient.EventStream> streams = new ArrayList<>();
@@ -93,8 +94,8 @@ class SecrecyIT extends AbstractIntegrationTest {
             assertNoPairKeys(detail.body());
             detail.json()
                     .get("participants")
-                    .forEach(p ->
-                            assertThat(p.propertyNames()).containsExactlyInAnyOrder("userId", "name", "organizer"));
+                    .forEach(p -> assertThat(p.propertyNames())
+                            .containsExactlyInAnyOrder("userId", "name", "organizer", "confirmed"));
 
             ApiClient.EventStream stream = streams.get(i);
             assertThat(stream.awaitLineContaining("group-drawn", Duration.ofSeconds(5)))
