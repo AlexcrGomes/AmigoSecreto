@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../api/client';
+import { acknowledgeExitRequestNotice, listExitRequestNotices } from '../api/exitRequests';
 import {
   leaveGroup,
   removeParticipant,
@@ -14,6 +15,8 @@ import { ConfirmParticipationCard } from '../components/group/ConfirmParticipati
 import { DrawButton } from '../components/group/DrawButton';
 import { EventDetailsCard } from '../components/group/EventDetailsCard';
 import { EventDetailsForm } from '../components/group/EventDetailsForm';
+import { ExitRequestDecisionNotice, ExitRequestPanel } from '../components/group/ExitRequestPanel';
+import { ExitRequestsList } from '../components/group/ExitRequestsList';
 import { ParticipantList } from '../components/group/ParticipantList';
 import { SecretFriendCard } from '../components/group/SecretFriendCard';
 import { ShareCode } from '../components/group/ShareCode';
@@ -25,6 +28,7 @@ import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
 import { GROUPS_KEY, groupKey, useGroup } from '../hooks/useGroup';
+import { useExitRequestNotices } from '../hooks/useExitRequestNotices';
 import { useGroupEvents } from '../hooks/useGroupEvents';
 import { CONFIRMATIONS_RESET, errorMessage } from '../lib/errors';
 
@@ -34,7 +38,8 @@ const drawnDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' });
  * /grupos/:id (contracts/ui-routes.md). OPEN: código, lista ao vivo com quem confirmou, "Realizar
  * sorteio" e "Remover" para o organizador, "Confirmar participação" para quem está pendente e "Sair do
  * grupo" para os demais. DRAWN: selo com a data, "Seu amigo secreto" e a
- * lista só com nomes. FINISHED: o mesmo, somente leitura (FR-018, FR-019).
+ * lista só com nomes, "Preciso sair do grupo" para o participante e "Pedidos de saída" para o organizador.
+ * FINISHED: somente leitura (FR-018, FR-019).
  */
 export function GroupPage() {
   const { id } = useParams();
@@ -49,6 +54,10 @@ export function GroupPage() {
   const [editingDetails, setEditingDetails] = useState(false);
   const [confirmationsReset, setConfirmationsReset] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
+  const [justUndone, setJustUndone] = useState(false);
+  /** Muda a cada sorteio desfeito: o cartão do amigo secreto recomeça oculto. */
+  const [drawGeneration, setDrawGeneration] = useState(0);
+  const exitNotices = useExitRequestNotices();
 
   /** Saiu do grupo (por conta própria ou removido): descarta os dados e volta para a lista. */
   function exitGroup(message: string, kind: 'success' | 'error') {
@@ -60,13 +69,35 @@ export function GroupPage() {
 
   useGroupEvents(id, {
     onDrawn: () => setJustDrawn(true),
-    onRevoked: () => exitGroup('Você foi removido deste grupo', 'error'),
+    onRevoked: (reason) => {
+      if (reason === 'exit-approved') {
+        void acknowledgeApproval();
+        exitGroup('Seu pedido de saída foi aprovado. Você saiu do grupo.', 'success');
+      } else {
+        exitGroup('Você foi removido deste grupo', 'error');
+      }
+    },
+    onDrawUndone: () => {
+      setJustUndone(true);
+      setDrawGeneration((generation) => generation + 1);
+    },
     // O organizador mudou data, horário ou local: quem não é organizador precisa confirmar de novo
     onConfirmationsReset: () => {
       if (group.data && !group.data.organizer) setConfirmationsReset(true);
     },
     onFinished: () => setJustFinished(true),
   });
+
+  /** Quem viu a aprovação ao vivo não precisa do aviso na tela inicial (contracts/sse-events.md). */
+  async function acknowledgeApproval() {
+    try {
+      const notices = await listExitRequestNotices();
+      const approval = notices.find((n) => n.groupId === id && n.status === 'APPROVED');
+      if (approval) await acknowledgeExitRequestNotice(approval.id);
+    } catch {
+      // Sem problema: o aviso continua guardado e aparece na tela inicial
+    }
+  }
 
   if (group.isPending) {
     return (
@@ -97,6 +128,10 @@ export function GroupPage() {
   const drawn = detail.status === 'DRAWN';
   const open = detail.status === 'OPEN';
   const finished = detail.status === 'FINISHED';
+  // Recusado ou cancelado automaticamente; a aprovação aparece na tela inicial (FR-026)
+  const decisions = exitNotices.notices.filter(
+    (notice) => notice.groupId === detail.id && notice.status !== 'APPROVED',
+  );
   const pending = open && detail.myConfirmation === 'PENDING' && !detail.eventDetailsMissing;
   const confirmedGuest = open && !detail.organizer && detail.myConfirmation === 'CONFIRMED';
 
@@ -185,6 +220,24 @@ export function GroupPage() {
         </p>
       )}
 
+      {decisions.map((notice) => (
+        <ExitRequestDecisionNotice
+          key={notice.id}
+          notice={notice}
+          status={detail.status}
+          onAcknowledge={exitNotices.acknowledge}
+        />
+      ))}
+
+      {open && (detail.drawUndone || justUndone) && (
+        <p
+          role="status"
+          className="rounded-control border border-primary bg-surface px-4 py-3 font-medium text-text"
+        >
+          Uma pessoa saiu do grupo e o sorteio foi desfeito. O organizador fará um novo sorteio.
+        </p>
+      )}
+
       {finished && justFinished && (
         <p
           role="status"
@@ -200,8 +253,10 @@ export function GroupPage() {
           <DrawButton group={detail} />
         </>
       ) : (
-        <SecretFriendCard groupId={detail.id} />
+        <SecretFriendCard key={drawGeneration} groupId={detail.id} />
       )}
+
+      {drawn && detail.organizer && <ExitRequestsList group={detail} />}
 
       <ParticipantList
         participants={detail.participants}
@@ -216,6 +271,9 @@ export function GroupPage() {
           Sair do grupo
         </Button>
       )}
+
+      {/* Depois do sorteio, só com a aprovação do organizador (FR-025) */}
+      {drawn && !detail.organizer && <ExitRequestPanel group={detail} />}
 
       <Modal
         open={editingDetails}

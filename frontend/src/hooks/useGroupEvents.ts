@@ -1,5 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import { secretFriendKey } from '../components/group/SecretFriendCard';
+import { EXIT_NOTICES_KEY } from './useExitRequestNotices';
 import { GROUPS_KEY, groupKey } from './useGroup';
 
 /** Consulta de contingência enquanto o SSE estiver indisponível (contracts/sse-events.md). */
@@ -8,23 +10,33 @@ export const POLL_INTERVAL_MS = 10_000;
 interface GroupEventHandlers {
   /** O sorteio acabou de acontecer (evento `group-drawn`). */
   onDrawn?: () => void;
-  /** O próprio usuário foi removido do grupo (evento `membership-revoked`). */
-  onRevoked?: () => void;
+  /**
+   * O próprio usuário deixou o grupo (evento `membership-revoked`): `removed` pelo organizador ou
+   * `exit-approved` (pedido de saída aprovado).
+   */
+  onRevoked?: (reason: string | null) => void;
+  /** Uma saída foi aprovada e o sorteio foi desfeito (evento `draw-undone`). */
+  onDrawUndone?: () => void;
   /** Data, horário ou local mudaram e as confirmações voltaram a pendente (`group-updated`). */
   onConfirmationsReset?: () => void;
   /** O evento aconteceu e o grupo foi finalizado (evento `group-finished`). */
   onFinished?: () => void;
 }
 
+/** Corpo JSON do sinal; um corpo inválido vira `{}`. */
+function signalData(event: Event): Record<string, unknown> {
+  if (!(event instanceof MessageEvent) || typeof event.data !== 'string') return {};
+  try {
+    const data: unknown = JSON.parse(event.data);
+    return typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
 /** Lê `confirmationsReset` do sinal; um corpo inválido conta como `false`. */
 function confirmationsReset(event: Event): boolean {
-  if (!(event instanceof MessageEvent) || typeof event.data !== 'string') return false;
-  try {
-    const data = JSON.parse(event.data) as { confirmationsReset?: unknown };
-    return data.confirmationsReset === true;
-  } catch {
-    return false;
-  }
+  return signalData(event).confirmationsReset === true;
 }
 
 /**
@@ -43,6 +55,10 @@ export function useGroupEvents(groupId: string | undefined, handlers: GroupEvent
     if (!groupId) return;
     const refresh = () => {
       void queryClient.invalidateQueries({ queryKey: groupKey(groupId) });
+    };
+    // Recusas e cancelamentos de pedidos de saída aparecem ao vivo (FR-026)
+    const refreshNotices = () => {
+      void queryClient.invalidateQueries({ queryKey: EXIT_NOTICES_KEY });
     };
 
     let pollTimer: number | undefined;
@@ -65,7 +81,15 @@ export function useGroupEvents(groupId: string | undefined, handlers: GroupEvent
     // Detalhes do evento, confirmações ou pedidos de saída mudaram (contracts/sse-events.md da 002)
     source.addEventListener('group-updated', (event) => {
       refresh();
+      refreshNotices();
       if (confirmationsReset(event)) handlersRef.current.onConfirmationsReset?.();
+    });
+    // Saída aprovada: o nome revelado sai da memória antes de qualquer outra coisa (FR-028)
+    source.addEventListener('draw-undone', () => {
+      queryClient.removeQueries({ queryKey: secretFriendKey(groupId) });
+      refresh();
+      refreshNotices();
+      handlersRef.current.onDrawUndone?.();
     });
     source.addEventListener('group-drawn', () => {
       refresh();
@@ -74,14 +98,16 @@ export function useGroupEvents(groupId: string | undefined, handlers: GroupEvent
     // O grupo muda de seção na tela inicial: a lista também precisa ser refeita
     source.addEventListener('group-finished', () => {
       refresh();
+      refreshNotices();
       void queryClient.invalidateQueries({ queryKey: GROUPS_KEY });
       handlersRef.current.onFinished?.();
     });
-    source.addEventListener('membership-revoked', () => {
+    source.addEventListener('membership-revoked', (event) => {
       // Deixou de ser membro: nada mais a ouvir (nem reconectar, nem consultar)
       stopPolling();
       source.close();
-      handlersRef.current.onRevoked?.();
+      const reason = signalData(event).reason;
+      handlersRef.current.onRevoked?.(typeof reason === 'string' ? reason : null);
     });
     source.onopen = () => {
       if (disconnected) {

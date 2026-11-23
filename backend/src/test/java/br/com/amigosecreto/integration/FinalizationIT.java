@@ -191,4 +191,24 @@ class FinalizationIT extends AbstractIntegrationTest {
         group.carla().client().confirm(group.id());
         assertThat(group.ana().client().post(base + "/draw").status()).isEqualTo(200);
     }
+
+    @Test
+    void aPendingExitRequestIsCancelledWithANoticeWhenTheGroupFinishes() {
+        Group group = groupOfThree(true);
+        String base = "/api/v1/groups/" + group.id();
+        assertThat(group.bruno().client().post(base + "/exit-requests").status())
+                .isEqualTo(201);
+        eventHappened(group.id());
+
+        finalizer.finishDueGroups();
+
+        // FR-033 e Edge Case: o pedido é cancelado e a pessoa é avisada
+        JsonNode notices =
+                group.bruno().client().get("/api/v1/exit-request-notices").json();
+        assertThat(notices).hasSize(1);
+        assertThat(notices.get(0).get("status").asString()).isEqualTo("CANCELLED");
+        assertThat(notices.get(0).get("groupName").asString()).isEqualTo("Natal");
+        assertThat(detail(group.bruno(), group.id()).get("status").asString()).isEqualTo("FINISHED");
+        assertFinishedProblem(group.bruno().client().post(base + "/exit-requests"));
+    }
 }

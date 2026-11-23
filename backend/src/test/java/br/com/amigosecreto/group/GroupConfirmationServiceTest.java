@@ -11,6 +11,7 @@ import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
+import br.com.amigosecreto.exitrequest.ExitRequestRepository;
 import br.com.amigosecreto.group.dto.ConfirmationRequest;
 import br.com.amigosecreto.group.dto.GroupDetail;
 import java.time.Clock;
@@ -48,6 +49,9 @@ class GroupConfirmationServiceTest {
     private GroupMemberRepository members;
 
     @Mock
+    private ExitRequestRepository exitRequests;
+
+    @Mock
     private GroupService groupService;
 
     @Mock
@@ -71,7 +75,7 @@ class GroupConfirmationServiceTest {
         when(members.countByIdGroupId(group.getId())).thenReturn(3L);
         when(groupService.detail(group, BRUNO)).thenReturn(detail);
         service = new GroupConfirmationService(
-                new GroupLock(groups, members, clock, events), members, groupService, clock, events);
+                new GroupLock(groups, members, exitRequests, clock, events), members, groupService, clock, events);
     }
 
     @Test

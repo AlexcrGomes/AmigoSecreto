@@ -7,6 +7,7 @@ import { Button, buttonClasses } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Spinner } from '../components/ui/Spinner';
 import { GROUPS_KEY } from '../hooks/useGroup';
+import { useExitRequestNotices } from '../hooks/useExitRequestNotices';
 import { errorMessage } from '../lib/errors';
 import { formatEventDate } from '../lib/eventDate';
 
@@ -76,6 +77,9 @@ export function HomePage() {
     queryKey: GROUPS_KEY,
     queryFn: ({ signal }) => listGroups(signal),
   });
+  const exitNotices = useExitRequestNotices();
+  // Saídas aprovadas: o grupo sumiu da lista, então o aviso fica aqui até ser visto (FR-026)
+  const approvals = exitNotices.notices.filter((notice) => notice.status === 'APPROVED');
 
   return (
     <div className="py-6">
@@ -88,6 +92,27 @@ export function HomePage() {
           Entrar com código
         </Link>
       </div>
+
+      {approvals.length > 0 && (
+        <div className="mt-6 flex flex-col gap-3">
+          {approvals.map((notice) => (
+            <Card key={notice.id} className="border border-primary">
+              <p role="status" className="text-text">
+                Você saiu do grupo <span className="font-semibold">{notice.groupName}</span>. O
+                organizador aprovou seu pedido de saída.
+              </p>
+              <Button
+                variant="secondary"
+                fullWidth
+                className="mt-3"
+                onClick={() => void exitNotices.acknowledge(notice.id)}
+              >
+                Entendi
+              </Button>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <div className="mt-6">
         {groups.isPending && (

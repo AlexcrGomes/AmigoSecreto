@@ -115,7 +115,10 @@ class GroupControllerWebTest {
                 1,
                 ConfirmationStatus.CONFIRMED,
                 "not-enough-participants",
-                null);
+                null,
+                false,
+                null,
+                List.of());
     }
 
     /** O corpo válido com um campo trocado ({@code null} remove o campo). */

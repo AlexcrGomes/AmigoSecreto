@@ -128,6 +128,19 @@ public class SecretGroup implements Persistable<UUID> {
         return true;
     }
 
+    /**
+     * Saída aprovada depois do sorteio: DRAWN → OPEN (FR-028). {@code drawUndoneAt} avisa quem abrir o grupo
+     * depois; um novo sorteio o apaga. Os pares são apagados à parte, por {@code DrawService.discardDraw}.
+     */
+    public void undoDraw(Instant when) {
+        if (status != GroupStatus.DRAWN) {
+            throw new IllegalStateException("Só um grupo sorteado pode ter o sorteio desfeito");
+        }
+        this.status = GroupStatus.OPEN;
+        this.drawnAt = null;
+        this.drawUndoneAt = Objects.requireNonNull(when, "when");
+    }
+
     public boolean isOrganizer(UUID userId) {
         return organizerId.equals(userId);
     }

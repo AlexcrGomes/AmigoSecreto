@@ -18,6 +18,12 @@ import br.com.amigosecreto.common.UnprocessableException;
 import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
+import br.com.amigosecreto.exitrequest.ExitRequest;
+import br.com.amigosecreto.exitrequest.ExitRequestRepository;
+import br.com.amigosecreto.exitrequest.ExitRequestStatus;
+import br.com.amigosecreto.exitrequest.GroupExitBanId;
+import br.com.amigosecreto.exitrequest.GroupExitBanRepository;
+import br.com.amigosecreto.exitrequest.dto.ExitRequestResponse;
 import br.com.amigosecreto.group.dto.CreateGroupRequest;
 import br.com.amigosecreto.group.dto.EventDetailsRequest;
 import br.com.amigosecreto.group.dto.EventDetailsResponse;
@@ -63,6 +69,12 @@ class GroupServiceTest {
     private GroupMemberRepository members;
 
     @Mock
+    private ExitRequestRepository exitRequests;
+
+    @Mock
+    private GroupExitBanRepository exitBans;
+
+    @Mock
     private GroupCodeGenerator codes;
 
     @Mock
@@ -86,7 +98,9 @@ class GroupServiceTest {
                 rateLimiter,
                 clock,
                 new EventSchedule(clock, ZoneId.of("America/Sao_Paulo")),
-                new GroupLock(groups, members, clock, events),
+                new GroupLock(groups, members, exitRequests, clock, events),
+                exitBans,
+                exitRequests,
                 events);
     }
 
@@ -642,5 +656,80 @@ class GroupServiceTest {
         assertThat(detail.drawBlockedReason()).isNull();
         // A leitura não muda o estado (research R17)
         verify(events, never()).publishEvent(any());
+    }
+
+    // ---- saída depois do sorteio (US4) ----
+
+    @Test
+    void whoLeftAfterTheDrawCannotJoinAgain() {
+        SecretGroup group = openGroup(ANA);
+        when(groups.findIdByCode("K7PQM2XA")).thenReturn(Optional.of(group.getId()));
+        when(groups.findByIdForUpdate(group.getId())).thenReturn(Optional.of(group));
+        when(exitBans.existsById(new GroupExitBanId(group.getId(), BRUNO))).thenReturn(true);
+
+        assertThatThrownBy(() -> service.join(BRUNO, new JoinGroupRequest("K7PQM2XA")))
+                .isInstanceOfSatisfying(ConflictException.class, ex -> {
+                    assertThat(ex.getType()).isEqualTo("rejoin-not-allowed");
+                    assertThat(ex.getMessage())
+                            .isEqualTo("Você saiu deste grupo depois do sorteio e não pode entrar de novo.");
+                });
+        verify(members, never()).save(any());
+        verify(events, never()).publishEvent(any());
+    }
+
+    @Test
+    void organizerSeesThePendingExitRequestsAndEachPersonOnlyTheirOwn() {
+        UUID carla = UUID.randomUUID();
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO, carla);
+        group.markDrawn(NOW);
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+        ExitRequest brunos = new ExitRequest(group.getId(), BRUNO, NOW);
+        ExitRequestResponse asListed = new ExitRequestResponse(brunos.getId(), BRUNO, "Bruno", NOW);
+        when(exitRequests.findPending(group.getId())).thenReturn(List.of(asListed));
+        when(exitRequests.findByGroupIdAndUserIdAndStatus(group.getId(), BRUNO, ExitRequestStatus.PENDING))
+                .thenReturn(Optional.of(brunos));
+        when(members.existsById(new GroupMemberId(group.getId(), carla))).thenReturn(true);
+
+        GroupDetail forAna = service.getDetail(ANA, group.getId());
+        assertThat(forAna.pendingExitRequests()).containsExactly(asListed);
+        assertThat(forAna.myExitRequest()).isNull();
+
+        GroupDetail forBruno = service.getDetail(BRUNO, group.getId());
+        assertThat(forBruno.pendingExitRequests()).isEmpty();
+        assertThat(forBruno.myExitRequest())
+                .isEqualTo(new ExitRequestResponse(
+                        brunos.getId(), BRUNO, "Pessoa " + BRUNO.toString().substring(0, 4), NOW));
+
+        GroupDetail forCarla = service.getDetail(carla, group.getId());
+        assertThat(forCarla.pendingExitRequests()).isEmpty();
+        assertThat(forCarla.myExitRequest()).isNull();
+    }
+
+    @Test
+    void drawUndoneIsFlaggedUntilTheNextDraw() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO, UUID.randomUUID());
+        group.markDrawn(NOW);
+        group.undoDraw(NOW.plusSeconds(60));
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+
+        GroupDetail undone = service.getDetail(ANA, group.getId());
+        assertThat(undone.drawUndone()).isTrue();
+        assertThat(undone.status()).isEqualTo(GroupStatus.OPEN);
+        assertThat(undone.myExitRequest()).isNull();
+        assertThat(undone.pendingExitRequests()).isEmpty();
+
+        group.markDrawn(NOW.plusSeconds(120));
+        assertThat(service.getDetail(ANA, group.getId()).drawUndone()).isFalse();
+    }
+
+    @Test
+    void exitRequestsAreOnlyLookedUpForDrawnGroups() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+
+        service.getDetail(ANA, group.getId());
+
+        verify(exitRequests, never()).findPending(any());
+        verify(exitRequests, never()).findByGroupIdAndUserIdAndStatus(any(), any(), any());
     }
 }

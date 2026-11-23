@@ -20,9 +20,7 @@ import tools.jackson.databind.JsonNode;
  * A API implementada e os contratos (contracts/openapi.yaml das features 001 e 002) batem. O contrato da 002
  * lista só o que é novo ou mudou; as rotas valem pela união dos dois arquivos (research R24 da 002).
  *
- * <p>Enquanto a feature 002 é entregue em vários PRs, as rotas da 002 ainda não existem todas: o teste exige
- * que toda rota gerada esteja documentada e que todas as rotas da 001 existam. A tarefa T072 (fim da US4) volta
- * à igualdade completa. Roda no perfil {@code dev}, o único em que o springdoc gera a documentação.
+ * <p>Roda no perfil {@code dev}, o único em que o springdoc gera a documentação.
  */
 @ActiveProfiles({"test", "dev"})
 class OpenApiContractIT extends AbstractIntegrationTest {
@@ -43,12 +41,9 @@ class OpenApiContractIT extends AbstractIntegrationTest {
         Set<String> documented = new TreeSet<>(contractRoutes(CONTRACT_001));
         documented.addAll(contractRoutes(CONTRACT_002));
 
-        assertThat(documented)
-                .as("toda rota implementada precisa estar em um dos contratos")
-                .containsAll(generated);
         assertThat(generated)
-                .as("todas as rotas da feature 001 continuam existindo")
-                .containsAll(contractRoutes(CONTRACT_001));
+                .as("as rotas implementadas são exatamente as dos contratos 001 + 002")
+                .isEqualTo(documented);
     }
 
     @Test
