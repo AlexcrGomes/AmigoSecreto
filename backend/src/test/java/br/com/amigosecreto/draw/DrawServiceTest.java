@@ -17,6 +17,7 @@ import br.com.amigosecreto.common.UnprocessableException;
 import br.com.amigosecreto.draw.dto.DrawResult;
 import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
+import br.com.amigosecreto.exitrequest.ExitRequestRepository;
 import br.com.amigosecreto.group.EventDetails;
 import br.com.amigosecreto.group.EventSchedule;
 import br.com.amigosecreto.group.GroupFinishedException;
@@ -70,6 +71,9 @@ class DrawServiceTest {
     private GroupMemberRepository members;
 
     @Mock
+    private ExitRequestRepository exitRequests;
+
+    @Mock
     private DrawAssignmentRepository assignments;
 
     @Mock
@@ -94,7 +98,7 @@ class DrawServiceTest {
         when(derangement.generate(anyList())).thenReturn(Map.of(ANA, BRUNO, BRUNO, CARLA, CARLA, ANA));
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new DrawService(
-                new GroupLock(groups, members, clock, events),
+                new GroupLock(groups, members, exitRequests, clock, events),
                 members,
                 assignments,
                 derangement,
@@ -313,5 +317,21 @@ class DrawServiceTest {
         assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
         verify(events).publishEvent(new GroupFinishedEvent(group.getId(), 3));
         verify(assignments, never()).saveAll(any());
+    }
+
+    // ---- sorteio desfeito (US4) ----
+
+    @Test
+    void discardDrawDeletesEveryPairWithoutReadingAnyAndReopensTheGroup() {
+        group.markDrawn(NOW.minusSeconds(3600));
+
+        service.discardDraw(group, NOW);
+
+        verify(assignments).deleteByGroupId(group.getId());
+        verify(assignments, never()).findByIdGroupIdAndIdGiverId(any(), any());
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.OPEN);
+        assertThat(group.getDrawnAt()).isNull();
+        assertThat(group.getDrawUndoneAt()).isEqualTo(NOW);
+        verify(events, never()).publishEvent(any());
     }
 }

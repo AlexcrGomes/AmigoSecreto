@@ -109,4 +109,14 @@ public class DrawService {
         events.publishEvent(new GroupDrawnEvent(groupId, participants.size()));
         return new DrawResult(groupId, GroupStatus.DRAWN, now);
     }
+
+    /**
+     * Desfaz o sorteio (saída aprovada, FR-028, research R18): apaga TODOS os pares do grupo de uma vez, sem
+     * ler nenhum, e volta o grupo a {@code OPEN}. Quem chama já tem o lock do grupo e está na transação da
+     * aprovação. Não guarda cópia, log nem histórico dos pares (Constituição II).
+     */
+    public void discardDraw(SecretGroup group, Instant now) {
+        assignments.deleteByGroupId(group.getId());
+        group.undoDraw(now);
+    }
 }

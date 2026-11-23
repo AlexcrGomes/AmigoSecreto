@@ -211,6 +211,8 @@ organizador; ambos deixam de aparecer na lista e perdem acesso ao grupo.
 - **FR-018**: Antes do sorteio, um participante (exceto o organizador) MUST poder sair do grupo, e
   o organizador MUST poder remover participantes.
 - **FR-019**: Após o sorteio, o sistema MUST impedir novas entradas, saídas e remoções.
+  > Alterado pela feature 002: saída após o sorteio com aprovação do organizador desfaz o
+  > sorteio (constituição v1.2.0).
 
 **Sorteio**
 
@@ -229,6 +231,8 @@ organizador; ambos deixam de aparecer na lista e perdem acesso ao grupo.
 - **FR-025**: O sorteio MUST ocorrer uma única vez por grupo, mesmo com cliques repetidos ou
   pedidos simultâneos. O resultado é definitivo: depois de sorteado, ninguém (nem o
   organizador) pode cancelar ou refazer o sorteio.
+  > Alterado pela feature 002: saída após o sorteio com aprovação do organizador desfaz o
+  > sorteio (constituição v1.2.0).
 - **FR-026**: Se o sorteio falhar, nenhum resultado parcial MUST ser mantido e o grupo MUST
   voltar a "aguardando sorteio".
 - **FR-027**: Ao concluir o sorteio, a situação do grupo MUST mudar para "sorteado" para todos os

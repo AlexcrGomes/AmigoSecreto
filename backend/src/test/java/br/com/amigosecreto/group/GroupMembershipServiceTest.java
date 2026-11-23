@@ -14,6 +14,7 @@ import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
 import br.com.amigosecreto.events.GroupEvents.MembershipRevokedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.events.GroupEvents.RevocationReason;
+import br.com.amigosecreto.exitrequest.ExitRequestRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -45,6 +46,9 @@ class GroupMembershipServiceTest {
     private GroupMemberRepository members;
 
     @Mock
+    private ExitRequestRepository exitRequests;
+
+    @Mock
     private ApplicationEventPublisher events;
 
     private GroupMembershipService service;
@@ -57,7 +61,9 @@ class GroupMembershipServiceTest {
         when(members.existsById(any(GroupMemberId.class))).thenReturn(true);
         when(members.countByIdGroupId(group.getId())).thenReturn(2L);
         service = new GroupMembershipService(
-                members, new GroupLock(groups, members, Clock.fixed(NOW, ZoneOffset.UTC), events), events);
+                members,
+                new GroupLock(groups, members, exitRequests, Clock.fixed(NOW, ZoneOffset.UTC), events),
+                events);
     }
 
     private GroupMemberId member(UUID userId) {

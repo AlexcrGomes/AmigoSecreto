@@ -5,6 +5,11 @@ import br.com.amigosecreto.common.ForbiddenException;
 import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
+import br.com.amigosecreto.exitrequest.ExitRequestRepository;
+import br.com.amigosecreto.exitrequest.ExitRequestStatus;
+import br.com.amigosecreto.exitrequest.GroupExitBanId;
+import br.com.amigosecreto.exitrequest.GroupExitBanRepository;
+import br.com.amigosecreto.exitrequest.dto.ExitRequestResponse;
 import br.com.amigosecreto.group.dto.CreateGroupRequest;
 import br.com.amigosecreto.group.dto.EventDetailsRequest;
 import br.com.amigosecreto.group.dto.EventDetailsResponse;
@@ -39,6 +44,8 @@ public class GroupService {
     private final Clock clock;
     private final EventSchedule schedule;
     private final GroupLock lock;
+    private final GroupExitBanRepository exitBans;
+    private final ExitRequestRepository exitRequests;
     private final ApplicationEventPublisher events;
 
     public GroupService(
@@ -49,6 +56,8 @@ public class GroupService {
             Clock clock,
             EventSchedule schedule,
             GroupLock lock,
+            GroupExitBanRepository exitBans,
+            ExitRequestRepository exitRequests,
             ApplicationEventPublisher events) {
         this.groups = groups;
         this.members = members;
@@ -57,6 +66,8 @@ public class GroupService {
         this.clock = clock;
         this.schedule = schedule;
         this.lock = lock;
+        this.exitBans = exitBans;
+        this.exitRequests = exitRequests;
         this.events = events;
     }
 
@@ -96,6 +107,10 @@ public class GroupService {
         }
         if (group.getStatus() == GroupStatus.FINISHED) {
             throw new GroupFinishedException();
+        }
+        if (exitBans.existsById(new GroupExitBanId(group.getId(), userId))) {
+            throw new ConflictException(
+                    "rejoin-not-allowed", "Você saiu deste grupo depois do sorteio e não pode entrar de novo.");
         }
         if (group.getStatus() != GroupStatus.OPEN) {
             throw new ConflictException("group-already-drawn", "O sorteio deste grupo já foi realizado.");
@@ -179,8 +194,8 @@ public class GroupService {
         throw new IllegalStateException("Não foi possível gerar um código de grupo único");
     }
 
-    /** O grupo visto por um membro (usado também pela confirmação). */
-    GroupDetail detail(SecretGroup group, UUID userId) {
+    /** O grupo visto por um membro, já carregado (usado também pela confirmação e pelos pedidos de saída). */
+    public GroupDetail detail(SecretGroup group, UUID userId) {
         List<ParticipantView> views = members.findParticipants(group.getId());
         List<Participant> participants = views.stream()
                 .map(view ->
@@ -198,6 +213,19 @@ public class GroupService {
         // A leitura não finaliza nada (research R17): só diz ao organizador que a data venceu (US3-5)
         boolean eventDatePassed =
                 open && group.getFinalizesAt() != null && schedule.hasHappened(group.getFinalizesAt());
+        // Pedidos de saída só existem com o grupo sorteado (FR-025); os do grupo só o organizador vê (FR-026)
+        ExitRequestResponse myExitRequest = null;
+        List<ExitRequestResponse> pendingExitRequests = List.of();
+        if (group.getStatus() == GroupStatus.DRAWN) {
+            myExitRequest = exitRequests
+                    .findByGroupIdAndUserIdAndStatus(group.getId(), userId, ExitRequestStatus.PENDING)
+                    .map(request -> new ExitRequestResponse(
+                            request.getId(), userId, nameOf(views, userId), request.getRequestedAt()))
+                    .orElse(null);
+            if (organizer) {
+                pendingExitRequests = exitRequests.findPending(group.getId());
+            }
+        }
         EventDetailsResponse eventDetails =
                 group.eventDetails(schedule).map(EventDetailsResponse::from).orElse(null);
         return new GroupDetail(
@@ -218,6 +246,17 @@ public class GroupService {
                 confirmedCount,
                 meConfirmed ? ConfirmationStatus.CONFIRMED : ConfirmationStatus.PENDING,
                 blocked == null ? null : blocked.code(),
-                group.getFinishedAt());
+                group.getFinishedAt(),
+                open && group.getDrawUndoneAt() != null,
+                myExitRequest,
+                pendingExitRequests);
+    }
+
+    private static String nameOf(List<ParticipantView> views, UUID userId) {
+        return views.stream()
+                .filter(view -> view.userId().equals(userId))
+                .map(ParticipantView::name)
+                .findFirst()
+                .orElse("");
     }
 }

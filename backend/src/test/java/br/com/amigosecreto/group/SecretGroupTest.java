@@ -347,4 +347,36 @@ class SecretGroupTest {
         assertThat(group.finishIfDue(NOW.plusSeconds(365L * 86_400))).isFalse();
         assertThat(group.getStatus()).isEqualTo(GroupStatus.DRAWN);
     }
+
+    // ---- sorteio desfeito (US4, research R18) ----
+
+    @Test
+    void undoingTheDrawReopensTheGroupUntilTheNextDraw() {
+        SecretGroup group = groupWith(PARTY);
+        group.markDrawn(NOW);
+        Instant approved = NOW.plusSeconds(3600);
+
+        group.undoDraw(approved);
+
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.OPEN);
+        assertThat(group.getDrawnAt()).isNull();
+        assertThat(group.getDrawUndoneAt()).isEqualTo(approved);
+
+        Instant redrawn = approved.plusSeconds(60);
+        group.markDrawn(redrawn);
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.DRAWN);
+        assertThat(group.getDrawnAt()).isEqualTo(redrawn);
+        assertThat(group.getDrawUndoneAt()).isNull();
+    }
+
+    @Test
+    void onlyADrawnGroupCanHaveTheDrawUndone() {
+        SecretGroup group = groupWith(PARTY);
+        assertThatIllegalStateException().isThrownBy(() -> group.undoDraw(NOW));
+
+        group.markDrawn(NOW);
+        group.finishIfDue(PARTY_STARTS);
+        assertThatIllegalStateException().isThrownBy(() -> group.undoDraw(NOW));
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
+    }
 }

@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { Route, Routes } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { GroupSummary } from '../api/groups';
 import { problem } from '../test/groups';
 import { ANA, mockSession, renderWithProviders } from '../test/render';
@@ -206,5 +206,50 @@ describe('HomePage', () => {
 
     expect(await screen.findByRole('region', { name: 'Finalizados' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Em andamento' })).not.toBeInTheDocument();
+  });
+
+  it('mostra "Você saiu do grupo X" para a saída aprovada e marca como visto', async () => {
+    let seen = false;
+    server.use(
+      http.get('/api/v1/exit-request-notices', () =>
+        HttpResponse.json(
+          seen
+            ? []
+            : [
+                {
+                  id: 'r-1',
+                  groupId: 'g-9',
+                  groupName: 'Firma',
+                  status: 'APPROVED',
+                  decidedAt: '2026-12-03T12:00:00Z',
+                },
+                {
+                  id: 'r-2',
+                  groupId: 'g-8',
+                  groupName: 'Família',
+                  status: 'REJECTED',
+                  decidedAt: '2026-12-03T12:00:00Z',
+                },
+              ],
+        ),
+      ),
+      http.post('/api/v1/exit-request-notices/r-1/ack', () => {
+        seen = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    renderHome([]);
+
+    expect(await screen.findByText(/Você saiu do grupo/)).toHaveTextContent(
+      'Você saiu do grupo Firma. O organizador aprovou seu pedido de saída.',
+    );
+    // A recusa aparece na tela do grupo, não aqui
+    expect(screen.queryByText(/Família/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Entendi' }));
+
+    await vi.waitFor(() =>
+      expect(screen.queryByText(/Você saiu do grupo/)).not.toBeInTheDocument(),
+    );
   });
 });

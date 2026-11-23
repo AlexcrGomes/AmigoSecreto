@@ -3,6 +3,8 @@ import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeEventSource } from '../test/eventSource';
+import { secretFriendKey } from '../components/group/SecretFriendCard';
+import { EXIT_NOTICES_KEY } from './useExitRequestNotices';
 import { GROUPS_KEY, groupKey } from './useGroup';
 import { POLL_INTERVAL_MS, useGroupEvents } from './useGroupEvents';
 
@@ -82,6 +84,52 @@ describe('useGroupEvents', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: groupKey('g-1') });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: GROUPS_KEY });
     expect(onFinished).toHaveBeenCalledTimes(1);
+  });
+
+  it('draw-undone apaga o amigo secreto da memória, recarrega o grupo e avisa', () => {
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    queryClient.setQueryData(secretFriendKey('g-1'), { name: 'Carla' });
+    const onDrawUndone = vi.fn();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    renderHook(() => useGroupEvents('g-1', { onDrawUndone }), { wrapper });
+
+    act(() =>
+      FakeEventSource.latest().emit('draw-undone', { status: 'OPEN', participantCount: 3 }),
+    );
+
+    expect(queryClient.getQueryData(secretFriendKey('g-1'))).toBeUndefined();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: groupKey('g-1') });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: EXIT_NOTICES_KEY });
+    expect(onDrawUndone).toHaveBeenCalledTimes(1);
+  });
+
+  it('membership-revoked passa o motivo e fecha a conexão', () => {
+    const onRevoked = vi.fn();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    );
+    renderHook(() => useGroupEvents('g-1', { onRevoked }), { wrapper });
+    const source = FakeEventSource.latest();
+
+    act(() => source.emit('membership-revoked', { groupId: 'g-1', reason: 'exit-approved' }));
+
+    expect(onRevoked).toHaveBeenCalledWith('exit-approved');
+    expect(source.closed).toBe(true);
+  });
+
+  it('membership-revoked sem motivo legível passa null', () => {
+    const onRevoked = vi.fn();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    );
+    renderHook(() => useGroupEvents('g-1', { onRevoked }), { wrapper });
+
+    act(() => FakeEventSource.latest().emit('membership-revoked', 'texto'));
+
+    expect(onRevoked).toHaveBeenCalledWith(null);
   });
 
   it('em erro refaz a consulta e passa a consultar a cada 10 s até reconectar', () => {

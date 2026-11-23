@@ -137,6 +137,85 @@ class SecrecyIT extends AbstractIntegrationTest {
         }
     }
 
+    /**
+     * Pedido de saída e sorteio desfeito (US4 da 002, FR-032, SC-008): nenhuma resposta, aviso ou evento das
+     * rotas novas diz quem a pessoa que saiu havia tirado, e os pares somem do banco.
+     */
+    @Test
+    void exitRequestsNeverRevealWhoTheLeavingPersonDrew() {
+        List<Member> members = new ArrayList<>();
+        for (String name : List.of("Ana", "Bruno", "Carla", "Davi")) {
+            members.add(newMember(name));
+        }
+        Member organizer = members.getFirst();
+        Member bruno = members.get(1);
+        ApiClient.Response created = organizer.client().createGroup("Saída");
+        String groupId = created.json().get("id").asString();
+        String code = created.json().get("code").asString();
+        for (Member member : members.subList(1, members.size())) {
+            member.client().post("/api/v1/groups/join", Map.of("code", code));
+            member.client().confirm(groupId);
+        }
+        assertThat(organizer
+                        .client()
+                        .post("/api/v1/groups/" + groupId + "/draw")
+                        .status())
+                .isEqualTo(200);
+        String brunosFriend = bruno.client()
+                .get("/api/v1/groups/" + groupId + "/my-secret-friend")
+                .json()
+                .get("name")
+                .asString();
+
+        List<ApiClient.EventStream> streams = new ArrayList<>();
+        for (Member member : members) {
+            streams.add(member.client().openEvents("/api/v1/groups/" + groupId + "/events"));
+        }
+
+        ApiClient.Response asked = bruno.client().post("/api/v1/groups/" + groupId + "/exit-requests");
+        assertThat(asked.status()).isEqualTo(201);
+        assertNoPairKeys(asked.body());
+        assertThat(asked.body()).doesNotContain(brunosFriend);
+
+        ApiClient.Response forOrganizer = organizer.client().get("/api/v1/groups/" + groupId);
+        assertNoPairKeys(forOrganizer.body());
+        forOrganizer
+                .json()
+                .get("pendingExitRequests")
+                .forEach(r ->
+                        assertThat(r.propertyNames()).containsExactlyInAnyOrder("id", "userId", "name", "requestedAt"));
+
+        String requestId = asked.json().get("id").asString();
+        ApiClient.Response approved =
+                organizer.client().post("/api/v1/groups/" + groupId + "/exit-requests/" + requestId + "/approve");
+        assertThat(approved.status()).isEqualTo(200);
+        assertNoPairKeys(approved.body());
+
+        ApiClient.Response notices = bruno.client().get("/api/v1/exit-request-notices");
+        assertNoPairKeys(notices.body());
+        assertThat(notices.body()).doesNotContain(brunosFriend);
+
+        for (int i = 0; i < members.size(); i++) {
+            ApiClient.EventStream stream = streams.get(i);
+            String expected = i == 1 ? "membership-revoked" : "draw-undone";
+            assertThat(stream.awaitLineContaining(expected, Duration.ofSeconds(5)))
+                    .isTrue();
+            String events = String.join("\n", stream.lines());
+            assertNoPairKeys(events);
+            assertThat(events).doesNotContain(brunosFriend).doesNotContain("Bruno");
+            stream.close();
+        }
+
+        Integer pairs = jdbc.queryForObject(
+                "select count(*) from draw_assignment where group_id = ?::uuid", Integer.class, groupId);
+        assertThat(pairs).isZero();
+        for (Member member : members) {
+            ApiClient.Response mine = member.client().get("/api/v1/groups/" + groupId + "/my-secret-friend");
+            assertThat(mine.status()).isIn(404, 409);
+            assertThat(mine.body()).doesNotContain(brunosFriend);
+        }
+    }
+
     private static void assertNoPairKeys(String body) {
         String lower = body.toLowerCase(Locale.ROOT);
         for (String key : PAIR_KEYS) {

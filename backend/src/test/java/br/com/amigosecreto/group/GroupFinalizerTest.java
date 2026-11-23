@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
+import br.com.amigosecreto.exitrequest.ExitRequestRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -46,6 +47,9 @@ class GroupFinalizerTest {
     private GroupMemberRepository members;
 
     @Mock
+    private ExitRequestRepository exitRequests;
+
+    @Mock
     private ApplicationEventPublisher events;
 
     @Mock
@@ -57,8 +61,8 @@ class GroupFinalizerTest {
     void setUp() {
         when(transactionManager.getTransaction(any())).thenAnswer(inv -> new SimpleTransactionStatus());
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
-        finalizer =
-                new GroupFinalizer(groups, new GroupLock(groups, members, clock, events), transactionManager, clock);
+        finalizer = new GroupFinalizer(
+                groups, new GroupLock(groups, members, exitRequests, clock, events), transactionManager, clock);
     }
 
     /** Grupo sorteado com o evento em 19/12/2026, sem horário: vence agora. */
@@ -94,6 +98,9 @@ class GroupFinalizerTest {
         verify(groups).findByIdForUpdate(firma.getId());
         verify(events).publishEvent(new GroupFinishedEvent(natal.getId(), 4));
         verify(events).publishEvent(new GroupFinishedEvent(firma.getId(), 4));
+        // FR-033: os pedidos de saída pendentes são cancelados, com aviso, na mesma transação
+        verify(exitRequests).cancelAllPending(natal.getId(), NOW);
+        verify(exitRequests).cancelAllPending(firma.getId(), NOW);
         // Uma transação para buscar os vencidos e uma para cada grupo
         verify(transactionManager, times(3)).commit(any());
         verify(transactionManager, never()).rollback(any());
@@ -127,6 +134,7 @@ class GroupFinalizerTest {
         assertThat(finalizer.finishDueGroups()).isZero();
         assertThat(reopened.getStatus()).isEqualTo(GroupStatus.OPEN);
         verify(events, never()).publishEvent(any());
+        verify(exitRequests, never()).cancelAllPending(any(), any());
     }
 
     @Test

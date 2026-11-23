@@ -1,7 +1,9 @@
 package br.com.amigosecreto.group;
 
 import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
+import br.com.amigosecreto.exitrequest.ExitRequestRepository;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -21,16 +23,19 @@ public class GroupLock {
 
     private final SecretGroupRepository groups;
     private final GroupMemberRepository members;
+    private final ExitRequestRepository exitRequests;
     private final Clock clock;
     private final ApplicationEventPublisher events;
 
     public GroupLock(
             SecretGroupRepository groups,
             GroupMemberRepository members,
+            ExitRequestRepository exitRequests,
             Clock clock,
             ApplicationEventPublisher events) {
         this.groups = groups;
         this.members = members;
+        this.exitRequests = exitRequests;
         this.clock = clock;
         this.events = events;
     }
@@ -43,15 +48,17 @@ public class GroupLock {
     }
 
     /**
-     * Finaliza um grupo já travado cujo evento aconteceu e publica {@code group-finished} (entregue após o
-     * commit). Log só com o ID do grupo.
+     * Finaliza um grupo já travado cujo evento aconteceu, cancela com aviso os pedidos de saída pendentes
+     * (FR-033) e publica {@code group-finished} (entregue após o commit). Log só com o ID do grupo.
      *
      * @return se o grupo acabou de ser finalizado
      */
     public boolean finishIfDue(SecretGroup group) {
-        if (!group.finishIfDue(clock.instant())) {
+        Instant now = clock.instant();
+        if (!group.finishIfDue(now)) {
             return false;
         }
+        exitRequests.cancelAllPending(group.getId(), now);
         int count = (int) members.countByIdGroupId(group.getId());
         events.publishEvent(new GroupFinishedEvent(group.getId(), count));
         log.info("Grupo {} finalizado", group.getId());
