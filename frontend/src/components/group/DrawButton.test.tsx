@@ -86,14 +86,15 @@ describe('DrawButton', () => {
     ).not.toHaveAccessibleDescription();
   });
 
-  it('o modal avisa que ninguém mais poderá entrar ou sair, e cancelar não sorteia', async () => {
+  it('o modal avisa que ninguém mais entra e que sair depende do organizador, e cancelar não sorteia', async () => {
     mockSession(ANA);
     renderWithProviders(<DrawButton group={THREE} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Realizar sorteio' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Realizar o sorteio?' });
-    expect(dialog).toHaveTextContent('ninguém mais poderá entrar ou sair');
+    expect(dialog).toHaveTextContent('ninguém mais poderá entrar no grupo');
+    expect(dialog).toHaveTextContent('se aprovar, o sorteio será desfeito');
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });

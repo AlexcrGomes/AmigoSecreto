@@ -1,15 +1,25 @@
 # Amigo Secreto
 
 Sistema web de amigo secreto, feito para o celular. Cada pessoa cria a sua conta, o organizador
-cria um grupo e compartilha um código, e os participantes entram com esse código. Quando todos
-entraram, o organizador faz o sorteio, e todos são avisados ao mesmo tempo. Cada um vê **só**
-quem ele mesmo tirou: ninguém, nem o organizador, consegue ver o par de outra pessoa.
+cria um grupo com a descrição, a data e o local do evento e compartilha um código, e os
+participantes entram com esse código. Cada participante confirma que vai participar; quando
+todos confirmaram, o organizador faz o sorteio, e todos são avisados ao mesmo tempo. Cada um vê
+**só** quem ele mesmo tirou: ninguém, nem o organizador, consegue ver o par de outra pessoa.
 
-- **Sorteio justo**: feito no servidor, uma única vez, com gerador criptográfico. Se alguém tirar a
-  si mesmo, o sorteio inteiro é refeito automaticamente.
+- **Detalhes do evento**: descrição, data, horário (opcional) e local, sempre no horário de
+  Brasília. Mudar a data, o horário ou o local antes do sorteio pede uma nova confirmação de todos.
+- **Confirmação**: o sorteio só é liberado com pelo menos 3 participantes, todos confirmados, e o
+  evento ainda por vir.
+- **Sorteio justo**: feito no servidor, com gerador criptográfico. Se alguém tirar a si mesmo, o
+  sorteio inteiro é refeito automaticamente. O sorteio é definitivo, com uma única exceção: se um
+  participante pedir para sair e o organizador aprovar, os pares são apagados e o organizador
+  sorteia de novo entre quem ficou. Quem saiu não pode voltar.
+- **Grupo finalizado**: depois do evento, o grupo sorteado vira *finalizado* sozinho, aparece em
+  uma seção própria e fica somente para leitura; cada um ainda pode rever quem tirou.
 - **Sigilo**: os pares ficam cifrados no banco (AES-256-GCM) e a única rota que devolve um amigo
   secreto responde sempre para o usuário logado.
-- **Tempo real**: participantes e resultado aparecem sem recarregar a página.
+- **Tempo real**: participantes, confirmações, sorteio e finalização aparecem sem recarregar a
+  página.
 
 ## Tecnologias
 
@@ -46,8 +56,11 @@ docker compose up -d --build
 
 Abra `http://localhost:8080` (no celular, na mesma rede: `http://<ip-da-máquina>:8080`).
 
-> ⚠️ **Backup da chave**: guarde a `DRAW_ENCRYPTION_KEY` junto com o backup do banco. Sem a chave
-> original, os pares sorteados ficam ilegíveis para sempre — inclusive para quem administra o sistema.
+> ⚠️ **Backup da chave**: guarde uma cópia da `DRAW_ENCRYPTION_KEY` em lugar seguro, **separada**
+> dos backups do banco, e mantenha os backups do banco só pelo tempo necessário. Sem a chave
+> original, os pares sorteados ficam ilegíveis para sempre — inclusive para quem administra o
+> sistema. Separar a chave dos backups impede que um backup antigo recupere um sorteio desfeito
+> por uma saída aprovada (constituição v1.2.1, Princípio II).
 
 Em produção, sirva o app por **HTTPS** (proxy com TLS na frente do nginx) e use `COOKIE_SECURE=true`.
 
@@ -68,7 +81,7 @@ O build falha com cobertura de linhas abaixo de 80% (JaCoCo no backend, Vitest n
 ## Estrutura
 
 ```text
-backend/    API Spring Boot (auth, group, draw, events) + migrações Flyway
+backend/    API Spring Boot (auth, group, draw, exitrequest, events) + migrações Flyway
 frontend/   SPA React servida pelo nginx, que também faz proxy de /api
 db/         imagem do PostgreSQL com correções de segurança
 specs/      especificação, plano, contratos e tarefas (SDD)
@@ -80,8 +93,10 @@ specs/      especificação, plano, contratos e tarefas (SDD)
 O projeto segue *Spec-Driven Development* com o [GitHub Spec Kit](https://github.com/github/spec-kit):
 a [constituição](.specify/memory/constitution.md) define os princípios inegociáveis (sigilo,
 sorteio justo, testes, segurança), e cada funcionalidade passa por especificação → plano →
-tarefas → implementação, em `specs/<NNN-nome>/`. A primeira funcionalidade está em
-[specs/001-amigo-secreto-sorteio](specs/001-amigo-secreto-sorteio/).
+tarefas → implementação, em `specs/<NNN-nome>/`. As funcionalidades estão em
+[specs/001-amigo-secreto-sorteio](specs/001-amigo-secreto-sorteio/) (contas, grupos e sorteio) e
+[specs/002-grupo-evento-confirmacao](specs/002-grupo-evento-confirmacao/) (detalhes do evento,
+confirmação, grupo finalizado e saída depois do sorteio).
 
 Toda mudança entra na `main` por Pull Request, com CI e varreduras verdes e aprovação manual — veja o
 [CONTRIBUTING.md](CONTRIBUTING.md).

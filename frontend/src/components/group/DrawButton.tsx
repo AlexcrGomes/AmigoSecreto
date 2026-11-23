@@ -76,8 +76,9 @@ export function DrawButton({ group }: { group: GroupDetail }) {
         }
       >
         <p>
-          Depois do sorteio, ninguém mais poderá entrar ou sair do grupo, e o resultado não pode ser
-          refeito. Cada participante verá só quem ele mesmo tirou.
+          Depois do sorteio, ninguém mais poderá entrar no grupo. Quem precisar sair terá de pedir,
+          e só você decide: se aprovar, o sorteio será desfeito e você sorteará de novo. Cada
+          participante verá só quem ele mesmo tirou.
         </p>
         {error && (
           <p

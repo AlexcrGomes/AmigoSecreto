@@ -209,12 +209,12 @@ Vitest + React Testing Library + MSW. Gate de cobertura: 80% de linhas (JaCoCo e
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T075 [P] Atualizar `README.md`: trocar "o sorteio acontece uma única vez" pela regra da constituição v1.2.0 (sorteio definitivo, exceto saída aprovada pelo organizador) e descrever data/local, confirmação e grupos finalizados
-- [ ] T076 [P] Adicionar em `specs/001-amigo-secreto-sorteio/spec.md`, junto a FR-019 e FR-025, a nota "Alterado pela feature 002: saída após o sorteio com aprovação do organizador desfaz o sorteio (constituição v1.2.0)."
-- [ ] T077 [P] Revisar as anotações springdoc/Javadoc dos controllers e DTOs novos para que o `/v3/api-docs` do perfil `dev` descreva os campos como em [contracts/openapi.yaml](./contracts/openapi.yaml)
-- [ ] T078 Rodar `mvn -B verify` e `npm run lint && npm run format:check && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80% nos dois
-- [ ] T079 Executar o roteiro manual do [quickstart.md](./quickstart.md) (§1 migração com dados da 001, §2 passos 1–20 com uma janela a 360px, §3 simulação de tempo) e a verificação de sigilo (§4); registrar o resultado no PR
-- [ ] T080 Revisão final contra a constituição (Princípios I a VIII) com a checklist do PR template, conferindo em especial: nenhuma rota/evento novo com pares; `draw_assignment` sem leitura por grupo; todas as escritas com lock e `finishIfDue`; nenhuma dependência nova no `pom.xml` e no `package.json`
+- [X] T075 [P] Atualizar `README.md`: trocar "o sorteio acontece uma única vez" pela regra da constituição v1.2.0 (sorteio definitivo, exceto saída aprovada pelo organizador) e descrever data/local, confirmação e grupos finalizados
+- [X] T076 [P] Adicionar em `specs/001-amigo-secreto-sorteio/spec.md`, junto a FR-019 e FR-025, a nota "Alterado pela feature 002: saída após o sorteio com aprovação do organizador desfaz o sorteio (constituição v1.2.0)."
+- [X] T077 [P] Revisar as anotações springdoc/Javadoc dos controllers e DTOs novos para que o `/v3/api-docs` do perfil `dev` descreva os campos como em [contracts/openapi.yaml](./contracts/openapi.yaml)
+- [X] T078 Rodar `mvn -B verify` e `npm run lint && npm run format:check && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80% nos dois
+- [X] T079 Executar o roteiro manual do [quickstart.md](./quickstart.md) (§1 migração com dados da 001, §2 passos 1–20 com uma janela a 360px, §3 simulação de tempo) e a verificação de sigilo (§4); registrar o resultado no PR
+- [X] T080 Revisão final contra a constituição (Princípios I a VIII) com a checklist do PR template, conferindo em especial: nenhuma rota/evento novo com pares; `draw_assignment` sem leitura por grupo; todas as escritas com lock e `finishIfDue`; nenhuma dependência nova no `pom.xml` e no `package.json`
 
 ---
 
