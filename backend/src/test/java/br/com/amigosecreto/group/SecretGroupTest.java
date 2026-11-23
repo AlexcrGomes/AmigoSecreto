@@ -157,7 +157,8 @@ class SecretGroupTest {
         ReflectionTestUtils.setField(group, "status", GroupStatus.FINISHED);
         assertThatThrownBy(() -> group.updateEventDetails(PARTY, SCHEDULE))
                 .isInstanceOf(ConflictException.class)
-                .hasFieldOrPropertyWithValue("type", "group-finished");
+                .hasFieldOrPropertyWithValue("type", "group-finished")
+                .hasMessage("Este grupo foi finalizado.");
         assertThat(group.getLocation()).isEqualTo("Salão");
     }
 
@@ -286,5 +287,64 @@ class SecretGroupTest {
         SecretGroup group = new SecretGroup("Natal", "K7PQM2XA", UUID.randomUUID(), NOW);
         group.markNotNew();
         assertThat(group.isNew()).isFalse();
+    }
+
+    // ---- finalização (US3, research R17) ----
+
+    /** 19/12/2026 às 19:00 em Brasília. */
+    private static final Instant PARTY_STARTS = Instant.parse("2026-12-19T22:00:00Z");
+
+    @Test
+    void drawnGroupFinishesWhenTheEventStarts() {
+        SecretGroup group = groupWith(PARTY);
+        group.markDrawn(NOW);
+
+        assertThat(group.finishIfDue(PARTY_STARTS.minusSeconds(1))).isFalse();
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.DRAWN);
+        assertThat(group.getFinishedAt()).isNull();
+
+        assertThat(group.finishIfDue(PARTY_STARTS)).isTrue();
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
+        assertThat(group.getFinishedAt()).isEqualTo(PARTY_STARTS);
+    }
+
+    @Test
+    void withoutTimeTheGroupFinishesAtTheEndOfTheDay() {
+        SecretGroup group = groupWith(new EventDetails(null, DEC_19, null, "Casa da Ana"));
+        group.markDrawn(NOW);
+        Instant midnight = Instant.parse("2026-12-20T03:00:00Z"); // 20/12, 00:00 em Brasília
+
+        assertThat(group.finishIfDue(PARTY_STARTS)).isFalse();
+        assertThat(group.finishIfDue(midnight)).isTrue();
+        assertThat(group.getFinishedAt()).isEqualTo(midnight);
+    }
+
+    @Test
+    void openGroupIsNeverFinishedEvenAfterTheEvent() {
+        SecretGroup group = groupWith(PARTY);
+
+        assertThat(group.finishIfDue(PARTY_STARTS.plusSeconds(86_400))).isFalse();
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.OPEN);
+        assertThat(group.getFinishedAt()).isNull();
+    }
+
+    @Test
+    void finishingAgainKeepsTheFirstMoment() {
+        SecretGroup group = groupWith(PARTY);
+        group.markDrawn(NOW);
+        group.finishIfDue(PARTY_STARTS);
+
+        assertThat(group.finishIfDue(PARTY_STARTS.plusSeconds(3600))).isFalse();
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
+        assertThat(group.getFinishedAt()).isEqualTo(PARTY_STARTS);
+    }
+
+    @Test
+    void oldDrawnGroupWithoutAnEventDateIsNeverFinished() {
+        SecretGroup group = new SecretGroup("Antigo", "K7PQM2XA", UUID.randomUUID(), NOW);
+        group.markDrawn(NOW);
+
+        assertThat(group.finishIfDue(NOW.plusSeconds(365L * 86_400))).isFalse();
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.DRAWN);
     }
 }

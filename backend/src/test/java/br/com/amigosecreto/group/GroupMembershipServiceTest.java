@@ -10,10 +10,13 @@ import static org.mockito.Mockito.when;
 import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.ForbiddenException;
 import br.com.amigosecreto.common.NotFoundException;
+import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
 import br.com.amigosecreto.events.GroupEvents.MembershipRevokedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.events.GroupEvents.RevocationReason;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -52,7 +56,8 @@ class GroupMembershipServiceTest {
         when(groups.findByIdForUpdate(group.getId())).thenReturn(Optional.of(group));
         when(members.existsById(any(GroupMemberId.class))).thenReturn(true);
         when(members.countByIdGroupId(group.getId())).thenReturn(2L);
-        service = new GroupMembershipService(groups, members, events);
+        service = new GroupMembershipService(
+                members, new GroupLock(groups, members, Clock.fixed(NOW, ZoneOffset.UTC), events), events);
     }
 
     private GroupMemberId member(UUID userId) {
@@ -163,6 +168,37 @@ class GroupMembershipServiceTest {
         assertThatThrownBy(() -> service.remove(ANA, group.getId(), CARLA))
                 .isInstanceOfSatisfying(
                         ConflictException.class, ex -> assertThat(ex.getType()).isEqualTo("group-already-drawn"));
+        verify(members, never()).deleteById(any());
+    }
+
+    // ---- grupo finalizado (US3) ----
+
+    @Test
+    void leavingOrRemovingInAFinishedGroupIsRefused() {
+        group.markDrawn(NOW);
+        ReflectionTestUtils.setField(group, "status", GroupStatus.FINISHED);
+
+        assertThatThrownBy(() -> service.leave(BRUNO, group.getId()))
+                .isInstanceOfSatisfying(ConflictException.class, ex -> {
+                    assertThat(ex.getType()).isEqualTo("group-finished");
+                    assertThat(ex.getMessage()).isEqualTo("Este grupo foi finalizado.");
+                });
+        assertThatThrownBy(() -> service.remove(ANA, group.getId(), BRUNO))
+                .isInstanceOfSatisfying(
+                        ConflictException.class, ex -> assertThat(ex.getType()).isEqualTo("group-finished"));
+        verify(members, never()).deleteById(any());
+        verify(events, never()).publishEvent(any());
+    }
+
+    @Test
+    void leavingADueGroupFinishesItAndIsRefused() {
+        group.markDrawn(NOW);
+        ReflectionTestUtils.setField(group, "finalizesAt", NOW.minusSeconds(60));
+
+        assertThatThrownBy(() -> service.leave(BRUNO, group.getId())).isInstanceOf(GroupFinishedException.class);
+
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
+        verify(events).publishEvent(new GroupFinishedEvent(group.getId(), 2));
         verify(members, never()).deleteById(any());
     }
 }

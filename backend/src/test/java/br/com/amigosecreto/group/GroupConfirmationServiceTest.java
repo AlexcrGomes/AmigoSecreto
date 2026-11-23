@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.NotFoundException;
+import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
 import br.com.amigosecreto.group.dto.ConfirmationRequest;
 import br.com.amigosecreto.group.dto.GroupDetail;
@@ -69,7 +70,8 @@ class GroupConfirmationServiceTest {
         when(members.findById(new GroupMemberId(group.getId(), BRUNO))).thenReturn(Optional.of(bruno));
         when(members.countByIdGroupId(group.getId())).thenReturn(3L);
         when(groupService.detail(group, BRUNO)).thenReturn(detail);
-        service = new GroupConfirmationService(groups, members, groupService, clock, events);
+        service = new GroupConfirmationService(
+                new GroupLock(groups, members, clock, events), members, groupService, clock, events);
     }
 
     @Test
@@ -142,5 +144,21 @@ class GroupConfirmationServiceTest {
         assertThatThrownBy(() -> service.confirm(BRUNO, missing, new ConfirmationRequest(1)))
                 .isInstanceOf(NotFoundException.class);
         verify(events, never()).publishEvent(any());
+    }
+
+    @Test
+    void confirmingInADueGroupFinishesItAndIsRefused() {
+        group.markDrawn(NOW);
+        ReflectionTestUtils.setField(group, "finalizesAt", NOW.minusSeconds(60));
+
+        assertThatThrownBy(() -> service.confirm(BRUNO, group.getId(), new ConfirmationRequest(1)))
+                .isInstanceOfSatisfying(GroupFinishedException.class, ex -> {
+                    assertThat(ex.getType()).isEqualTo("group-finished");
+                    assertThat(ex.getMessage()).isEqualTo("Este grupo foi finalizado.");
+                });
+
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
+        assertThat(bruno.isConfirmed()).isFalse();
+        verify(events).publishEvent(new GroupFinishedEvent(group.getId(), 3));
     }
 }

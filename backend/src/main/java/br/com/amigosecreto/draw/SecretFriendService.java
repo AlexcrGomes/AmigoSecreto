@@ -48,7 +48,8 @@ public class SecretFriendService {
         if (!members.existsById(new GroupMemberId(groupId, sessionUserId))) {
             throw new NotFoundException(GROUP_NOT_FOUND);
         }
-        if (group.getStatus() != GroupStatus.DRAWN) {
+        // Depois do evento cada um ainda revela o próprio amigo (FR-019)
+        if (group.getStatus() != GroupStatus.DRAWN && group.getStatus() != GroupStatus.FINISHED) {
             throw new ConflictException("group-not-drawn", "O sorteio deste grupo ainda não foi realizado.");
         }
 

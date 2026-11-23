@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeEventSource } from '../test/eventSource';
-import { groupKey } from './useGroup';
+import { GROUPS_KEY, groupKey } from './useGroup';
 import { POLL_INTERVAL_MS, useGroupEvents } from './useGroupEvents';
 
 /** `null` = sem id (um `undefined` acionaria o valor padrão). */
@@ -64,6 +64,24 @@ describe('useGroupEvents', () => {
       }),
     );
     expect(onConfirmationsReset).toHaveBeenCalledTimes(1);
+  });
+
+  it('group-finished invalida o grupo e a lista "Meus grupos" e avisa', () => {
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    const onFinished = vi.fn();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    renderHook(() => useGroupEvents('g-1', { onFinished }), { wrapper });
+
+    act(() =>
+      FakeEventSource.latest().emit('group-finished', { status: 'FINISHED', participantCount: 3 }),
+    );
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: groupKey('g-1') });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: GROUPS_KEY });
+    expect(onFinished).toHaveBeenCalledTimes(1);
   });
 
   it('em erro refaz a consulta e passa a consultar a cada 10 s até reconectar', () => {

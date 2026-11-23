@@ -15,6 +15,7 @@ import br.com.amigosecreto.common.ForbiddenException;
 import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.common.RateLimitExceededException;
 import br.com.amigosecreto.common.UnprocessableException;
+import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.group.dto.CreateGroupRequest;
@@ -85,6 +86,7 @@ class GroupServiceTest {
                 rateLimiter,
                 clock,
                 new EventSchedule(clock, ZoneId.of("America/Sao_Paulo")),
+                new GroupLock(groups, members, clock, events),
                 events);
     }
 
@@ -292,7 +294,8 @@ class GroupServiceTest {
         assertThatThrownBy(() -> service.updateEventDetails(
                         ANA, group.getId(), new EventDetailsRequest(null, DEC_19, null, "Salão")))
                 .isInstanceOf(ConflictException.class)
-                .hasFieldOrPropertyWithValue("type", "group-finished");
+                .hasFieldOrPropertyWithValue("type", "group-finished")
+                .hasMessage("Este grupo foi finalizado.");
         verify(events, never()).publishEvent(any());
     }
 
@@ -532,5 +535,112 @@ class GroupServiceTest {
                         new GroupSummary(g1, "Natal", GroupStatus.OPEN, 4, true, DEC_19, "19:00"),
                         new GroupSummary(g2, "Firma", GroupStatus.DRAWN, 12, false, DEC_19, null),
                         new GroupSummary(g3, "Antigo", GroupStatus.DRAWN, 3, false, null, null));
+    }
+
+    // ---- grupo finalizado (US3) ----
+
+    /** Grupo sorteado cujo evento já aconteceu, mas que a tarefa agendada ainda não finalizou. */
+    private SecretGroup drawnGroupDue(UUID organizer, UUID... others) {
+        SecretGroup group = lockedGroupWithDetails(organizer, others);
+        group.markDrawn(NOW);
+        ReflectionTestUtils.setField(group, "finalizesAt", NOW.minusSeconds(60));
+        return group;
+    }
+
+    @Test
+    void theFirstWriteAfterTheEventFinishesTheGroupAndIsRefused() {
+        SecretGroup group = drawnGroupDue(ANA, BRUNO);
+
+        assertThatThrownBy(() -> service.updateEventDetails(
+                        ANA, group.getId(), new EventDetailsRequest(null, DEC_19, null, "Salão")))
+                .isInstanceOfSatisfying(GroupFinishedException.class, ex -> {
+                    assertThat(ex.getType()).isEqualTo("group-finished");
+                    assertThat(ex.getMessage()).isEqualTo("Este grupo foi finalizado.");
+                });
+
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
+        assertThat(group.getFinishedAt()).isEqualTo(NOW);
+        assertThat(group.getLocation()).isEqualTo("Casa da Ana");
+        verify(events).publishEvent(new GroupFinishedEvent(group.getId(), 2));
+        verify(events, never()).publishEvent(any(GroupUpdatedEvent.class));
+    }
+
+    @Test
+    void joiningAFinishedGroupIsRefused() {
+        SecretGroup group = openGroup(ANA);
+        group.markDrawn(NOW);
+        group.finishIfDue(Instant.parse("2026-12-20T00:00:00Z"));
+        when(groups.findIdByCode("K7PQM2XA")).thenReturn(Optional.of(group.getId()));
+        when(groups.findByIdForUpdate(group.getId())).thenReturn(Optional.of(group));
+
+        assertThatThrownBy(() -> service.join(BRUNO, new JoinGroupRequest("K7PQM2XA")))
+                .isInstanceOfSatisfying(ConflictException.class, ex -> {
+                    assertThat(ex.getType()).isEqualTo("group-finished");
+                    assertThat(ex.getMessage()).isEqualTo("Este grupo foi finalizado.");
+                });
+        verify(members, never()).save(any());
+    }
+
+    @Test
+    void joiningADueGroupFinishesItFirst() {
+        SecretGroup group = drawnGroupDue(ANA);
+        when(groups.findIdByCode("K7PQM2XA")).thenReturn(Optional.of(group.getId()));
+
+        assertThatThrownBy(() -> service.join(BRUNO, new JoinGroupRequest("K7PQM2XA")))
+                .isInstanceOf(GroupFinishedException.class);
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
+        verify(events).publishEvent(new GroupFinishedEvent(group.getId(), 1));
+        verify(members, never()).save(any());
+    }
+
+    @Test
+    void openGroupWhoseEventHasPassedIsFlaggedButNotFinished() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO, UUID.randomUUID());
+        ReflectionTestUtils.setField(group, "finalizesAt", NOW.minusSeconds(60));
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+
+        GroupDetail detail = service.getDetail(ANA, group.getId());
+
+        assertThat(detail.status()).isEqualTo(GroupStatus.OPEN);
+        assertThat(detail.eventDatePassed()).isTrue();
+        assertThat(detail.drawBlockedReason()).isEqualTo("event-date-passed");
+        assertThat(detail.canDraw()).isFalse();
+        assertThat(detail.finishedAt()).isNull();
+    }
+
+    @Test
+    void eventDatePassedIsOnlyForOpenGroups() {
+        SecretGroup upcoming = lockedGroupWithDetails(ANA, BRUNO);
+        when(groups.findById(upcoming.getId())).thenReturn(Optional.of(upcoming));
+        assertThat(service.getDetail(ANA, upcoming.getId()).eventDatePassed()).isFalse();
+
+        SecretGroup drawn = drawnGroupDue(ANA, BRUNO);
+        when(groups.findById(drawn.getId())).thenReturn(Optional.of(drawn));
+        assertThat(service.getDetail(ANA, drawn.getId()).eventDatePassed()).isFalse();
+
+        SecretGroup old = new SecretGroup("Antigo", "K7PQM2XA", ANA, NOW);
+        when(groups.findById(old.getId())).thenReturn(Optional.of(old));
+        when(members.existsById(new GroupMemberId(old.getId(), ANA))).thenReturn(true);
+        givenParticipants(old, ANA);
+        assertThat(service.getDetail(ANA, old.getId()).eventDatePassed()).isFalse();
+    }
+
+    @Test
+    void finishedGroupDetailBringsWhenItWasFinishedAndNothingToDo() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO, UUID.randomUUID());
+        group.markDrawn(NOW);
+        Instant finishedAt = Instant.parse("2026-12-19T22:00:00Z");
+        group.finishIfDue(finishedAt);
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+
+        GroupDetail detail = service.getDetail(ANA, group.getId());
+
+        assertThat(detail.status()).isEqualTo(GroupStatus.FINISHED);
+        assertThat(detail.finishedAt()).isEqualTo(finishedAt);
+        assertThat(detail.eventDatePassed()).isFalse();
+        assertThat(detail.canDraw()).isFalse();
+        assertThat(detail.drawBlockedReason()).isNull();
+        // A leitura não muda o estado (research R17)
+        verify(events, never()).publishEvent(any());
     }
 }
