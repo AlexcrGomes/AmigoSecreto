@@ -110,10 +110,12 @@ class GroupControllerWebTest {
                 false,
                 new EventDetailsResponse("Traga um prato", LocalDate.of(2026, 12, 19), "19:00", "Casa da Ana"),
                 false,
+                false,
                 1,
                 1,
                 ConfirmationStatus.CONFIRMED,
-                "not-enough-participants");
+                "not-enough-participants",
+                null);
     }
 
     /** O corpo válido com um campo trocado ({@code null} remove o campo). */

@@ -18,19 +18,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class GroupConfirmationService {
 
-    private final SecretGroupRepository groups;
+    private final GroupLock lock;
     private final GroupMemberRepository members;
     private final GroupService groupService;
     private final Clock clock;
     private final ApplicationEventPublisher events;
 
     public GroupConfirmationService(
-            SecretGroupRepository groups,
+            GroupLock lock,
             GroupMemberRepository members,
             GroupService groupService,
             Clock clock,
             ApplicationEventPublisher events) {
-        this.groups = groups;
+        this.lock = lock;
         this.members = members;
         this.groupService = groupService;
         this.clock = clock;
@@ -42,14 +42,14 @@ public class GroupConfirmationService {
      * ou a confirmação vem antes de uma mudança de data ou local (e é desfeita por ela), ou vem depois e a
      * versão vista já é antiga (FR-035). Quem já confirmou recebe o grupo sem nenhuma mudança (FR-010).
      */
-    @Transactional
+    @Transactional(noRollbackFor = GroupFinishedException.class)
     public GroupDetail confirm(UUID userId, UUID groupId, ConfirmationRequest request) {
-        SecretGroup group = groups.findByIdForUpdate(groupId)
-                .orElseThrow(() -> new NotFoundException(GroupService.GROUP_NOT_FOUND));
+        SecretGroup group =
+                lock.acquire(groupId).orElseThrow(() -> new NotFoundException(GroupService.GROUP_NOT_FOUND));
         GroupMember member = members.findById(new GroupMemberId(groupId, userId))
                 .orElseThrow(() -> new NotFoundException(GroupService.GROUP_NOT_FOUND));
         if (group.getStatus() == GroupStatus.FINISHED) {
-            throw new ConflictException("group-finished", "Este grupo foi finalizado.");
+            throw new GroupFinishedException();
         }
         if (group.getStatus() != GroupStatus.OPEN) {
             throw new ConflictException("group-already-drawn", "O sorteio deste grupo já foi realizado.");

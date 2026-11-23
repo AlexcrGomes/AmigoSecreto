@@ -38,6 +38,7 @@ public class GroupService {
     private final RateLimiter rateLimiter;
     private final Clock clock;
     private final EventSchedule schedule;
+    private final GroupLock lock;
     private final ApplicationEventPublisher events;
 
     public GroupService(
@@ -47,6 +48,7 @@ public class GroupService {
             RateLimiter rateLimiter,
             Clock clock,
             EventSchedule schedule,
+            GroupLock lock,
             ApplicationEventPublisher events) {
         this.groups = groups;
         this.members = members;
@@ -54,6 +56,7 @@ public class GroupService {
         this.rateLimiter = rateLimiter;
         this.clock = clock;
         this.schedule = schedule;
+        this.lock = lock;
         this.events = events;
     }
 
@@ -74,9 +77,9 @@ public class GroupService {
     /**
      * Entra pelo código (FR-011 a FR-013). Idempotente para quem já é membro. A linha do grupo fica travada
      * ({@code FOR UPDATE}) para que entradas simultâneas e o sorteio não ultrapassem o limite nem entrem
-     * depois do sorteio.
+     * depois do sorteio. Grupo finalizado não recebe ninguém (FR-018).
      */
-    @Transactional
+    @Transactional(noRollbackFor = GroupFinishedException.class)
     public GroupDetail join(UUID userId, JoinGroupRequest request) {
         String limitKey = userId.toString();
         rateLimiter.ensureNotExhausted(RateLimitPolicy.JOIN_INVALID_CODE, limitKey);
@@ -87,10 +90,12 @@ public class GroupService {
             throw new NotFoundException(INVALID_CODE);
         }
 
-        SecretGroup group =
-                groups.findByIdForUpdate(groupId.get()).orElseThrow(() -> new NotFoundException(INVALID_CODE));
+        SecretGroup group = lock.acquire(groupId.get()).orElseThrow(() -> new NotFoundException(INVALID_CODE));
         if (members.existsById(new GroupMemberId(group.getId(), userId))) {
             return detail(group, userId);
+        }
+        if (group.getStatus() == GroupStatus.FINISHED) {
+            throw new GroupFinishedException();
         }
         if (group.getStatus() != GroupStatus.OPEN) {
             throw new ConflictException("group-already-drawn", "O sorteio deste grupo já foi realizado.");
@@ -109,12 +114,15 @@ public class GroupService {
      * O organizador altera descrição, data, horário e local (FR-005, FR-006). Trava a linha do grupo, como
      * entrar, confirmar e sortear. Não membro recebe 404, como em qualquer rota do grupo. Antes do sorteio,
      * mudar data, horário ou local volta todos, menos o organizador, a pendente (FR-015); depois do sorteio,
-     * nada muda nas confirmações (FR-016).
+     * nada muda nas confirmações (FR-016). Grupo finalizado é somente leitura (FR-018).
      */
-    @Transactional
+    @Transactional(noRollbackFor = GroupFinishedException.class)
     public GroupDetail updateEventDetails(UUID userId, UUID groupId, EventDetailsRequest request) {
-        SecretGroup group = groups.findByIdForUpdate(groupId).orElseThrow(() -> new NotFoundException(GROUP_NOT_FOUND));
+        SecretGroup group = lock.acquire(groupId).orElseThrow(() -> new NotFoundException(GROUP_NOT_FOUND));
         requireMember(userId, groupId);
+        if (group.getStatus() == GroupStatus.FINISHED) {
+            throw new GroupFinishedException();
+        }
         if (!group.isOrganizer(userId)) {
             throw new ForbiddenException("Só o organizador pode alterar os detalhes do evento.");
         }
@@ -187,6 +195,9 @@ public class GroupService {
                 : null;
         boolean organizer = group.isOrganizer(userId);
         boolean canDraw = organizer && open && blocked == null;
+        // A leitura não finaliza nada (research R17): só diz ao organizador que a data venceu (US3-5)
+        boolean eventDatePassed =
+                open && group.getFinalizesAt() != null && schedule.hasHappened(group.getFinalizesAt());
         EventDetailsResponse eventDetails =
                 group.eventDetails(schedule).map(EventDetailsResponse::from).orElse(null);
         return new GroupDetail(
@@ -202,9 +213,11 @@ public class GroupService {
                 canDraw,
                 eventDetails,
                 eventDetails == null,
+                eventDatePassed,
                 group.getDetailsVersion(),
                 confirmedCount,
                 meConfirmed ? ConfirmationStatus.CONFIRMED : ConfirmationStatus.PENDING,
-                blocked == null ? null : blocked.code());
+                blocked == null ? null : blocked.code(),
+                group.getFinishedAt());
     }
 }

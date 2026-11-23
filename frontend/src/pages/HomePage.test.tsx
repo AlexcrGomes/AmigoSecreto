@@ -130,4 +130,81 @@ describe('HomePage', () => {
       await screen.findByText('Você ainda não participa de nenhum grupo.'),
     ).toBeInTheDocument();
   });
+
+  it('separa os grupos em andamento dos finalizados, com o selo "Finalizado" (FR-020)', async () => {
+    renderHome([
+      {
+        id: 'g-1',
+        name: 'Natal 2026',
+        status: 'OPEN',
+        participantCount: 4,
+        organizer: true,
+        eventDate: '2026-12-19',
+        eventTime: '19:00',
+      },
+      {
+        id: 'g-2',
+        name: 'Natal 2025',
+        status: 'FINISHED',
+        participantCount: 6,
+        organizer: false,
+        eventDate: '2025-12-20',
+        eventTime: null,
+      },
+      {
+        id: 'g-3',
+        name: 'Firma',
+        status: 'DRAWN',
+        participantCount: 3,
+        organizer: false,
+        eventDate: '2026-12-18',
+        eventTime: null,
+      },
+    ]);
+
+    const active = await screen.findByRole('region', { name: 'Em andamento' });
+    const finished = screen.getByRole('region', { name: 'Finalizados' });
+    expect(
+      within(active)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['/grupos/g-1', '/grupos/g-3']);
+    const old = within(finished).getByRole('link', { name: /Natal 2025/ });
+    expect(within(old).getByText('Finalizado')).toBeInTheDocument();
+    expect(within(active).queryByText('Finalizado')).not.toBeInTheDocument();
+  });
+
+  it('sem grupos finalizados, não mostra a seção', async () => {
+    renderHome([
+      {
+        id: 'g-1',
+        name: 'Natal 2026',
+        status: 'OPEN',
+        participantCount: 4,
+        organizer: true,
+        eventDate: '2026-12-19',
+        eventTime: '19:00',
+      },
+    ]);
+
+    expect(await screen.findByRole('region', { name: 'Em andamento' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Finalizados' })).not.toBeInTheDocument();
+  });
+
+  it('só com grupos finalizados, não mostra "Em andamento"', async () => {
+    renderHome([
+      {
+        id: 'g-2',
+        name: 'Natal 2025',
+        status: 'FINISHED',
+        participantCount: 6,
+        organizer: false,
+        eventDate: '2025-12-20',
+        eventTime: null,
+      },
+    ]);
+
+    expect(await screen.findByRole('region', { name: 'Finalizados' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Em andamento' })).not.toBeInTheDocument();
+  });
 });

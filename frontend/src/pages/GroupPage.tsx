@@ -34,7 +34,7 @@ const drawnDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' });
  * /grupos/:id (contracts/ui-routes.md). OPEN: código, lista ao vivo com quem confirmou, "Realizar
  * sorteio" e "Remover" para o organizador, "Confirmar participação" para quem está pendente e "Sair do
  * grupo" para os demais. DRAWN: selo com a data, "Seu amigo secreto" e a
- * lista só com nomes.
+ * lista só com nomes. FINISHED: o mesmo, somente leitura (FR-018, FR-019).
  */
 export function GroupPage() {
   const { id } = useParams();
@@ -48,6 +48,7 @@ export function GroupPage() {
   const [leaving, setLeaving] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
   const [confirmationsReset, setConfirmationsReset] = useState(false);
+  const [justFinished, setJustFinished] = useState(false);
 
   /** Saiu do grupo (por conta própria ou removido): descarta os dados e volta para a lista. */
   function exitGroup(message: string, kind: 'success' | 'error') {
@@ -64,6 +65,7 @@ export function GroupPage() {
     onConfirmationsReset: () => {
       if (group.data && !group.data.organizer) setConfirmationsReset(true);
     },
+    onFinished: () => setJustFinished(true),
   });
 
   if (group.isPending) {
@@ -94,6 +96,7 @@ export function GroupPage() {
   const detail = group.data;
   const drawn = detail.status === 'DRAWN';
   const open = detail.status === 'OPEN';
+  const finished = detail.status === 'FINISHED';
   const pending = open && detail.myConfirmation === 'PENDING' && !detail.eventDetailsMissing;
   const confirmedGuest = open && !detail.organizer && detail.myConfirmation === 'CONFIRMED';
 
@@ -127,13 +130,18 @@ export function GroupPage() {
       <div>
         <h1 className="text-2xl font-bold break-words text-text">{detail.name}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Badge tone={drawn ? 'success' : 'primary'}>
-            {drawn ? 'Sorteado' : 'Aguardando sorteio'}
+          <Badge tone={drawn ? 'success' : finished ? 'neutral' : 'primary'}>
+            {drawn ? 'Sorteado' : finished ? 'Finalizado' : 'Aguardando sorteio'}
           </Badge>
           {confirmedGuest && <Badge tone="success">Você confirmou</Badge>}
           {drawn && detail.drawnAt && (
             <span className="text-sm text-text-muted">
               Sorteio realizado em {drawnDate.format(new Date(detail.drawnAt))}
+            </span>
+          )}
+          {finished && detail.finishedAt && (
+            <span className="text-sm text-text-muted">
+              Finalizado em {drawnDate.format(new Date(detail.finishedAt))}
             </span>
           )}
         </div>
@@ -177,24 +185,33 @@ export function GroupPage() {
         </p>
       )}
 
-      {drawn ? (
-        <SecretFriendCard groupId={detail.id} />
-      ) : (
+      {finished && justFinished && (
+        <p
+          role="status"
+          className="rounded-control border border-border bg-surface px-4 py-3 font-medium text-text"
+        >
+          O evento aconteceu. Este grupo foi finalizado.
+        </p>
+      )}
+
+      {open ? (
         <>
           <ShareCode code={detail.code} groupName={detail.name} />
           <DrawButton group={detail} />
         </>
+      ) : (
+        <SecretFriendCard groupId={detail.id} />
       )}
 
       <ParticipantList
         participants={detail.participants}
         currentUserId={user?.id}
-        onRemove={!drawn && detail.organizer ? setRemoving : undefined}
+        onRemove={open && detail.organizer ? setRemoving : undefined}
         showConfirmation={open}
       />
 
       {/* O pendente já tem "Não vou participar" no cartão de confirmação */}
-      {!drawn && !detail.organizer && !pending && (
+      {open && !detail.organizer && !pending && (
         <Button variant="danger" fullWidth onClick={() => setLeaving(true)}>
           Sair do grupo
         </Button>

@@ -13,26 +13,26 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Sair e remover participantes (US4, FR-018, FR-019), só enquanto o grupo está {@code OPEN}. Usa o mesmo
- * lock da linha do grupo que a entrada e o sorteio: ninguém sai no meio de um sorteio.
+ * lock da linha do grupo que a entrada e o sorteio ({@link GroupLock}): ninguém sai no meio de um sorteio,
+ * nem de um grupo finalizado.
  */
 @Service
 public class GroupMembershipService {
 
     private static final String GROUP_NOT_FOUND = "Grupo não encontrado.";
 
-    private final SecretGroupRepository groups;
     private final GroupMemberRepository members;
+    private final GroupLock lock;
     private final ApplicationEventPublisher events;
 
-    public GroupMembershipService(
-            SecretGroupRepository groups, GroupMemberRepository members, ApplicationEventPublisher events) {
-        this.groups = groups;
+    public GroupMembershipService(GroupMemberRepository members, GroupLock lock, ApplicationEventPublisher events) {
         this.members = members;
+        this.lock = lock;
         this.events = events;
     }
 
     /** O usuário da sessão sai do grupo. O organizador não pode sair. */
-    @Transactional
+    @Transactional(noRollbackFor = GroupFinishedException.class)
     public void leave(UUID sessionUserId, UUID groupId) {
         SecretGroup group = lockedGroupOfMember(sessionUserId, groupId);
         requireOpen(group);
@@ -43,7 +43,7 @@ public class GroupMembershipService {
     }
 
     /** O organizador (usuário da sessão) remove outro participante. */
-    @Transactional
+    @Transactional(noRollbackFor = GroupFinishedException.class)
     public void remove(UUID sessionUserId, UUID groupId, UUID targetUserId) {
         SecretGroup group = lockedGroupOfMember(sessionUserId, groupId);
         if (!group.isOrganizer(sessionUserId)) {
@@ -60,7 +60,7 @@ public class GroupMembershipService {
     }
 
     private SecretGroup lockedGroupOfMember(UUID userId, UUID groupId) {
-        SecretGroup group = groups.findByIdForUpdate(groupId).orElseThrow(() -> new NotFoundException(GROUP_NOT_FOUND));
+        SecretGroup group = lock.acquire(groupId).orElseThrow(() -> new NotFoundException(GROUP_NOT_FOUND));
         if (!members.existsById(new GroupMemberId(groupId, userId))) {
             throw new NotFoundException(GROUP_NOT_FOUND);
         }
@@ -68,6 +68,9 @@ public class GroupMembershipService {
     }
 
     private static void requireOpen(SecretGroup group) {
+        if (group.getStatus() == GroupStatus.FINISHED) {
+            throw new GroupFinishedException();
+        }
         if (group.getStatus() != GroupStatus.OPEN) {
             throw new ConflictException("group-already-drawn", "O sorteio deste grupo já foi realizado.");
         }

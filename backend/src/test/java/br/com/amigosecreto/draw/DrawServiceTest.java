@@ -16,8 +16,11 @@ import br.com.amigosecreto.common.RateLimitExceededException;
 import br.com.amigosecreto.common.UnprocessableException;
 import br.com.amigosecreto.draw.dto.DrawResult;
 import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
+import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
 import br.com.amigosecreto.group.EventDetails;
 import br.com.amigosecreto.group.EventSchedule;
+import br.com.amigosecreto.group.GroupFinishedException;
+import br.com.amigosecreto.group.GroupLock;
 import br.com.amigosecreto.group.GroupMemberId;
 import br.com.amigosecreto.group.GroupMemberRepository;
 import br.com.amigosecreto.group.GroupStatus;
@@ -46,6 +49,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -90,7 +94,7 @@ class DrawServiceTest {
         when(derangement.generate(anyList())).thenReturn(Map.of(ANA, BRUNO, BRUNO, CARLA, CARLA, ANA));
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new DrawService(
-                groups,
+                new GroupLock(groups, members, clock, events),
                 members,
                 assignments,
                 derangement,
@@ -280,5 +284,34 @@ class DrawServiceTest {
         assertThatThrownBy(() -> service.draw(ANA, group.getId()))
                 .isInstanceOf(DataAccessResourceFailureException.class);
         verify(events, never()).publishEvent(any());
+    }
+
+    // ---- grupo finalizado (US3) ----
+
+    @Test
+    void finishedGroupCannotBeDrawn() {
+        group.markDrawn(NOW.minusSeconds(3600));
+        ReflectionTestUtils.setField(group, "status", GroupStatus.FINISHED);
+
+        assertThatThrownBy(() -> service.draw(ANA, group.getId()))
+                .isInstanceOfSatisfying(ConflictException.class, ex -> {
+                    assertThat(ex.getType()).isEqualTo("group-finished");
+                    assertThat(ex.getMessage()).isEqualTo("Este grupo foi finalizado.");
+                });
+        verify(assignments, never()).saveAll(any());
+        verify(events, never()).publishEvent(any());
+    }
+
+    @Test
+    void drawingADueGroupFinishesItInstead() {
+        group.markDrawn(NOW.minusSeconds(3600));
+        ReflectionTestUtils.setField(group, "finalizesAt", NOW.minusSeconds(60));
+        when(members.countByIdGroupId(group.getId())).thenReturn(3L);
+
+        assertThatThrownBy(() -> service.draw(ANA, group.getId())).isInstanceOf(GroupFinishedException.class);
+
+        assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
+        verify(events).publishEvent(new GroupFinishedEvent(group.getId(), 3));
+        verify(assignments, never()).saveAll(any());
     }
 }

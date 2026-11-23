@@ -8,11 +8,12 @@ import br.com.amigosecreto.draw.dto.DrawResult;
 import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
 import br.com.amigosecreto.group.DrawBlockedReason;
 import br.com.amigosecreto.group.EventSchedule;
+import br.com.amigosecreto.group.GroupFinishedException;
+import br.com.amigosecreto.group.GroupLock;
 import br.com.amigosecreto.group.GroupMemberId;
 import br.com.amigosecreto.group.GroupMemberRepository;
 import br.com.amigosecreto.group.GroupStatus;
 import br.com.amigosecreto.group.SecretGroup;
-import br.com.amigosecreto.group.SecretGroupRepository;
 import br.com.amigosecreto.ratelimit.RateLimitPolicy;
 import br.com.amigosecreto.ratelimit.RateLimiter;
 import java.time.Clock;
@@ -35,7 +36,7 @@ public class DrawService {
 
     private static final String GROUP_NOT_FOUND = "Grupo não encontrado.";
 
-    private final SecretGroupRepository groups;
+    private final GroupLock lock;
     private final GroupMemberRepository members;
     private final DrawAssignmentRepository assignments;
     private final DerangementGenerator derangement;
@@ -46,7 +47,7 @@ public class DrawService {
     private final ApplicationEventPublisher events;
 
     public DrawService(
-            SecretGroupRepository groups,
+            GroupLock lock,
             GroupMemberRepository members,
             DrawAssignmentRepository assignments,
             DerangementGenerator derangement,
@@ -55,7 +56,7 @@ public class DrawService {
             Clock clock,
             EventSchedule schedule,
             ApplicationEventPublisher events) {
-        this.groups = groups;
+        this.lock = lock;
         this.members = members;
         this.assignments = assignments;
         this.derangement = derangement;
@@ -66,16 +67,19 @@ public class DrawService {
         this.events = events;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = GroupFinishedException.class)
     public DrawResult draw(UUID userId, UUID groupId) {
         rateLimiter.consume(RateLimitPolicy.DRAW, groupId.toString());
 
-        SecretGroup group = groups.findByIdForUpdate(groupId).orElseThrow(() -> new NotFoundException(GROUP_NOT_FOUND));
+        SecretGroup group = lock.acquire(groupId).orElseThrow(() -> new NotFoundException(GROUP_NOT_FOUND));
         if (!members.existsById(new GroupMemberId(groupId, userId))) {
             throw new NotFoundException(GROUP_NOT_FOUND);
         }
         if (!group.isOrganizer(userId)) {
             throw new ForbiddenException("Só o organizador pode realizar o sorteio.");
+        }
+        if (group.getStatus() == GroupStatus.FINISHED) {
+            throw new GroupFinishedException();
         }
         if (group.getStatus() != GroupStatus.OPEN) {
             throw new ConflictException("group-already-drawn", "O sorteio deste grupo já foi realizado.");

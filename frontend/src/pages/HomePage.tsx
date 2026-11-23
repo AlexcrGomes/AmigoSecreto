@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { listGroups, type GroupSummary } from '../api/groups';
+import { listGroups, type GroupStatus, type GroupSummary } from '../api/groups';
 import { participantsLabel } from '../components/group/ParticipantList';
 import { Badge } from '../components/ui/Badge';
 import { Button, buttonClasses } from '../components/ui/Button';
@@ -9,6 +9,12 @@ import { Spinner } from '../components/ui/Spinner';
 import { GROUPS_KEY } from '../hooks/useGroup';
 import { errorMessage } from '../lib/errors';
 import { formatEventDate } from '../lib/eventDate';
+
+const STATUS_LABEL: Record<GroupStatus, string> = {
+  OPEN: 'Aguardando sorteio',
+  DRAWN: 'Sorteado',
+  FINISHED: 'Finalizado',
+};
 
 function GroupCard({ group }: { group: GroupSummary }) {
   return (
@@ -19,7 +25,7 @@ function GroupCard({ group }: { group: GroupSummary }) {
       >
         <Card className="transition-shadow hover:shadow-md">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="min-w-0 text-lg font-semibold break-words text-text">{group.name}</h2>
+            <h3 className="min-w-0 text-lg font-semibold break-words text-text">{group.name}</h3>
             {group.organizer && <Badge tone="primary">Organizador</Badge>}
           </div>
           <p className="mt-1 text-sm text-text">
@@ -30,7 +36,7 @@ function GroupCard({ group }: { group: GroupSummary }) {
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-text-muted">
             <span>{participantsLabel(group.participantCount)}</span>
             <Badge tone={group.status === 'DRAWN' ? 'success' : 'neutral'}>
-              {group.status === 'DRAWN' ? 'Sorteado' : 'Aguardando sorteio'}
+              {STATUS_LABEL[group.status]}
             </Badge>
           </div>
         </Card>
@@ -39,7 +45,32 @@ function GroupCard({ group }: { group: GroupSummary }) {
   );
 }
 
-/** / — "Meus grupos" (FR-016). */
+/** Uma seção da tela inicial; some quando não tem grupos. */
+function GroupSection({
+  id,
+  title,
+  groups,
+}: {
+  id: string;
+  title: string;
+  groups: GroupSummary[];
+}) {
+  if (groups.length === 0) return null;
+  return (
+    <section aria-labelledby={id}>
+      <h2 id={id} className="mb-3 text-lg font-semibold text-text-muted">
+        {title}
+      </h2>
+      <ul className="flex flex-col gap-3">
+        {groups.map((group) => (
+          <GroupCard key={group.id} group={group} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** / — "Meus grupos" (FR-016), com os finalizados em seção própria (FR-020 da 002). */
 export function HomePage() {
   const groups = useQuery({
     queryKey: GROUPS_KEY,
@@ -83,11 +114,18 @@ export function HomePage() {
           </Card>
         )}
         {groups.isSuccess && groups.data.length > 0 && (
-          <ul className="flex flex-col gap-3">
-            {groups.data.map((group) => (
-              <GroupCard key={group.id} group={group} />
-            ))}
-          </ul>
+          <div className="flex flex-col gap-6">
+            <GroupSection
+              id="grupos-em-andamento"
+              title="Em andamento"
+              groups={groups.data.filter((group) => group.status !== 'FINISHED')}
+            />
+            <GroupSection
+              id="grupos-finalizados"
+              title="Finalizados"
+              groups={groups.data.filter((group) => group.status === 'FINISHED')}
+            />
+          </div>
         )}
       </div>
     </div>

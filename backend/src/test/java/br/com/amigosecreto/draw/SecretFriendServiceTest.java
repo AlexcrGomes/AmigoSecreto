@@ -15,6 +15,7 @@ import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.draw.dto.SecretFriendResponse;
 import br.com.amigosecreto.group.GroupMemberId;
 import br.com.amigosecreto.group.GroupMemberRepository;
+import br.com.amigosecreto.group.GroupStatus;
 import br.com.amigosecreto.group.SecretGroup;
 import br.com.amigosecreto.group.SecretGroupRepository;
 import java.security.SecureRandom;
@@ -28,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -111,5 +113,18 @@ class SecretFriendServiceTest {
         assertThatThrownBy(() -> service.getMine(ANA, group.getId()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageNotContaining(ANA.toString());
+    }
+
+    @Test
+    void finishedGroupStillRevealsOnlyMyOwnFriend() {
+        group.markDrawn(NOW);
+        ReflectionTestUtils.setField(group, "status", GroupStatus.FINISHED);
+        byte[] encrypted = cipher.encrypt(carla.getId(), group.getId(), ANA);
+        when(assignments.findByIdGroupIdAndIdGiverId(group.getId(), ANA))
+                .thenReturn(Optional.of(new DrawAssignment(group.getId(), ANA, encrypted, NOW)));
+
+        assertThat(service.getMine(ANA, group.getId())).isEqualTo(new SecretFriendResponse("Carla"));
+        verify(assignments).findByIdGroupIdAndIdGiverId(group.getId(), ANA);
+        verifyNoMoreInteractions(assignments);
     }
 }

@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { groupKey } from './useGroup';
+import { GROUPS_KEY, groupKey } from './useGroup';
 
 /** Consulta de contingência enquanto o SSE estiver indisponível (contracts/sse-events.md). */
 export const POLL_INTERVAL_MS = 10_000;
@@ -12,6 +12,8 @@ interface GroupEventHandlers {
   onRevoked?: () => void;
   /** Data, horário ou local mudaram e as confirmações voltaram a pendente (`group-updated`). */
   onConfirmationsReset?: () => void;
+  /** O evento aconteceu e o grupo foi finalizado (evento `group-finished`). */
+  onFinished?: () => void;
 }
 
 /** Lê `confirmationsReset` do sinal; um corpo inválido conta como `false`. */
@@ -68,6 +70,12 @@ export function useGroupEvents(groupId: string | undefined, handlers: GroupEvent
     source.addEventListener('group-drawn', () => {
       refresh();
       handlersRef.current.onDrawn?.();
+    });
+    // O grupo muda de seção na tela inicial: a lista também precisa ser refeita
+    source.addEventListener('group-finished', () => {
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: GROUPS_KEY });
+      handlersRef.current.onFinished?.();
     });
     source.addEventListener('membership-revoked', () => {
       // Deixou de ser membro: nada mais a ouvir (nem reconectar, nem consultar)

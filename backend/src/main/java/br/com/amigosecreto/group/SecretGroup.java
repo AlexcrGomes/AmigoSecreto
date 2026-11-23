@@ -1,6 +1,5 @@
 package br.com.amigosecreto.group;
 
-import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.UnprocessableException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -113,6 +112,22 @@ public class SecretGroup implements Persistable<UUID> {
         this.drawUndoneAt = null;
     }
 
+    /**
+     * O evento aconteceu: DRAWN → FINISHED (FR-017, research R17). Só um grupo sorteado e com data finaliza;
+     * um grupo {@code OPEN} com a data vencida continua aberto (US3-5), e um grupo antigo sem data espera o
+     * organizador (FR-034). Idempotente.
+     *
+     * @return se o grupo acabou de ser finalizado
+     */
+    public boolean finishIfDue(Instant now) {
+        if (status != GroupStatus.DRAWN || finalizesAt == null || finalizesAt.isAfter(now)) {
+            return false;
+        }
+        this.status = GroupStatus.FINISHED;
+        this.finishedAt = Objects.requireNonNull(now, "now");
+        return true;
+    }
+
     public boolean isOrganizer(UUID userId) {
         return organizerId.equals(userId);
     }
@@ -128,7 +143,7 @@ public class SecretGroup implements Persistable<UUID> {
     public boolean updateEventDetails(EventDetails details, EventSchedule schedule) {
         Objects.requireNonNull(details, "details");
         if (status == GroupStatus.FINISHED) {
-            throw new ConflictException("group-finished", "Este grupo já foi finalizado.");
+            throw new GroupFinishedException();
         }
         Optional<EventDetails> current = eventDetails(schedule);
         boolean dateOrTimeChanged = current.isEmpty()
