@@ -34,6 +34,6 @@
 - Validado em 2026-11-23, primeira iteração. Os formatos do link (`http://`/`https://`) e da faixa
   de preço (reais inteiros) são regras de negócio visíveis ao usuário, não detalhes de
   implementação.
-- Decisões tomadas com padrão razoável, sem marcador de esclarecimento: limite de 10 itens, lista
-  por grupo, sem aviso ao vivo para quem tirou o dono, lista apagada quando a participação acaba.
-  Boas candidatas a revisar no `/speckit-clarify`.
+- Revalidado em 2026-11-24, depois do `/speckit-clarify` (3 perguntas): itens sem preço, até 5
+  itens, valor do presente no grupo (US3, FR-020 a FR-023) e indicação "Atualizada em dd/mm".
+  Todos os itens continuam passando (16/16).
