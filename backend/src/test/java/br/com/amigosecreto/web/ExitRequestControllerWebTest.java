@@ -32,6 +32,7 @@ import br.com.amigosecreto.group.GroupStatus;
 import br.com.amigosecreto.group.dto.EventDetailsResponse;
 import br.com.amigosecreto.group.dto.GroupDetail;
 import br.com.amigosecreto.group.dto.Participant;
+import br.com.amigosecreto.wishlist.dto.MyWishlist;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -102,7 +103,8 @@ class ExitRequestControllerWebTest {
                 null,
                 true,
                 null,
-                List.of());
+                List.of(),
+                new MyWishlist(List.of(), 5, true));
     }
 
     private static void assertNoPairs(MvcResult result) throws Exception {

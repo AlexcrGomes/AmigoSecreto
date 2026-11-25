@@ -29,6 +29,10 @@ public class GroupMember implements Persistable<GroupMemberId> {
     @Column(name = "confirmed_at")
     private Instant confirmedAt;
 
+    /** Última inclusão, edição ou remoção de item da lista de desejos (feature 003, FR-015a). */
+    @Column(name = "wishlist_updated_at")
+    private Instant wishlistUpdatedAt;
+
     @Transient
     private boolean isNew = true;
 
@@ -87,5 +91,14 @@ public class GroupMember implements Persistable<GroupMemberId> {
 
     public boolean isConfirmed() {
         return confirmedAt != null;
+    }
+
+    /** A lista de desejos do membro mudou agora (incluir, editar ou remover item). */
+    public void touchWishlist(Instant now) {
+        this.wishlistUpdatedAt = Objects.requireNonNull(now, "now");
+    }
+
+    public Instant getWishlistUpdatedAt() {
+        return wishlistUpdatedAt;
     }
 }

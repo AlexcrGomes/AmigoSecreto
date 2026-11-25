@@ -37,6 +37,7 @@ import br.com.amigosecreto.group.dto.EventDetailsResponse;
 import br.com.amigosecreto.group.dto.GroupDetail;
 import br.com.amigosecreto.group.dto.GroupSummary;
 import br.com.amigosecreto.group.dto.Participant;
+import br.com.amigosecreto.wishlist.dto.MyWishlist;
 import jakarta.servlet.http.Cookie;
 import java.time.LocalDate;
 import java.util.List;
@@ -118,7 +119,8 @@ class GroupControllerWebTest {
                 null,
                 false,
                 null,
-                List.of());
+                List.of(),
+                new MyWishlist(List.of(), 5, true));
     }
 
     /** O corpo válido com um campo trocado ({@code null} remove o campo). */

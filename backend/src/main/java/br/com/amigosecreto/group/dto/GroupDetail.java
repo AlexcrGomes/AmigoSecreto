@@ -3,6 +3,7 @@ package br.com.amigosecreto.group.dto;
 import br.com.amigosecreto.exitrequest.dto.ExitRequestResponse;
 import br.com.amigosecreto.group.ConfirmationStatus;
 import br.com.amigosecreto.group.GroupStatus;
+import br.com.amigosecreto.wishlist.dto.MyWishlist;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -15,7 +16,8 @@ import java.util.UUID;
  * evento já aconteceu (US3-5); {@code finishedAt} só para grupo {@code FINISHED}. {@code drawUndone}: grupo
  * {@code OPEN} cujo último sorteio foi desfeito por uma saída aprovada. {@code myExitRequest} é o pedido de
  * saída pendente do usuário; {@code pendingExitRequests} só vem preenchido para o organizador. Nunca contém
- * pares do sorteio, nem quem a pessoa que pediu para sair havia tirado (FR-032).
+ * pares do sorteio, nem quem a pessoa que pediu para sair havia tirado (FR-032). {@code myWishlist} é só a
+ * lista de desejos do usuário da sessão (feature 003): a de outra pessoa nunca vem aqui.
  */
 public record GroupDetail(
         UUID id,
@@ -38,4 +40,5 @@ public record GroupDetail(
         Instant finishedAt,
         boolean drawUndone,
         ExitRequestResponse myExitRequest,
-        List<ExitRequestResponse> pendingExitRequests) {}
+        List<ExitRequestResponse> pendingExitRequests,
+        MyWishlist myWishlist) {}

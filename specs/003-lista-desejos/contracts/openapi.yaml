@@ -1,0 +1,286 @@
+openapi: 3.1.0
+info:
+  title: Amigo Secreto API — mudanças da feature 003
+  version: 1.2.0
+  description: |
+    Somente as rotas e os schemas NOVOS ou ALTERADOS pela feature 003 (lista de desejos e valor do
+    presente). Todo o resto continua como em specs/001-amigo-secreto-sorteio/contracts/openapi.yaml
+    e specs/002-grupo-evento-confirmacao/contracts/openapi.yaml (cookie de sessão, CSRF em
+    escritas, erros RFC 9457 em pt-BR, `404` para quem não é membro, `409 group-finished` em grupo
+    finalizado). As rotas valem pela união dos três arquivos.
+
+    Mudanças são ADITIVAS no prefixo `/api/v1`.
+
+    SIGILO (Constituição I): a lista de desejos de outra pessoa só é devolvida em
+    `GET /groups/{groupId}/my-secret-friend`, e só a de quem o usuário da sessão tirou (research
+    R27). Nenhuma rota recebe um id de usuário para ler lista. As rotas de edição atuam sempre na
+    lista do usuário da sessão (`mine`).
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: wishlist
+  - name: draw
+  - name: groups
+
+paths:
+  /groups/{groupId}/wishlist/mine/items:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    post:
+      tags: [wishlist]
+      summary: Adiciona um item à própria lista (NOVA — FR-001, FR-002, FR-005)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WishItemRequest' }
+      responses:
+        '201':
+          description: Item criado; devolve a própria lista atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyWishlist' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/GroupNotFound' }
+        '409':
+          description: Lista cheia (`/problems/wishlist-full`) ou grupo finalizado (`/problems/group-finished`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /groups/{groupId}/wishlist/mine/items/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+      - $ref: '#/components/parameters/ItemId'
+    put:
+      tags: [wishlist]
+      summary: Altera um item da própria lista (NOVA — FR-005, FR-006)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WishItemRequest' }
+      responses:
+        '200':
+          description: Item alterado; devolve a própria lista atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyWishlist' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/WishItemNotFound' }
+        '409': { $ref: '#/components/responses/GroupFinished' }
+    delete:
+      tags: [wishlist]
+      summary: Remove um item da própria lista (NOVA — FR-005, FR-006)
+      responses:
+        '204': { description: Removido }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/WishItemNotFound' }
+        '409': { $ref: '#/components/responses/GroupFinished' }
+
+  /groups/{groupId}/my-secret-friend:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    get:
+      tags: [draw]
+      summary: Meu amigo secreto e a lista de desejos dele (ALTERADA — FR-009 a FR-015a)
+      description: |
+        Como na 001: só o resultado do usuário da sessão, com `Cache-Control: no-store`. Passa a
+        trazer a lista de desejos de quem ele tirou e, se a lista mudou depois do sorteio, quando
+        mudou. Nunca traz o id de quem foi tirado.
+      responses:
+        '200':
+          description: Resultado do usuário da sessão
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SecretFriend' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/GroupNotFound' }
+        '409':
+          description: Grupo ainda não sorteado, inclusive depois de um sorteio desfeito (`/problems/group-not-drawn`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /groups/{groupId}/event-details:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    put:
+      tags: [groups]
+      summary: Organizador altera os detalhes do evento (ALTERADA — ganha `giftValue`, FR-020 a FR-023)
+      description: |
+        Como na 002, mais o `giftValue`. Com o grupo sorteado, o mesmo valor é aceito e um valor
+        diferente é recusado; mudar o valor não volta confirmações a pendente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EventDetailsRequest' }
+      responses:
+        '200':
+          description: Detalhes alterados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GroupDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/NotOrganizer' }
+        '404': { $ref: '#/components/responses/GroupNotFound' }
+        '409':
+          description: Valor do presente diferente com o grupo sorteado (`/problems/gift-value-locked`) ou grupo finalizado
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: SESSION
+
+  parameters:
+    GroupId:
+      name: groupId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Sem sessão válida
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    GroupNotFound:
+      description: Grupo inexistente ou usuário não é membro (indistinguíveis de propósito)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    WishItemNotFound:
+      description: Grupo ou item inexistente, item de outra pessoa ou usuário não é membro (indistinguíveis)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotOrganizer:
+      description: Usuário é membro, mas não é o organizador
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    GroupFinished:
+      description: Grupo finalizado, somente leitura (`/problems/group-finished`)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ValidationError:
+      description: Dados inválidos; `errors` lista os campos
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    WishItemRequest:
+      type: object
+      required: [description]
+      properties:
+        description: { type: string, minLength: 1, maxLength: 120, description: 'texto simples' }
+        url:
+          type: [string, 'null']
+          maxLength: 500
+          description: 'opcional; absoluto, http:// ou https:// (research R29)'
+
+    WishItem:
+      type: object
+      required: [id, description]
+      properties:
+        id: { type: string, format: uuid }
+        description: { type: string }
+        url: { type: [string, 'null'] }
+
+    MyWishlist:
+      type: object
+      description: A lista do usuário da sessão no grupo (até 5 itens, na ordem de cadastro)
+      required: [items, maxItems]
+      properties:
+        items:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/WishItem' }
+        maxItems: { type: integer, const: 5 }
+        editable: { type: boolean, description: 'false em grupo finalizado' }
+
+    FriendWishItem:
+      type: object
+      description: Item da lista de quem o usuário tirou — sem id, sem dono
+      required: [description]
+      properties:
+        description: { type: string }
+        url: { type: [string, 'null'] }
+
+    SecretFriend:
+      type: object
+      required: [name, wishlist]
+      properties:
+        name: { type: string, description: nome de exibição de quem o usuário tirou }
+        wishlist:
+          type: array
+          description: 'NOVO; lista de desejos dessa pessoa, na ordem de cadastro; vazia se não houver'
+          items: { $ref: '#/components/schemas/FriendWishItem' }
+        wishlistUpdatedAt:
+          type: [string, 'null']
+          format: date-time
+          description: 'NOVO; última alteração da lista, só se foi depois do sorteio (FR-015a)'
+
+    EventDetailsRequest:
+      type: object
+      required: [eventDate, location]
+      description: Como na 002, mais o `giftValue`
+      properties:
+        description: { type: [string, 'null'], maxLength: 500 }
+        eventDate: { type: string, format: date }
+        eventTime: { type: [string, 'null'], pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+        location: { type: string, minLength: 1, maxLength: 120 }
+        giftValue:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 100000
+          description: 'NOVO; valor do presente em reais inteiros (FR-020)'
+
+    EventDetails:
+      type: object
+      required: [eventDate, location]
+      description: Como na 002, mais o `giftValue`
+      properties:
+        description: { type: [string, 'null'] }
+        eventDate: { type: string, format: date }
+        eventTime: { type: [string, 'null'] }
+        location: { type: string }
+        giftValue: { type: [integer, 'null'], description: 'NOVO; visível a todos os participantes' }
+
+    GroupDetail:
+      type: object
+      description: Como na 002, mais `myWishlist` (só a lista do usuário da sessão)
+      properties:
+        eventDetails:
+          oneOf:
+            - $ref: '#/components/schemas/EventDetails'
+            - type: 'null'
+        myWishlist: { $ref: '#/components/schemas/MyWishlist' }
+
+    Problem:
+      type: object
+      description: RFC 9457
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }

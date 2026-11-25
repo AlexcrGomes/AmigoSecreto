@@ -17,33 +17,43 @@ import org.yaml.snakeyaml.Yaml;
 import tools.jackson.databind.JsonNode;
 
 /**
- * A API implementada e os contratos (contracts/openapi.yaml das features 001 e 002) batem. O contrato da 002
- * lista só o que é novo ou mudou; as rotas valem pela união dos dois arquivos (research R24 da 002).
+ * A API implementada e os contratos (contracts/openapi.yaml das features 001, 002 e 003) batem. Os contratos
+ * da 002 e da 003 listam só o que é novo ou mudou; as rotas valem pela união dos três arquivos (research R24 da
+ * 002).
  *
- * <p>Roda no perfil {@code dev}, o único em que o springdoc gera a documentação.
+ * <p>Enquanto a feature 003 é entregue em vários PRs, as rotas dela ainda não existem todas: o teste exige que
+ * toda rota gerada esteja documentada e que todas as rotas da 001 e da 002 existam. A tarefa T040 da 003 (fim da
+ * entrega) volta à igualdade completa. Roda no perfil {@code dev}, o único em que o springdoc gera a
+ * documentação.
  */
 @ActiveProfiles({"test", "dev"})
 class OpenApiContractIT extends AbstractIntegrationTest {
 
     private static final Path CONTRACT_001 = Path.of("../specs/001-amigo-secreto-sorteio/contracts/openapi.yaml");
     private static final Path CONTRACT_002 = Path.of("../specs/002-grupo-evento-confirmacao/contracts/openapi.yaml");
+    private static final Path CONTRACT_003 = Path.of("../specs/003-lista-desejos/contracts/openapi.yaml");
     private static final Set<String> HTTP_METHODS = Set.of("get", "post", "put", "patch", "delete");
 
     @Test
     void implementedRoutesMatchTheContracts() throws IOException {
-        for (Path contract : List.of(CONTRACT_001, CONTRACT_002)) {
+        for (Path contract : List.of(CONTRACT_001, CONTRACT_002, CONTRACT_003)) {
             assertThat(contract)
                     .as("o teste roda a partir de backend/ com o repositório completo")
                     .exists();
         }
 
         Set<String> generated = generatedRoutes();
-        Set<String> documented = new TreeSet<>(contractRoutes(CONTRACT_001));
-        documented.addAll(contractRoutes(CONTRACT_002));
+        Set<String> delivered = new TreeSet<>(contractRoutes(CONTRACT_001));
+        delivered.addAll(contractRoutes(CONTRACT_002));
+        Set<String> documented = new TreeSet<>(delivered);
+        documented.addAll(contractRoutes(CONTRACT_003));
 
+        assertThat(documented)
+                .as("toda rota implementada precisa estar em um dos contratos 001, 002 ou 003")
+                .containsAll(generated);
         assertThat(generated)
-                .as("as rotas implementadas são exatamente as dos contratos 001 + 002")
-                .isEqualTo(documented);
+                .as("todas as rotas das features 001 e 002 continuam existindo")
+                .containsAll(delivered);
     }
 
     @Test
