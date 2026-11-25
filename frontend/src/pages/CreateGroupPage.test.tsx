@@ -77,6 +77,7 @@ describe('CreateGroupPage', () => {
       eventDate: inAMonth(),
       eventTime: '19:30',
       location: 'Casa da Ana',
+      giftValue: null,
     });
   });
 
@@ -123,5 +124,24 @@ describe('CreateGroupPage', () => {
     await userEvent.click(await screen.findByRole('link', { name: 'Cancelar' }));
 
     expect(screen.getByRole('heading', { name: 'Meus grupos' })).toBeInTheDocument();
+  });
+
+  it('cria com o valor do presente', async () => {
+    let body: unknown;
+    server.use(
+      http.post('/api/v1/groups', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(openGroup({ id: 'g-6' }), { status: 201 });
+      }),
+    );
+    renderCreate();
+
+    await userEvent.type(await screen.findByLabelText('Nome do grupo'), 'Firma');
+    await fillValidDetails();
+    await userEvent.type(screen.getByLabelText('Valor do presente (R$, opcional)'), '80');
+    await userEvent.click(screen.getByRole('button', { name: 'Criar grupo' }));
+
+    expect(await screen.findByRole('heading', { name: 'Tela do grupo' })).toBeInTheDocument();
+    expect(body).toMatchObject({ name: 'Firma', giftValue: 80 });
   });
 });

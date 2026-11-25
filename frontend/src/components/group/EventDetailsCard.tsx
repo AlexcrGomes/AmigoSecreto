@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import type { EventDetails } from '../../api/groups';
 import { formatEventDate } from '../../lib/eventDate';
+import { formatGiftValue } from '../../lib/giftValue';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 
@@ -33,6 +34,12 @@ export function EventDetailsCard({ details, onEdit }: EventDetailsCardProps) {
             <dt className="text-sm text-text-muted">Onde</dt>
             <dd className="font-medium break-words text-text">{details.location}</dd>
           </div>
+          {details.giftValue != null && (
+            <div>
+              <dt className="text-sm text-text-muted">Valor do presente</dt>
+              <dd className="font-medium text-text">{formatGiftValue(details.giftValue)}</dd>
+            </div>
+          )}
           {details.description && (
             <div>
               <dt className="text-sm text-text-muted">Descrição</dt>

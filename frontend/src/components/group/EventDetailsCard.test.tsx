@@ -50,4 +50,19 @@ describe('EventDetailsCard', () => {
 
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
+
+  // ---- valor do presente (US3 da 003) ----
+
+  it('mostra o valor do presente quando informado', () => {
+    render(<EventDetailsCard details={{ ...DETAILS, giftValue: 1500 }} />);
+
+    expect(screen.getByText('Valor do presente')).toBeInTheDocument();
+    expect(screen.getByText('R$ 1.500')).toBeInTheDocument();
+  });
+
+  it('sem valor, não mostra a linha', () => {
+    render(<EventDetailsCard details={{ ...DETAILS, giftValue: null }} />);
+
+    expect(screen.queryByText('Valor do presente')).not.toBeInTheDocument();
+  });
 });

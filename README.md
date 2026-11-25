@@ -16,6 +16,11 @@ todos confirmaram, o organizador faz o sorteio, e todos são avisados ao mesmo t
   sorteia de novo entre quem ficou. Quem saiu não pode voltar.
 - **Grupo finalizado**: depois do evento, o grupo sorteado vira *finalizado* sozinho, aparece em
   uma seção própria e fica somente para leitura; cada um ainda pode rever quem tirou.
+- **Lista de desejos**: em cada grupo, cada participante sugere até 5 presentes (descrição e link
+  opcional). Só ele e quem o tirar no sorteio veem a lista — ela aparece junto do nome revelado,
+  nunca para o organizador nem para os outros. Os links abrem fora do sistema, com aviso.
+- **Valor do presente**: o organizador pode informar quanto cada um gasta, em média; todos veem, e o
+  valor fica fixo depois do sorteio.
 - **Sigilo**: os pares ficam cifrados no banco (AES-256-GCM) e a única rota que devolve um amigo
   secreto responde sempre para o usuário logado.
 - **Tempo real**: participantes, confirmações, sorteio e finalização aparecem sem recarregar a
@@ -81,7 +86,7 @@ O build falha com cobertura de linhas abaixo de 80% (JaCoCo no backend, Vitest n
 ## Estrutura
 
 ```text
-backend/    API Spring Boot (auth, group, draw, exitrequest, events) + migrações Flyway
+backend/    API Spring Boot (auth, group, draw, exitrequest, wishlist, events) + migrações Flyway
 frontend/   SPA React servida pelo nginx, que também faz proxy de /api
 db/         imagem do PostgreSQL com correções de segurança
 specs/      especificação, plano, contratos e tarefas (SDD)
@@ -96,7 +101,8 @@ sorteio justo, testes, segurança), e cada funcionalidade passa por especificaç
 tarefas → implementação, em `specs/<NNN-nome>/`. As funcionalidades estão em
 [specs/001-amigo-secreto-sorteio](specs/001-amigo-secreto-sorteio/) (contas, grupos e sorteio) e
 [specs/002-grupo-evento-confirmacao](specs/002-grupo-evento-confirmacao/) (detalhes do evento,
-confirmação, grupo finalizado e saída depois do sorteio).
+confirmação, grupo finalizado e saída depois do sorteio) e
+[specs/003-lista-desejos](specs/003-lista-desejos/) (lista de desejos e valor do presente).
 
 Toda mudança entra na `main` por Pull Request, com CI e varreduras verdes e aprovação manual — veja o
 [CONTRIBUTING.md](CONTRIBUTING.md).

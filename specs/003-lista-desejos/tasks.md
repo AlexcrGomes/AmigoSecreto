@@ -140,15 +140,15 @@ Vitest + React Testing Library + MSW. Gate de cobertura: 80% de linhas (JaCoCo e
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T031 [P] [US3] Ampliar `test/…/group/SecretGroupTest.java`: com o grupo `OPEN`, informar, alterar e remover o valor; com `DRAWN`, o mesmo valor é aceito e um diferente → `409 gift-value-locked` ("O valor do presente não muda depois do sorteio."); com `FINISHED` → `409 group-finished`; mudar o valor não muda `detailsVersion`
-- [ ] T032 [P] [US3] Ampliar `test/…/group/GroupServiceTest.java` e `test/…/web/GroupControllerWebTest.java`: criar e editar com `giftValue`; validação (`0`, `100001`, decimal → `400` com a mensagem de [data-model.md](./data-model.md)); alterar só o valor com o grupo aberto publica `GroupUpdatedEvent(confirmationsReset = false)` e não chama `resetConfirmations` (FR-023); `EventDetailsResponse.giftValue` no detalhe de todos os participantes
-- [ ] T033 [P] [US3] Ampliar `test/…/integration/WishlistFlowIT.java` (parte US3): cenários US3-1 a US3-6; sorteio desfeito → valor editável de novo (Edge Case)
-- [ ] T034 [P] [US3] Ampliar `frontend/src/components/group/EventDetailsForm.test.tsx`, `frontend/src/components/group/EventDetailsCard.test.tsx` e `frontend/src/pages/CreateGroupPage.test.tsx`: campo "Valor do presente (R$)" opcional com validação; desabilitado com a explicação quando o grupo está sorteado; mudar só o valor não mostra "Todos os participantes precisarão confirmar de novo."; o cartão mostra "Valor do presente: R$ 80"; ampliar `SecretFriendCard.test.tsx` para mostrar o valor junto da lista
+- [X] T031 [P] [US3] Ampliar `test/…/group/SecretGroupTest.java`: com o grupo `OPEN`, informar, alterar e remover o valor; com `DRAWN`, o mesmo valor é aceito e um diferente → `409 gift-value-locked` ("O valor do presente não muda depois do sorteio."); com `FINISHED` → `409 group-finished`; mudar o valor não muda `detailsVersion`
+- [X] T032 [P] [US3] Ampliar `test/…/group/GroupServiceTest.java` e `test/…/web/GroupControllerWebTest.java`: criar e editar com `giftValue`; validação (`0`, `100001`, decimal → `400` com a mensagem de [data-model.md](./data-model.md)); alterar só o valor com o grupo aberto publica `GroupUpdatedEvent(confirmationsReset = false)` e não chama `resetConfirmations` (FR-023); `EventDetailsResponse.giftValue` no detalhe de todos os participantes
+- [X] T033 [P] [US3] Ampliar `test/…/integration/WishlistFlowIT.java` (parte US3): cenários US3-1 a US3-6; sorteio desfeito → valor editável de novo (Edge Case)
+- [X] T034 [P] [US3] Ampliar `frontend/src/components/group/EventDetailsForm.test.tsx`, `frontend/src/components/group/EventDetailsCard.test.tsx` e `frontend/src/pages/CreateGroupPage.test.tsx`: campo "Valor do presente (R$)" opcional com validação; desabilitado com a explicação quando o grupo está sorteado; mudar só o valor não mostra "Todos os participantes precisarão confirmar de novo."; o cartão mostra "Valor do presente: R$ 80"; ampliar `SecretFriendCard.test.tsx` para mostrar o valor junto da lista
 
 ### Implementation for User Story 3
 
-- [ ] T035 [US3] Alterar `…/group/SecretGroup.java` (`updateGiftValue(Integer)` com a regra de status) e `…/group/dto/EventDetailsRequest.java`/`EventDetailsResponse.java`/`CreateGroupRequest.java` (`giftValue` opcional, `@Min(1) @Max(100000)`); `GroupService.create` e `updateEventDetails` aplicam o valor sem afetar `scheduleChanged` — faz T031 e T032 passarem
-- [ ] T036 [US3] Alterar `frontend/src/lib/schemas.ts`, `frontend/src/components/group/EventDetailsForm.tsx` (campo, desabilitado após o sorteio, fora da comparação que gera o aviso de reconfirmação), `frontend/src/components/group/EventDetailsCard.tsx`, `frontend/src/pages/CreateGroupPage.tsx` e `frontend/src/components/group/SecretFriendCard.tsx` (valor junto da lista) — faz T034 passar; T033 passa com T035
+- [X] T035 [US3] Alterar `…/group/SecretGroup.java` (`updateGiftValue(Integer)` com a regra de status) e `…/group/dto/EventDetailsRequest.java`/`EventDetailsResponse.java`/`CreateGroupRequest.java` (`giftValue` opcional, `@Min(1) @Max(100000)`); `GroupService.create` e `updateEventDetails` aplicam o valor sem afetar `scheduleChanged` — faz T031 e T032 passarem
+- [X] T036 [US3] Alterar `frontend/src/lib/schemas.ts`, `frontend/src/components/group/EventDetailsForm.tsx` (campo, desabilitado após o sorteio, fora da comparação que gera o aviso de reconfirmação), `frontend/src/components/group/EventDetailsCard.tsx`, `frontend/src/pages/CreateGroupPage.tsx` e `frontend/src/components/group/SecretFriendCard.tsx` (valor junto da lista) — faz T034 passar; T033 passa com T035
 
 **Checkpoint**: as três histórias funcionam juntas.
 
@@ -156,12 +156,12 @@ Vitest + React Testing Library + MSW. Gate de cobertura: 80% de linhas (JaCoCo e
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T037 [P] Atualizar `README.md`: descrever a lista de desejos (quem vê o quê) e o valor do presente
-- [ ] T038 [P] Revisar o Javadoc dos controllers e DTOs novos e a descrição em `…/config/OpenApiConfig.java` (citar o contrato 003)
-- [ ] T039 Rodar `mvn -B verify` e `npm run lint && npm run format:check && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80% nos dois
-- [ ] T040 Voltar `test/…/integration/OpenApiContractIT.java` à igualdade completa (rotas geradas = união 001 + 002 + 003)
-- [ ] T041 Executar o roteiro manual do [quickstart.md](./quickstart.md) (§1 migração, §2 passos 1–17 com uma janela a 360px, §3 sigilo) e registrar o resultado no PR
-- [ ] T042 Revisão final contra a constituição (Princípios I a VIII) com a checklist do PR template, conferindo em especial: nenhuma rota lê lista por id de usuário; `GroupDetail` só com `myWishlist`; nenhum evento SSE novo; o servidor nunca acessa links; nenhuma dependência nova no `pom.xml` e no `package.json`
+- [X] T037 [P] Atualizar `README.md`: descrever a lista de desejos (quem vê o quê) e o valor do presente
+- [X] T038 [P] Revisar o Javadoc dos controllers e DTOs novos e a descrição em `…/config/OpenApiConfig.java` (citar o contrato 003)
+- [X] T039 Rodar `mvn -B verify` e `npm run lint && npm run format:check && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80% nos dois
+- [X] T040 Voltar `test/…/integration/OpenApiContractIT.java` à igualdade completa (rotas geradas = união 001 + 002 + 003)
+- [X] T041 Executar o roteiro manual do [quickstart.md](./quickstart.md) (§1 migração, §2 passos 1–17 com uma janela a 360px, §3 sigilo) e registrar o resultado no PR
+- [X] T042 Revisão final contra a constituição (Princípios I a VIII) com a checklist do PR template, conferindo em especial: nenhuma rota lê lista por id de usuário; `GroupDetail` só com `myWishlist`; nenhum evento SSE novo; o servidor nunca acessa links; nenhuma dependência nova no `pom.xml` e no `package.json`
 
 ---
 

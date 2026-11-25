@@ -21,6 +21,8 @@ interface EventDetailsFormProps {
   footer?: ReactNode;
   /** Aviso mostrado quando data, horário ou local mudam em relação a `initial` (FR-015). */
   scheduleChangeWarning?: string;
+  /** Depois do sorteio o valor do presente não muda (feature 003, FR-022). */
+  giftValueLocked?: boolean;
 }
 
 /**
@@ -34,6 +36,7 @@ export function EventDetailsForm({
   onSubmit,
   footer,
   scheduleChangeWarning,
+  giftValueLocked = false,
 }: EventDetailsFormProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const descriptionId = useId();
@@ -61,6 +64,7 @@ export function EventDetailsForm({
       eventDate: initial?.eventDate ?? '',
       eventTime: initial?.eventTime ?? '',
       location: initial?.location ?? '',
+      giftValue: initial?.giftValue != null ? String(initial.giftValue) : '',
     },
   });
   const descriptionLength = useWatch({ control, name: 'description' }).length;
@@ -83,6 +87,7 @@ export function EventDetailsForm({
           eventDate: values.eventDate,
           eventTime: values.eventTime || null,
           location: values.location,
+          giftValue: values.giftValue === '' ? null : Number(values.giftValue),
         },
         values.name,
       );
@@ -94,6 +99,7 @@ export function EventDetailsForm({
         'eventDate',
         'eventTime',
         'location',
+        'giftValue',
       ]);
     }
   });
@@ -139,6 +145,21 @@ export function EventDetailsForm({
         error={errors.location?.message}
         {...register('location')}
       />
+      <Input
+        label="Valor do presente (R$, opcional)"
+        inputMode="numeric"
+        placeholder="Ex.: 80"
+        autoComplete="off"
+        readOnly={giftValueLocked}
+        aria-readonly={giftValueLocked || undefined}
+        hint={
+          giftValueLocked
+            ? 'O valor do presente não muda depois do sorteio.'
+            : 'Quanto cada um gasta, em média. Todos veem.'
+        }
+        error={errors.giftValue?.message}
+        {...register('giftValue')}
+      />
       <div className="flex flex-col gap-1.5">
         <label htmlFor={descriptionId} className="text-sm font-medium text-text">
           Descrição (opcional)
@@ -146,7 +167,7 @@ export function EventDetailsForm({
         <textarea
           id={descriptionId}
           rows={3}
-          placeholder="Ex.: valor sugerido, tema, o que levar"
+          placeholder="Ex.: tema, o que levar"
           aria-invalid={descriptionError ? true : undefined}
           aria-describedby={[counterId, descriptionError ? descriptionErrorId : null]
             .filter(Boolean)

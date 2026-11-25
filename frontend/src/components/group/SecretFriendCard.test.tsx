@@ -125,4 +125,25 @@ describe('SecretFriendCard', () => {
 
     expect(screen.queryByRole('heading', { name: 'Lista de desejos' })).not.toBeInTheDocument();
   });
+
+  it('mostra o valor do presente junto da lista revelada', async () => {
+    server.use(
+      http.get('/api/v1/groups/g-1/my-secret-friend', () =>
+        HttpResponse.json({ name: 'Carla', wishlist: [], wishlistUpdatedAt: null }),
+      ),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <SecretFriendCard groupId="g-1" giftValue={80} />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.queryByText(/Valor do presente/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Revelar' }));
+
+    expect(await screen.findByText('R$ 80')).toBeInTheDocument();
+  });
 });

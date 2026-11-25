@@ -366,4 +366,82 @@ class WishlistFlowIT extends AbstractIntegrationTest {
                     .containsExactly("Desejo de " + mine.get("name").asString());
         }
     }
+
+    // ---- US3: valor do presente no grupo ----
+
+    private static Map<String, Object> details(String location, Object giftValue) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("description", null);
+        body.put("eventDate", inAMonth());
+        body.put("location", location);
+        body.put("giftValue", giftValue);
+        return body;
+    }
+
+    private static JsonNode giftValueSeenBy(User user, Group group) {
+        return user.client()
+                .get("/api/v1/groups/" + group.id())
+                .json()
+                .get("eventDetails")
+                .get("giftValue");
+    }
+
+    @Test
+    void theGiftValueIsSharedAndOnlyChangesBeforeTheDraw() {
+        User ana = newUser("Ana");
+        User bruno = newUser("Bruno");
+        User carla = newUser("Carla");
+        // 1: criado com o valor, todos o veem
+        JsonNode created = ana.client()
+                .createGroup("Natal", Map.of("eventDate", inAMonth(), "location", "Casa da Ana", "giftValue", 80))
+                .json();
+        Group group =
+                new Group(created.get("id").asString(), created.get("code").asString());
+        for (User guest : List.of(bruno, carla)) {
+            guest.client().post("/api/v1/groups/join", Map.of("code", group.code()));
+        }
+        assertThat(giftValueSeenBy(bruno, group).asInt()).isEqualTo(80);
+        String path = "/api/v1/groups/" + group.id() + "/event-details";
+
+        // 2: mudar o valor antes do sorteio não pede nova confirmação
+        assertThat(bruno.client().confirm(group.id()).status()).isEqualTo(200);
+        assertThat(ana.client().put(path, details("Casa da Ana", 100)).status()).isEqualTo(200);
+        JsonNode forBruno = bruno.client().get("/api/v1/groups/" + group.id()).json();
+        assertThat(forBruno.get("eventDetails").get("giftValue").asInt()).isEqualTo(100);
+        assertThat(forBruno.get("myConfirmation").asString()).isEqualTo("CONFIRMED");
+
+        // 4: valor inválido
+        assertThat(ana.client().put(path, details("Casa da Ana", 0)).status()).isEqualTo(400);
+
+        // 5: quem não é organizador não muda
+        assertThat(bruno.client().put(path, details("Casa da Ana", 50)).status())
+                .isEqualTo(403);
+
+        // 6: depois do sorteio, o valor fica fixo; os outros detalhes continuam editáveis
+        carla.client().confirm(group.id());
+        assertThat(ana.client().post("/api/v1/groups/" + group.id() + "/draw").status())
+                .isEqualTo(200);
+        assertProblem(ana.client().put(path, details("Salão", 50)), 409, "gift-value-locked");
+        assertThat(ana.client().put(path, details("Salão", 100)).status()).isEqualTo(200);
+        assertThat(giftValueSeenBy(carla, group).asInt()).isEqualTo(100);
+
+        // Sorteio desfeito: o valor volta a ser editável até o novo sorteio
+        String request = carla.client()
+                .post("/api/v1/groups/" + group.id() + "/exit-requests")
+                .json()
+                .get("id")
+                .asString();
+        ana.client().post("/api/v1/groups/" + group.id() + "/exit-requests/" + request + "/approve");
+        assertThat(ana.client().put(path, details("Salão", 120)).status()).isEqualTo(200);
+        assertThat(giftValueSeenBy(bruno, group).asInt()).isEqualTo(120);
+    }
+
+    @Test
+    void aGroupWithoutGiftValueShowsNone() {
+        User ana = newUser("Ana");
+        Group group = groupOf(ana);
+
+        // 3
+        assertThat(giftValueSeenBy(ana, group).isNull()).isTrue();
+    }
 }

@@ -83,7 +83,13 @@ describe('EventDetailsForm', () => {
 
     await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit).toHaveBeenCalledWith(
-      { description: null, eventDate: date, eventTime: null, location: 'Casa da Ana' },
+      {
+        description: null,
+        eventDate: date,
+        eventTime: null,
+        location: 'Casa da Ana',
+        giftValue: null,
+      },
       'Natal',
     );
   });
@@ -101,7 +107,13 @@ describe('EventDetailsForm', () => {
 
     await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit).toHaveBeenCalledWith(
-      { description: 'Linha 1', eventDate: past, eventTime: '19:00', location: 'Salão' },
+      {
+        description: 'Linha 1',
+        eventDate: past,
+        eventTime: '19:00',
+        location: 'Salão',
+        giftValue: null,
+      },
       '',
     );
   });
@@ -133,5 +145,84 @@ describe('EventDetailsForm', () => {
       'A data do evento precisa ser hoje ou no futuro.',
     );
     expect(screen.getByRole('button', { name: 'Salvar' })).not.toHaveAttribute('aria-busy');
+  });
+
+  // ---- valor do presente (US3 da 003) ----
+
+  it('envia o valor do presente como número e vazio como null', async () => {
+    const date = fromToday(10);
+    const { onSubmit } = renderForm();
+    await fill('Data do evento', date);
+    await fill('Local do evento', 'Casa');
+    await fill('Valor do presente (R$, opcional)', '80');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledWith(
+      { description: null, eventDate: date, eventTime: null, location: 'Casa', giftValue: 80 },
+      '',
+    );
+  });
+
+  it('recusa valor zero, decimal ou acima de 100.000', async () => {
+    const { onSubmit } = renderForm();
+    await fill('Data do evento', fromToday(10));
+    await fill('Local do evento', 'Casa');
+
+    for (const invalid of ['0', '50,5', '100001']) {
+      await fill('Valor do presente (R$, opcional)', invalid);
+      await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+      expect(
+        await screen.findByText('Informe um valor inteiro entre R$ 1 e R$ 100.000.'),
+      ).toBeInTheDocument();
+    }
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('mudar só o valor não mostra o aviso de confirmar de novo', async () => {
+    renderForm({
+      initial: {
+        description: null,
+        eventDate: fromToday(10),
+        eventTime: null,
+        location: 'Casa',
+        giftValue: 80,
+      },
+      scheduleChangeWarning: 'Todos os participantes precisarão confirmar de novo.',
+    });
+    expect(screen.getByLabelText('Valor do presente (R$, opcional)')).toHaveValue('80');
+
+    await fill('Valor do presente (R$, opcional)', '100');
+
+    expect(
+      screen.queryByText('Todos os participantes precisarão confirmar de novo.'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('depois do sorteio o valor fica travado, com a explicação, e é reenviado igual', async () => {
+    const date = fromToday(10);
+    const { onSubmit } = renderForm({
+      initial: {
+        description: null,
+        eventDate: date,
+        eventTime: null,
+        location: 'Casa',
+        giftValue: 80,
+      },
+      giftValueLocked: true,
+    });
+    const field = screen.getByLabelText('Valor do presente (R$, opcional)');
+    expect(field).toHaveAttribute('readonly');
+    expect(screen.getByText('O valor do presente não muda depois do sorteio.')).toBeInTheDocument();
+
+    await userEvent.type(field, '5');
+    await fill('Local do evento', 'Salão');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledWith(
+      { description: null, eventDate: date, eventTime: null, location: 'Salão', giftValue: 80 },
+      '',
+    );
   });
 });
