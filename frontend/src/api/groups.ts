@@ -1,6 +1,6 @@
 import { apiFetch } from './client';
 
-/** Tipos dos schemas de contracts/openapi.yaml (feature 001 e as mudanças da 002). */
+/** Tipos dos schemas de contracts/openapi.yaml (feature 001 e as mudanças da 002 à 004). */
 export type GroupStatus = 'OPEN' | 'DRAWN' | 'FINISHED';
 
 /** Detalhes do evento. Data `AAAA-MM-DD` e horário `HH:mm` em horário de Brasília. */
@@ -40,6 +40,16 @@ export type DrawBlockedReason =
   | 'event-date-passed'
   | 'not-enough-participants'
   | 'participants-pending'
+  | 'no-valid-draw'
+  | null;
+
+/** Por que o usuário não pode adicionar dependentes agora (feature 004), ou `null` se pode. */
+export type DependentsBlockedReason =
+  | 'group-already-drawn'
+  | 'group-finished'
+  | 'group-full'
+  | 'dependents-limit'
+  | 'dependents-locked'
   | null;
 
 /** Pedido de saída pendente, depois do sorteio. */
@@ -48,6 +58,8 @@ export interface ExitRequest {
   userId: string;
   name: string;
   requestedAt: string;
+  /** Nome do responsável quando quem sai é um dependente (feature 004). */
+  guardianName?: string | null;
 }
 
 export interface GroupSummary {
@@ -66,6 +78,20 @@ export interface Participant {
   name: string;
   organizer: boolean;
   confirmed: boolean;
+  /** Dependente de outro participante (feature 004): mostrado como "Lucas (dependente de Ana)". */
+  dependent?: boolean;
+  guardianName?: string | null;
+}
+
+/** Um dependente do usuário da sessão (feature 004) — nunca o resultado do sorteio dele. */
+export interface MyDependent {
+  id: string;
+  name: string;
+  /** Espelho da confirmação do responsável (research R36). */
+  confirmed: boolean;
+  wishlist: MyWishlist;
+  /** Pedido de saída pendente do dependente, se houver. */
+  exitRequest: ExitRequest | null;
 }
 
 export interface GroupDetail {
@@ -98,6 +124,11 @@ export interface GroupDetail {
   pendingExitRequests: ExitRequest[];
   /** A lista de desejos do próprio usuário — nunca a de outra pessoa (feature 003). */
   myWishlist: MyWishlist;
+  /** Só os dependentes do usuário da sessão (feature 004). */
+  myDependents: MyDependent[];
+  maxDependents: number;
+  canAddDependents: boolean;
+  dependentsBlockedReason: DependentsBlockedReason;
 }
 
 export function listGroups(signal?: AbortSignal): Promise<GroupSummary[]> {
@@ -159,6 +190,14 @@ export interface SecretFriend {
   wishlist: FriendWishItem[];
   /** Última alteração da lista, só se foi depois do sorteio; senão `null`. */
   wishlistUpdatedAt: string | null;
+}
+
+/** Resultado de um dependente do usuário da sessão (feature 004, research R38). */
+export interface DependentSecretFriend {
+  /** O dependente — não quem ele tirou. */
+  dependentId: string;
+  dependentName: string;
+  secretFriend: SecretFriend;
 }
 
 export function drawGroup(id: string): Promise<DrawResult> {

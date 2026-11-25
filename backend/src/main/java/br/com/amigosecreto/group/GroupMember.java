@@ -33,6 +33,10 @@ public class GroupMember implements Persistable<GroupMemberId> {
     @Column(name = "wishlist_updated_at")
     private Instant wishlistUpdatedAt;
 
+    /** O responsável, quando a participação é de um dependente (feature 004, research R33); senão nulo. */
+    @Column(name = "guardian_id")
+    private UUID guardianId;
+
     @Transient
     private boolean isNew = true;
 
@@ -49,6 +53,21 @@ public class GroupMember implements Persistable<GroupMemberId> {
         GroupMember member = new GroupMember(groupId, userId, now);
         member.confirmedAt = member.joinedAt;
         return member;
+    }
+
+    /**
+     * Dependente adicionado pelo responsável (feature 004): nasce com a mesma confirmação dele (research R36).
+     */
+    public static GroupMember dependentOf(GroupMember guardian, UUID dependentId, Instant now) {
+        GroupMember member = new GroupMember(guardian.getId().groupId(), dependentId, now);
+        member.guardianId = guardian.getId().userId();
+        member.confirmedAt = guardian.getConfirmedAt();
+        return member;
+    }
+
+    /** A confirmação do dependente acompanha a do responsável ({@code null} = pendente; research R36). */
+    public void mirrorConfirmation(Instant guardianConfirmedAt) {
+        this.confirmedAt = guardianConfirmedAt;
     }
 
     /**
@@ -100,5 +119,13 @@ public class GroupMember implements Persistable<GroupMemberId> {
 
     public Instant getWishlistUpdatedAt() {
         return wishlistUpdatedAt;
+    }
+
+    public UUID getGuardianId() {
+        return guardianId;
+    }
+
+    public boolean isDependent() {
+        return guardianId != null;
     }
 }

@@ -1,6 +1,7 @@
 package br.com.amigosecreto.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
@@ -46,5 +47,48 @@ class AppUserTest {
         user.markNotNew();
 
         assertThat(user.isNew()).isFalse();
+    }
+
+    @Test
+    void anAccountHasEmailAndPassword() {
+        AppUser user = new AppUser("Ana", "ana@x.com", "h", NOW);
+
+        assertThat(user.getKind()).isEqualTo(AppUserKind.ACCOUNT);
+        assertThat(user.isDependent()).isFalse();
+    }
+
+    @Test
+    void aDependentHasOnlyAName() {
+        AppUser lucas = AppUser.dependent("  Lucas ", NOW);
+
+        assertThat(lucas.getKind()).isEqualTo(AppUserKind.DEPENDENT);
+        assertThat(lucas.isDependent()).isTrue();
+        assertThat(lucas.getName()).isEqualTo("Lucas");
+        assertThat(lucas.getEmail()).isNull();
+        assertThat(lucas.getPasswordHash()).isNull();
+        assertThat(lucas.getCreatedAt()).isEqualTo(NOW);
+        assertThat(lucas.getId()).isNotNull();
+        assertThat(lucas.isNew()).isTrue();
+    }
+
+    @Test
+    void onlyADependentCanBeRenamed() {
+        AppUser lucas = AppUser.dependent("Lucas", NOW);
+
+        lucas.rename("  Lucas M. ");
+
+        assertThat(lucas.getName()).isEqualTo("Lucas M.");
+        AppUser ana = new AppUser("Ana", "ana@x.com", "h", NOW);
+        assertThatThrownBy(() -> ana.rename("Outra")).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void aDependentToStringHasOnlyIdAndName() {
+        AppUser lucas = AppUser.dependent("Lucas", NOW);
+
+        assertThat(lucas.toString())
+                .contains("Lucas")
+                .contains(lucas.getId().toString())
+                .doesNotContain("null");
     }
 }

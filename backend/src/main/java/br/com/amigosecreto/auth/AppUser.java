@@ -2,6 +2,8 @@ package br.com.amigosecreto.auth;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PostLoad;
 import jakarta.persistence.PostPersist;
@@ -13,7 +15,10 @@ import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Persistable;
 
-/** Conta de usuário (tabela {@code app_user}, migração V1). */
+/**
+ * Conta de usuário ou dependente (tabela {@code app_user}, migrações V1 e V8). O dependente (feature 004) não
+ * tem e-mail nem senha e nunca entra no sistema: tudo o que é dele passa pelo responsável (research R33).
+ */
 @Entity
 @Table(name = "app_user")
 public class AppUser implements Persistable<UUID> {
@@ -24,11 +29,17 @@ public class AppUser implements Persistable<UUID> {
     @Column(name = "name", nullable = false, length = 80)
     private String name;
 
-    @Column(name = "email", nullable = false, length = 254)
+    /** Nulo só para dependente. */
+    @Column(name = "email", length = 254)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 100)
+    /** Nulo só para dependente. */
+    @Column(name = "password_hash", length = 100)
     private String passwordHash;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "kind", nullable = false, length = 10)
+    private AppUserKind kind;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -45,6 +56,25 @@ public class AppUser implements Persistable<UUID> {
         this.email = normalizeEmail(Objects.requireNonNull(email, "email"));
         this.passwordHash = Objects.requireNonNull(passwordHash, "passwordHash");
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
+        this.kind = AppUserKind.ACCOUNT;
+    }
+
+    /** Dependente: só o nome, sem e-mail nem senha (FR-002). */
+    public static AppUser dependent(String name, Instant createdAt) {
+        AppUser user = new AppUser();
+        user.id = UUID.randomUUID();
+        user.name = Objects.requireNonNull(name, "name").strip();
+        user.createdAt = Objects.requireNonNull(createdAt, "createdAt");
+        user.kind = AppUserKind.DEPENDENT;
+        return user;
+    }
+
+    /** Novo nome de um dependente (FR-006). Contas não mudam de nome por aqui. */
+    public void rename(String name) {
+        if (!isDependent()) {
+            throw new IllegalStateException("Só dependentes são renomeados pelo responsável");
+        }
+        this.name = Objects.requireNonNull(name, "name").strip();
     }
 
     /** E-mail sempre minúsculo e sem espaços nas pontas: use antes de qualquer busca por e-mail. */
@@ -84,9 +114,20 @@ public class AppUser implements Persistable<UUID> {
         return createdAt;
     }
 
+    public AppUserKind getKind() {
+        return kind;
+    }
+
+    public boolean isDependent() {
+        return kind == AppUserKind.DEPENDENT;
+    }
+
     /** Sem {@code passwordHash}. */
     @Override
     public String toString() {
+        if (isDependent()) {
+            return "AppUser[id=" + id + ", name=" + name + ", dependent]";
+        }
         return "AppUser[id=" + id + ", name=" + name + ", email=" + email + "]";
     }
 }

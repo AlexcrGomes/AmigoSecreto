@@ -8,6 +8,8 @@ export interface ExitRequestNotice {
   groupName: string;
   status: 'APPROVED' | 'REJECTED' | 'CANCELLED';
   decidedAt: string;
+  /** Nome de quem saiu: o próprio usuário ou um dependente dele (feature 004). */
+  subjectName?: string;
 }
 
 function groupPath(groupId: string) {

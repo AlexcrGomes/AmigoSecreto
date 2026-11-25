@@ -45,12 +45,22 @@ public class ExitRequest implements Persistable<UUID> {
     @Column(name = "decision_seen_at")
     private Instant decisionSeenAt;
 
+    /** Quem pediu: o próprio participante ou o responsável, se quem sai é um dependente (research R37). */
+    @Column(name = "requested_by", nullable = false)
+    private UUID requestedBy;
+
     @Transient
     private boolean isNew = true;
 
     protected ExitRequest() {}
 
     public ExitRequest(UUID groupId, UUID userId, Instant requestedAt) {
+        this(groupId, userId, userId, requestedAt);
+    }
+
+    /** Pedido feito por {@code requestedBy} para {@code userId} (o responsável pede pelo dependente). */
+    public ExitRequest(UUID groupId, UUID userId, UUID requestedBy, Instant requestedAt) {
+        this.requestedBy = Objects.requireNonNull(requestedBy, "requestedBy");
         this.id = UUID.randomUUID();
         this.groupId = Objects.requireNonNull(groupId, "groupId");
         this.userId = Objects.requireNonNull(userId, "userId");
@@ -140,5 +150,9 @@ public class ExitRequest implements Persistable<UUID> {
     @Override
     public String toString() {
         return "ExitRequest[id=" + id + ", groupId=" + groupId + ", status=" + status + "]";
+    }
+
+    public UUID getRequestedBy() {
+        return requestedBy;
     }
 }

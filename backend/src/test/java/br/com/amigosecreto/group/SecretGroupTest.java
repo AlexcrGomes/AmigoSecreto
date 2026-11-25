@@ -395,6 +395,29 @@ class SecretGroupTest {
     }
 
     @Test
+    void aDependentFollowsTheGuardiansConfirmation() {
+        UUID groupId = UUID.randomUUID();
+        GroupMember pending = new GroupMember(groupId, UUID.randomUUID(), NOW);
+        GroupMember organizer = GroupMember.organizer(groupId, UUID.randomUUID(), NOW);
+
+        GroupMember lucas = GroupMember.dependentOf(pending, UUID.randomUUID(), NOW.plusSeconds(60));
+        GroupMember bia = GroupMember.dependentOf(organizer, UUID.randomUUID(), NOW.plusSeconds(60));
+
+        assertThat(lucas.isDependent()).isTrue();
+        assertThat(lucas.getGuardianId()).isEqualTo(pending.getId().userId());
+        assertThat(lucas.getId().groupId()).isEqualTo(groupId);
+        assertThat(lucas.isConfirmed()).isFalse();
+        assertThat(bia.getConfirmedAt()).isEqualTo(organizer.getConfirmedAt());
+        assertThat(pending.isDependent()).isFalse();
+        assertThat(pending.getGuardianId()).isNull();
+
+        lucas.mirrorConfirmation(NOW.plusSeconds(120));
+        assertThat(lucas.getConfirmedAt()).isEqualTo(NOW.plusSeconds(120));
+        lucas.mirrorConfirmation(null);
+        assertThat(lucas.isConfirmed()).isFalse();
+    }
+
+    @Test
     void newGroupHasNoGiftValue() {
         assertThat(groupWith(PARTY).getGiftValue()).isNull();
     }
