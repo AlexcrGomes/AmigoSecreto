@@ -39,6 +39,10 @@ emenda também precisa tratar do **Princípio II**: o sorteio passa a ter uma re
   responsável e dependente nunca se tiram, em nenhum dos dois sentidos.
 - Q: O dependente é cadastrado só no grupo ou fica salvo na conta do responsável? → A: Só no grupo;
   em cada grupo o responsável adiciona o dependente de novo, e nada fica guardado fora do grupo.
+- Q: Depois que o organizador aprova a saída de um dependente (e o sorteio é desfeito), o responsável
+  pode adicionar novos dependentes naquele grupo? → A: Não: depois de uma saída aprovada de um
+  dependente, aquele responsável não adiciona mais dependentes naquele grupo (mantém a regra do
+  Princípio II de que quem sai depois do sorteio não volta).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -160,6 +164,9 @@ dele; Ana pede a saída do Lucas e, com a aprovação do organizador, o sorteio 
 - **Sorteio impossível**: com as restrições, um grupo pode não ter sorteio válido (ex.: Ana, o
   dependente Lucas e o Bruno — Ana e Lucas só poderiam tirar o Bruno). O sorteio é recusado com um
   motivo claro, e o organizador vê o motivo antes de tentar.
+- **Saída aprovada e novos dependentes**: depois que a saída de um dependente é aprovada e o grupo
+  volta a aguardar sorteio, aquele responsável não adiciona mais dependentes naquele grupo, e vê o
+  motivo se tentar. Os outros participantes continuam podendo adicionar os seus.
 - **Mesmo dependente em vários grupos**: o responsável adiciona o dependente em cada grupo; para o
   sistema, são participações independentes, sem ligação entre os grupos.
 
@@ -209,8 +216,9 @@ dele; Ana pede a saída do Lucas e, com a aprovação do organizador, o sorteio 
 - **FR-014**: O responsável MUST poder montar a lista de desejos de cada dependente, com as regras da
   feature 003; quem tirar o dependente MUST ver essa lista ao revelar.
 - **FR-015**: Depois do sorteio, o responsável MUST poder pedir a saída de um dependente, com as regras
-  e a aprovação do organizador da feature 002; quem saiu MUST NOT poder ser adicionado de novo ao
-  mesmo grupo.
+  e a aprovação do organizador da feature 002. Depois de uma saída aprovada de um dependente, aquele
+  responsável MUST NOT poder adicionar novos dependentes naquele grupo — como o dependente não tem
+  identidade fora do grupo, é assim que se garante que quem saiu não volta (Princípio II).
 - **FR-016**: Quando o responsável deixa o grupo (sai, é removido ou tem a saída aprovada), os
   dependentes dele MUST deixar o grupo junto, na mesma operação.
 
