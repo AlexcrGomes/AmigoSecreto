@@ -152,7 +152,8 @@ e o pedido de saída do dependente usa o mesmo fluxo da 002.
 
 - `requested_by uuid NOT NULL REFERENCES app_user (id)`, preenchido com `user_id` nos pedidos já
   existentes. Os avisos de decisão (`exit-request-notices`) passam a ser buscados por
-  `requested_by`: quem recebe "Saída aprovada/recusada" do Lucas é a Ana. O índice
+  `requested_by`, e o "visto" (`ack`) também é aceito só de quem pediu: quem recebe e dispensa
+  "Saída aprovada/recusada" do Lucas é a Ana. O índice
   `ix_exit_request_unseen` passa a ser sobre `requested_by`.
 - **Pedir** e **cancelar**: `POST` e `DELETE /groups/{groupId}/my-dependents/{dependentId}/exit-request`,
   com o dependente buscado como em R34. Mesmas regras da 002 (só `DRAWN`, um pendente por pessoa).
@@ -164,8 +165,9 @@ e o pedido de saída do dependente usa o mesmo fluxo da 002.
   `409 dependents-locked` ("Depois da saída de um dependente seu, não dá para adicionar outros
   neste grupo."). Os demais participantes continuam adicionando os seus.
 - **Saída aprovada do responsável**: os dependentes saem juntos (FK com `CASCADE` em R33), na
-  mesma operação que desfaz o sorteio; pedidos pendentes desses dependentes são cancelados na
-  mesma transação. Um único `draw-undone` é publicado.
+  mesma operação que desfaz o sorteio; só o responsável ganha `group_exit_ban` (os dependentes não
+  têm identidade fora do grupo, e o `app_user` deles é apagado); pedidos pendentes desses
+  dependentes são cancelados na mesma transação. Um único `draw-undone` é publicado.
 
 **Rationale**: um pedido por pessoa (o dependente) mantém a tela do organizador e o desfazer do
 sorteio iguais aos da 002; só o destinatário do aviso muda. O dependente não tem identidade fora do
