@@ -77,7 +77,7 @@ class SecrecyIT extends AbstractIntegrationTest {
             ApiClient.Response mine = member.client().get("/api/v1/groups/" + groupId + "/my-secret-friend");
             assertThat(mine.status()).isEqualTo(200);
             assertThat(mine.header("Cache-Control")).contains("no-store");
-            assertThat(mine.json().propertyNames()).containsExactly("name");
+            assertThat(mine.json().propertyNames()).containsExactlyInAnyOrder("name", "wishlist", "wishlistUpdatedAt");
             drew.put(member.name(), mine.json().get("name").asString());
         }
         drew.forEach((giver, receiver) -> assertThat(receiver).isNotEqualTo(giver));
@@ -214,6 +214,92 @@ class SecrecyIT extends AbstractIntegrationTest {
             assertThat(mine.status()).isIn(404, 409);
             assertThat(mine.body()).doesNotContain(brunosFriend);
         }
+    }
+
+    /**
+     * Lista de desejos (feature 003, FR-009, FR-016, SC-002, SC-005): cada um recebe só a lista de quem tirou, pelo
+     * resultado do próprio sorteio; nenhuma outra resposta, evento ou log mostra a lista de outra pessoa nem diz
+     * se ela tem itens — nem para o organizador.
+     */
+    @Test
+    void eachWishlistOnlyReachesWhoDrewItsOwner(CapturedOutput output) {
+        List<Member> members = new ArrayList<>();
+        for (String name : List.of("Ana", "Bruno", "Carla")) {
+            members.add(newMember(name));
+        }
+        Member organizer = members.getFirst();
+        ApiClient.Response created = organizer.client().createGroup("Listas");
+        String groupId = created.json().get("id").asString();
+        String code = created.json().get("code").asString();
+        for (Member member : members.subList(1, members.size())) {
+            member.client().post("/api/v1/groups/join", Map.of("code", code));
+            member.client().confirm(groupId);
+        }
+        Map<String, String> wishOf = new HashMap<>();
+        for (Member member : members) {
+            String wish = "Desejo de " + member.name() + " " + UUID.randomUUID();
+            wishOf.put(member.name(), wish);
+            assertThat(member.client()
+                            .post("/api/v1/groups/" + groupId + "/wishlist/mine/items", Map.of("description", wish))
+                            .status())
+                    .isEqualTo(201);
+        }
+
+        List<ApiClient.EventStream> streams = new ArrayList<>();
+        for (Member member : members) {
+            streams.add(member.client().openEvents("/api/v1/groups/" + groupId + "/events"));
+        }
+        assertThat(organizer
+                        .client()
+                        .post("/api/v1/groups/" + groupId + "/draw")
+                        .status())
+                .isEqualTo(200);
+
+        for (Member member : members) {
+            ApiClient.Response mine = member.client().get("/api/v1/groups/" + groupId + "/my-secret-friend");
+            String drew = mine.json().get("name").asString();
+            List<String> received = new ArrayList<>();
+            mine.json()
+                    .get("wishlist")
+                    .forEach(item -> received.add(item.get("description").asString()));
+            assertThat(received)
+                    .as("%s recebe só a lista de quem tirou", member.name())
+                    .containsExactly(wishOf.get(drew));
+            mine.json()
+                    .get("wishlist")
+                    .forEach(item -> assertThat(item.propertyNames()).containsExactlyInAnyOrder("description", "url"));
+
+            // Trocar o usuário na URL não muda nada
+            ApiClient.Response attempt =
+                    member.client().get("/api/v1/groups/" + groupId + "/my-secret-friend?userId=" + organizer.id());
+            assertThat(attempt.body()).isEqualTo(mine.body());
+
+            // FR-009 e FR-016: o detalhe e a lista de grupos só têm a própria lista e nada sobre a dos outros
+            ApiClient.Response detail = member.client().get("/api/v1/groups/" + groupId);
+            ApiClient.Response list = member.client().get("/api/v1/groups");
+            for (Member other : members) {
+                if (other != member) {
+                    assertThat(detail.body()).doesNotContain(wishOf.get(other.name()));
+                    assertThat(list.body()).doesNotContain(wishOf.get(other.name()));
+                }
+            }
+            assertThat(detail.json().get("myWishlist").get("items")).hasSize(1);
+            detail.json()
+                    .get("participants")
+                    .forEach(p -> assertThat(p.propertyNames())
+                            .containsExactlyInAnyOrder("userId", "name", "organizer", "confirmed"));
+            assertThat(list.json().get(0).toString().toLowerCase(Locale.ROOT)).doesNotContain("wish");
+        }
+
+        // SC-005: nenhum evento nem log traz itens de lista
+        for (ApiClient.EventStream stream : streams) {
+            assertThat(stream.awaitLineContaining("group-drawn", Duration.ofSeconds(5)))
+                    .isTrue();
+            String events = String.join("\n", stream.lines());
+            wishOf.values().forEach(wish -> assertThat(events).doesNotContain(wish));
+            stream.close();
+        }
+        wishOf.values().forEach(wish -> assertThat(output.getAll()).doesNotContain(wish));
     }
 
     private static void assertNoPairKeys(String body) {

@@ -95,4 +95,34 @@ describe('SecretFriendCard', () => {
     );
     expect(screen.getByText('••••••')).toBeInTheDocument();
   });
+
+  // ---- lista de desejos de quem o usuário tirou (US2 da 003) ----
+
+  it('"Revelar" mostra também a lista de desejos; "Ocultar" esconde os dois', async () => {
+    server.use(
+      http.get('/api/v1/groups/g-1/my-secret-friend', () =>
+        HttpResponse.json({
+          name: 'Carla',
+          wishlist: [{ description: 'Perfume', url: null }],
+          wishlistUpdatedAt: '2026-12-21T15:00:00Z',
+        }),
+      ),
+    );
+    renderCard();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Revelar' }));
+    expect(await screen.findByText('Perfume')).toBeInTheDocument();
+    expect(screen.getByText('Atualizada em 21/12')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ocultar' }));
+    expect(screen.queryByText('Carla')).not.toBeInTheDocument();
+    expect(screen.queryByText('Perfume')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Lista de desejos' })).not.toBeInTheDocument();
+  });
+
+  it('antes de revelar, a lista não aparece', () => {
+    renderCard();
+
+    expect(screen.queryByRole('heading', { name: 'Lista de desejos' })).not.toBeInTheDocument();
+  });
 });

@@ -137,7 +137,7 @@ class FinalizationIT extends AbstractIntegrationTest {
         // 3 e FR-019: cada um ainda revela o próprio amigo, só o dele
         ApiClient.Response friend = group.bruno().client().get(base + "/my-secret-friend");
         assertThat(friend.status()).isEqualTo(200);
-        assertThat(friend.json().propertyNames()).containsExactly("name");
+        assertThat(friend.json().propertyNames()).containsExactlyInAnyOrder("name", "wishlist", "wishlistUpdatedAt");
         assertThat(friend.json().get("name").asString()).isIn("Ana", "Carla");
     }
 

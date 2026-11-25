@@ -231,4 +231,139 @@ class WishlistFlowIT extends AbstractIntegrationTest {
         assertThat(descriptions(list)).containsExactly("Livro", "Caneca");
         assertThat(list.get("editable").asBoolean()).isFalse();
     }
+
+    // ---- US2: ver a lista de desejos de quem tirei ----
+
+    private static void confirmAndDraw(User organizer, Group group, User... guests) {
+        for (User guest : guests) {
+            assertThat(guest.client().confirm(group.id()).status()).isEqualTo(200);
+        }
+        assertThat(organizer
+                        .client()
+                        .post("/api/v1/groups/" + group.id() + "/draw")
+                        .status())
+                .isEqualTo(200);
+    }
+
+    private static JsonNode friend(User user, Group group) {
+        ApiClient.Response response = user.client().get("/api/v1/groups/" + group.id() + "/my-secret-friend");
+        assertThat(response.status()).isEqualTo(200);
+        return response.json();
+    }
+
+    private static List<String> friendWishes(JsonNode friend) {
+        List<String> wishes = new ArrayList<>();
+        friend.get("wishlist")
+                .forEach(item -> wishes.add(item.get("description").asString()));
+        return wishes;
+    }
+
+    @Test
+    void revealingShowsTheListOfWhoIDrewAndWhenItChangedAfterTheDraw() {
+        User ana = newUser("Ana");
+        User bruno = newUser("Bruno");
+        User carla = newUser("Carla");
+        Group group = groupOf(ana, bruno, carla);
+        Map<String, User> byName = Map.of("Ana", ana, "Bruno", bruno, "Carla", carla);
+        add(bruno, group, "Livro", "https://loja.com/livro");
+        add(carla, group, "Perfume", null);
+        // Ana não cadastra nada
+        confirmAndDraw(ana, group, bruno, carla);
+
+        for (User user : List.of(ana, bruno, carla)) {
+            JsonNode mine = friend(user, group);
+            User drawn = byName.get(mine.get("name").asString());
+            // 1 e 2: a lista de quem tirou; vazia se a pessoa não cadastrou nada
+            assertThat(friendWishes(mine)).isEqualTo(descriptions(myWishlist(drawn, group)));
+            // Mudanças antes do sorteio não contam como "Atualizada em"
+            assertThat(mine.get("wishlistUpdatedAt").isNull()).isTrue();
+        }
+
+        // 4: o dono muda a lista depois do sorteio; quem o tirou vê a versão nova, com a data
+        User whoDrewBruno = List.of(ana, carla).stream()
+                .filter(user -> friend(user, group).get("name").asString().equals("Bruno"))
+                .findFirst()
+                .orElseThrow();
+        add(bruno, group, "Caneca", null);
+        JsonNode updated = friend(whoDrewBruno, group);
+        assertThat(friendWishes(updated)).containsExactly("Livro", "Caneca");
+        assertThat(updated.get("wishlistUpdatedAt").isNull()).isFalse();
+        assertThat(updated.get("wishlist").get(0).get("url").asString()).isEqualTo("https://loja.com/livro");
+    }
+
+    @Test
+    void anUndoneDrawTakesTheListAwayFromWhoDrewThePersonBefore() {
+        User ana = newUser("Ana");
+        User bruno = newUser("Bruno");
+        User carla = newUser("Carla");
+        User davi = newUser("Davi");
+        Group group = groupOf(ana, bruno, carla, davi);
+        add(bruno, group, "Livro", null);
+        add(davi, group, "Bola", null);
+        confirmAndDraw(ana, group, bruno, carla, davi);
+
+        // Davi pede para sair e a organizadora aprova: o sorteio é desfeito
+        String request = davi.client()
+                .post("/api/v1/groups/" + group.id() + "/exit-requests")
+                .json()
+                .get("id")
+                .asString();
+        assertThat(ana.client()
+                        .post("/api/v1/groups/" + group.id() + "/exit-requests/" + request + "/approve")
+                        .status())
+                .isEqualTo(200);
+
+        // FR-013: ninguém vê mais lista nenhuma até o novo sorteio
+        for (User user : List.of(ana, bruno, carla)) {
+            assertProblem(
+                    user.client().get("/api/v1/groups/" + group.id() + "/my-secret-friend"), 409, "group-not-drawn");
+        }
+        // FR-018: a lista de quem saiu foi apagada
+        Integer davis = jdbc.queryForObject(
+                "select count(*) from wish_item where group_id = ?::uuid and user_id = ?::uuid",
+                Integer.class,
+                group.id(),
+                davi.id());
+        assertThat(davis).isZero();
+
+        // Novo sorteio: só quem tirar o Bruno vê a lista dele, e ninguém vê a "Bola"
+        assertThat(ana.client().post("/api/v1/groups/" + group.id() + "/draw").status())
+                .isEqualTo(200);
+        int seenByBruno = 0;
+        for (User user : List.of(ana, bruno, carla)) {
+            JsonNode mine = friend(user, group);
+            assertThat(friendWishes(mine)).doesNotContain("Bola");
+            if (mine.get("name").asString().equals("Bruno")) {
+                assertThat(friendWishes(mine)).containsExactly("Livro");
+                seenByBruno++;
+            } else {
+                assertThat(friendWishes(mine)).doesNotContain("Livro");
+            }
+        }
+        assertThat(seenByBruno).isEqualTo(1);
+    }
+
+    @Test
+    void aFinishedGroupStillShowsTheListWithTheName() {
+        User ana = newUser("Ana");
+        User bruno = newUser("Bruno");
+        User carla = newUser("Carla");
+        Group group = groupOf(ana, bruno, carla);
+        for (User user : List.of(ana, bruno, carla)) {
+            add(user, group, "Desejo de " + user.name(), null);
+        }
+        confirmAndDraw(ana, group, bruno, carla);
+        jdbc.update(
+                "update secret_group set event_starts_at = now() - interval '2 days',"
+                        + " finalizes_at = now() - interval '1 day' where id = ?::uuid",
+                group.id());
+        finalizer.finishDueGroups();
+
+        // 7 e FR-014
+        for (User user : List.of(ana, bruno, carla)) {
+            JsonNode mine = friend(user, group);
+            assertThat(friendWishes(mine))
+                    .containsExactly("Desejo de " + mine.get("name").asString());
+        }
+    }
 }

@@ -1,6 +1,7 @@
 package br.com.amigosecreto.web;
 
 import static org.hamcrest.Matchers.aMapWithSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,6 +27,7 @@ import br.com.amigosecreto.draw.SecretFriendService;
 import br.com.amigosecreto.draw.dto.DrawResult;
 import br.com.amigosecreto.draw.dto.SecretFriendResponse;
 import br.com.amigosecreto.group.GroupStatus;
+import br.com.amigosecreto.wishlist.dto.FriendWishItem;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.List;
@@ -128,13 +130,24 @@ class DrawControllerWebTest {
     }
 
     @Test
-    void mySecretFriendReturnsOnlyTheNameAndNoStore() throws Exception {
-        when(secretFriendService.getMine(ANA.id(), GROUP_ID)).thenReturn(new SecretFriendResponse("Carla"));
+    void mySecretFriendReturnsTheNameAndTheirWishlistWithoutIdsAndNoStore() throws Exception {
+        when(secretFriendService.getMine(ANA.id(), GROUP_ID))
+                .thenReturn(new SecretFriendResponse(
+                        "Carla",
+                        List.of(
+                                new FriendWishItem("Livro", "https://loja.com/livro"),
+                                new FriendWishItem("Caneca", null)),
+                        Instant.parse("2026-12-21T15:00:00Z")));
 
         mvc.perform(get("/api/v1/groups/{id}/my-secret-friend", GROUP_ID).with(ana()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", aMapWithSize(1)))
+                .andExpect(jsonPath("$", aMapWithSize(3)))
                 .andExpect(jsonPath("$.name").value("Carla"))
+                .andExpect(jsonPath("$.wishlist[0].description").value("Livro"))
+                .andExpect(jsonPath("$.wishlist[0].url").value("https://loja.com/livro"))
+                .andExpect(jsonPath("$.wishlist[0]", aMapWithSize(2)))
+                .andExpect(jsonPath("$.wishlist[1].url").value(nullValue()))
+                .andExpect(jsonPath("$.wishlistUpdatedAt").value("2026-12-21T15:00:00Z"))
                 .andExpect(header().string("Cache-Control", "no-store"));
     }
 
