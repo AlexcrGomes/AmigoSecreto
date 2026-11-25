@@ -2,15 +2,20 @@ package br.com.amigosecreto.group.dto;
 
 import static br.com.amigosecreto.group.dto.EventDetailsRequest.DATE_MESSAGE;
 import static br.com.amigosecreto.group.dto.EventDetailsRequest.DESCRIPTION_MESSAGE;
+import static br.com.amigosecreto.group.dto.EventDetailsRequest.GIFT_VALUE_MESSAGE;
 import static br.com.amigosecreto.group.dto.EventDetailsRequest.LOCATION_MESSAGE;
 import static br.com.amigosecreto.group.dto.EventDetailsRequest.TIME_MESSAGE;
 import static br.com.amigosecreto.group.dto.EventDetailsRequest.TIME_PATTERN;
 
 import br.com.amigosecreto.group.EventDetails;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -28,7 +33,12 @@ public record CreateGroupRequest(
         String eventTime,
 
         @NotBlank(message = LOCATION_MESSAGE) @Size(max = 120, message = LOCATION_MESSAGE)
-        String location) {
+        String location,
+
+        @DecimalMin(value = "1", message = GIFT_VALUE_MESSAGE)
+        @DecimalMax(value = "100000", message = GIFT_VALUE_MESSAGE)
+        @Digits(integer = 6, fraction = 0, message = GIFT_VALUE_MESSAGE)
+        BigDecimal giftValue) {
 
     public static final String NAME_MESSAGE = "Dê um nome ao grupo (até 60 caracteres).";
 
@@ -37,6 +47,16 @@ public record CreateGroupRequest(
         description = EventDetailsRequest.blankToNull(description);
         eventTime = EventDetailsRequest.blankToNull(eventTime);
         location = location == null ? null : location.strip();
+    }
+
+    /** Sem valor do presente (como antes da feature 003). */
+    public CreateGroupRequest(String name, String description, LocalDate eventDate, String eventTime, String location) {
+        this(name, description, eventDate, eventTime, location, null);
+    }
+
+    /** O valor do presente como inteiro, ou {@code null} (já validado pelo Bean Validation). */
+    public Integer giftValueAsInt() {
+        return EventDetailsRequest.toInt(giftValue);
     }
 
     /** Os detalhes do evento para o domínio (já validados pelo Bean Validation). */

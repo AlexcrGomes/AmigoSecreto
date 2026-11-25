@@ -34,6 +34,7 @@ import br.com.amigosecreto.ratelimit.RateLimitPolicy;
 import br.com.amigosecreto.ratelimit.RateLimiter;
 import br.com.amigosecreto.wishlist.WishItem;
 import br.com.amigosecreto.wishlist.WishItemRepository;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -774,5 +775,64 @@ class GroupServiceTest {
 
         assertThat(service.getDetail(BRUNO, group.getId()).myWishlist().editable())
                 .isFalse();
+    }
+
+    // ---- valor do presente (US3 da 003) ----
+
+    @Test
+    void theGroupIsCreatedWithTheGiftValue() {
+        when(members.findParticipants(any())).thenReturn(List.of(new ParticipantView(ANA, "Ana", NOW)));
+
+        GroupDetail detail = service.create(
+                ANA, new CreateGroupRequest("Natal", null, DEC_19, "19:00", "Casa da Ana", BigDecimal.valueOf(80)));
+
+        assertThat(detail.eventDetails().giftValue()).isEqualTo(80);
+    }
+
+    @Test
+    void changingOnlyTheGiftValueKeepsTheConfirmationsAndTellsEveryone() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+
+        GroupDetail detail = service.updateEventDetails(
+                ANA,
+                group.getId(),
+                new EventDetailsRequest(null, DEC_19, "19:00", "Casa da Ana", BigDecimal.valueOf(100)));
+
+        assertThat(detail.eventDetails().giftValue()).isEqualTo(100);
+        assertThat(detail.detailsVersion()).isEqualTo(1);
+        verify(members, never()).resetConfirmations(any(), any());
+        verify(events).publishEvent(new GroupUpdatedEvent(group.getId(), GroupStatus.OPEN, 2, false));
+    }
+
+    @Test
+    void afterTheDrawADifferentGiftValueIsRefusedAndNothingChanges() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+        group.updateGiftValue(80);
+        group.markDrawn(NOW);
+
+        assertThatThrownBy(() -> service.updateEventDetails(
+                        ANA,
+                        group.getId(),
+                        new EventDetailsRequest(null, DEC_19, "19:00", "Salão", BigDecimal.valueOf(50))))
+                .isInstanceOfSatisfying(
+                        ConflictException.class, ex -> assertThat(ex.getType()).isEqualTo("gift-value-locked"));
+        assertThat(group.getLocation()).isEqualTo("Casa da Ana");
+        verify(events, never()).publishEvent(any());
+
+        // O mesmo valor passa: os demais detalhes continuam editáveis depois do sorteio
+        GroupDetail detail = service.updateEventDetails(
+                ANA, group.getId(), new EventDetailsRequest(null, DEC_19, "19:00", "Salão", BigDecimal.valueOf(80)));
+        assertThat(detail.eventDetails().location()).isEqualTo("Salão");
+        assertThat(detail.eventDetails().giftValue()).isEqualTo(80);
+    }
+
+    @Test
+    void everyParticipantSeesTheGiftValue() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+        group.updateGiftValue(80);
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+
+        assertThat(service.getDetail(BRUNO, group.getId()).eventDetails().giftValue())
+                .isEqualTo(80);
     }
 }

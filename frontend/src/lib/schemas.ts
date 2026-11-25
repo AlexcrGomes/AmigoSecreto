@@ -46,7 +46,16 @@ export const EVENT_MESSAGES = {
   timeFormat: 'Informe o horário no formato HH:mm.',
   timePast: 'Esse horário já passou.',
   location: 'Informe o local do evento (até 120 caracteres).',
+  giftValue: 'Informe um valor inteiro entre R$ 1 e R$ 100.000.',
 } as const;
+
+/** Vazio ou inteiro de 1 a 100.000 (valor do presente, feature 003). */
+function isGiftValue(value: string): boolean {
+  if (value === '') return true;
+  if (!/^\d+$/.test(value)) return false;
+  const amount = Number(value);
+  return amount >= 1 && amount <= 100_000;
+}
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -70,6 +79,7 @@ export function eventDetailsSchema(
         .string()
         .refine((value) => value === '' || TIME_PATTERN.test(value), EVENT_MESSAGES.timeFormat),
       location: z.string().trim().min(1, EVENT_MESSAGES.location).max(120, EVENT_MESSAGES.location),
+      giftValue: z.string().trim().refine(isGiftValue, EVENT_MESSAGES.giftValue),
     })
     .superRefine((values, ctx) => {
       if (!values.eventDate) return;

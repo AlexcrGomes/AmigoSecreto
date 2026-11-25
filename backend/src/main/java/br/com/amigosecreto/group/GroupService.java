@@ -85,6 +85,7 @@ public class GroupService {
     public GroupDetail create(UUID userId, CreateGroupRequest request) {
         SecretGroup newGroup = new SecretGroup(request.name(), uniqueCode(), userId, clock.instant());
         newGroup.updateEventDetails(request.eventDetails(), schedule);
+        newGroup.updateGiftValue(request.giftValueAsInt());
         SecretGroup group = groups.save(newGroup);
         members.save(GroupMember.organizer(group.getId(), userId, clock.instant()));
         events.publishEvent(new ParticipantsChangedEvent(group.getId(), GroupStatus.OPEN, 1));
@@ -147,6 +148,8 @@ public class GroupService {
         if (!group.isOrganizer(userId)) {
             throw new ForbiddenException("Só o organizador pode alterar os detalhes do evento.");
         }
+        // O valor primeiro: se for recusado (depois do sorteio), nenhum outro detalhe muda
+        group.updateGiftValue(request.giftValueAsInt());
         boolean scheduleChanged = group.updateEventDetails(request.toEventDetails(), schedule);
         boolean confirmationsReset = scheduleChanged && group.getStatus() == GroupStatus.OPEN;
         if (confirmationsReset) {
@@ -232,8 +235,9 @@ public class GroupService {
                 pendingExitRequests = exitRequests.findPending(group.getId());
             }
         }
-        EventDetailsResponse eventDetails =
-                group.eventDetails(schedule).map(EventDetailsResponse::from).orElse(null);
+        EventDetailsResponse eventDetails = group.eventDetails(schedule)
+                .map(details -> EventDetailsResponse.from(details, group.getGiftValue()))
+                .orElse(null);
         return new GroupDetail(
                 group.getId(),
                 group.getName(),

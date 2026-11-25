@@ -1,6 +1,7 @@
 package br.com.amigosecreto.group;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -396,5 +397,72 @@ class SecretGroupTest {
     @Test
     void newGroupHasNoGiftValue() {
         assertThat(groupWith(PARTY).getGiftValue()).isNull();
+    }
+
+    // ---- valor do presente (US3 da 003, FR-020 a FR-023) ----
+
+    @Test
+    void theGiftValueCanBeSetChangedAndRemovedBeforeTheDraw() {
+        SecretGroup group = groupWith(PARTY);
+
+        group.updateGiftValue(80);
+        assertThat(group.getGiftValue()).isEqualTo(80);
+        group.updateGiftValue(100);
+        assertThat(group.getGiftValue()).isEqualTo(100);
+        group.updateGiftValue(null);
+        assertThat(group.getGiftValue()).isNull();
+
+        // FR-023: o valor não é condição de confirmação
+        assertThat(group.getDetailsVersion()).isEqualTo(1);
+    }
+
+    @Test
+    void afterTheDrawOnlyTheSameValueIsAccepted() {
+        SecretGroup group = groupWith(PARTY);
+        group.updateGiftValue(80);
+        group.markDrawn(NOW);
+
+        group.updateGiftValue(80);
+
+        for (Integer other : new Integer[] {100, null}) {
+            assertThatThrownBy(() -> group.updateGiftValue(other))
+                    .isInstanceOfSatisfying(ConflictException.class, ex -> {
+                        assertThat(ex.getType()).isEqualTo("gift-value-locked");
+                        assertThat(ex.getMessage()).isEqualTo("O valor do presente não muda depois do sorteio.");
+                    });
+        }
+        assertThat(group.getGiftValue()).isEqualTo(80);
+    }
+
+    @Test
+    void aFinishedGroupRefusesAnyGiftValue() {
+        SecretGroup group = groupWith(PARTY);
+        group.updateGiftValue(80);
+        group.markDrawn(NOW);
+        group.finishIfDue(PARTY_STARTS);
+
+        assertThatThrownBy(() -> group.updateGiftValue(80)).isInstanceOf(GroupFinishedException.class);
+    }
+
+    @Test
+    void anUndoneDrawUnlocksTheGiftValue() {
+        SecretGroup group = groupWith(PARTY);
+        group.updateGiftValue(80);
+        group.markDrawn(NOW);
+        group.undoDraw(NOW.plusSeconds(60));
+
+        group.updateGiftValue(120);
+
+        assertThat(group.getGiftValue()).isEqualTo(120);
+    }
+
+    @Test
+    void theGiftValueIsBetweenOneAndOneHundredThousand() {
+        SecretGroup group = groupWith(PARTY);
+
+        group.updateGiftValue(1);
+        group.updateGiftValue(100_000);
+        assertThatIllegalArgumentException().isThrownBy(() -> group.updateGiftValue(0));
+        assertThatIllegalArgumentException().isThrownBy(() -> group.updateGiftValue(100_001));
     }
 }

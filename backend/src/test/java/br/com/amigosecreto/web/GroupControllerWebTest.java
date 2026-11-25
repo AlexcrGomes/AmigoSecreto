@@ -33,12 +33,14 @@ import br.com.amigosecreto.group.GroupMembershipService;
 import br.com.amigosecreto.group.GroupService;
 import br.com.amigosecreto.group.GroupStatus;
 import br.com.amigosecreto.group.dto.ConfirmationRequest;
+import br.com.amigosecreto.group.dto.EventDetailsRequest;
 import br.com.amigosecreto.group.dto.EventDetailsResponse;
 import br.com.amigosecreto.group.dto.GroupDetail;
 import br.com.amigosecreto.group.dto.GroupSummary;
 import br.com.amigosecreto.group.dto.Participant;
 import br.com.amigosecreto.wishlist.dto.MyWishlist;
 import jakarta.servlet.http.Cookie;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -109,7 +111,7 @@ class GroupControllerWebTest {
                 100,
                 true,
                 false,
-                new EventDetailsResponse("Traga um prato", LocalDate.of(2026, 12, 19), "19:00", "Casa da Ana"),
+                new EventDetailsResponse("Traga um prato", LocalDate.of(2026, 12, 19), "19:00", "Casa da Ana", 80),
                 false,
                 false,
                 1,
@@ -471,5 +473,47 @@ class GroupControllerWebTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.type").value("/problems/details-changed"))
                 .andExpect(jsonPath("$.detail").value("Os detalhes do evento mudaram. Confira e confirme de novo."));
+    }
+
+    // ---- valor do presente (US3 da 003) ----
+
+    @Test
+    void theGiftValueMustBeAWholeNumberFromOneToOneHundredThousand() throws Exception {
+        for (String invalid : new String[] {"0", "100001", "50.5", "-10"}) {
+            mvc.perform(put("/api/v1/groups/{id}/event-details", GROUP_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"eventDate\":\"2026-12-19\",\"location\":\"Casa\",\"giftValue\":" + invalid
+                                    + "}")
+                            .with(ana())
+                            .with(spaCsrf()))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[0].field").value("giftValue"))
+                    .andExpect(
+                            jsonPath("$.errors[0].message").value("Informe um valor inteiro entre R$ 1 e R$ 100.000."));
+            mvc.perform(postJson("/api/v1/groups", createWith("giftValue", invalid)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[0].field").value("giftValue"));
+        }
+        verify(groupService, never()).updateEventDetails(any(), any(), any());
+        verify(groupService, never()).create(any(), any());
+    }
+
+    @Test
+    void theGiftValueGoesToTheServiceAndComesBackInTheDetails() throws Exception {
+        when(groupService.updateEventDetails(eq(ANA.id()), eq(GROUP_ID), any())).thenReturn(detail());
+
+        mvc.perform(put("/api/v1/groups/{id}/event-details", GROUP_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"eventDate\":\"2026-12-19\",\"location\":\"Casa\",\"giftValue\":80}")
+                        .with(ana())
+                        .with(spaCsrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.eventDetails.giftValue").value(80));
+        verify(groupService)
+                .updateEventDetails(
+                        ANA.id(),
+                        GROUP_ID,
+                        new EventDetailsRequest(
+                                null, java.time.LocalDate.of(2026, 12, 19), null, "Casa", BigDecimal.valueOf(80)));
     }
 }

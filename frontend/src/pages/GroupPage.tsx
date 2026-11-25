@@ -254,7 +254,11 @@ export function GroupPage() {
           <DrawButton group={detail} />
         </>
       ) : (
-        <SecretFriendCard key={drawGeneration} groupId={detail.id} />
+        <SecretFriendCard
+          key={drawGeneration}
+          groupId={detail.id}
+          giftValue={detail.eventDetails?.giftValue ?? null}
+        />
       )}
 
       {drawn && detail.organizer && <ExitRequestsList group={detail} />}
@@ -291,6 +295,7 @@ export function GroupPage() {
           scheduleChangeWarning={
             open ? 'Todos os participantes precisarão confirmar de novo.' : undefined
           }
+          giftValueLocked={!open}
           footer={
             <Button variant="ghost" fullWidth onClick={() => setEditingDetails(false)}>
               Cancelar

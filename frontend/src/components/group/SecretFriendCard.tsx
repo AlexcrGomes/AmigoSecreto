@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { getMySecretFriend } from '../../api/groups';
 import { errorMessage } from '../../lib/errors';
+import { formatGiftValue } from '../../lib/giftValue';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Spinner } from '../ui/Spinner';
@@ -17,7 +18,14 @@ export function secretFriendKey(groupId: string) {
  * "Ocultar". Nunca vai para cache persistente, localStorage ou sessionStorage — e é descartado da
  * memória ao ocultar.
  */
-export function SecretFriendCard({ groupId }: { groupId: string }) {
+export function SecretFriendCard({
+  groupId,
+  giftValue = null,
+}: {
+  groupId: string;
+  /** Valor do presente do grupo, mostrado junto da lista (feature 003, FR-021). */
+  giftValue?: number | null;
+}) {
   const queryClient = useQueryClient();
   const [revealed, setRevealed] = useState(false);
   const friend = useQuery({
@@ -54,6 +62,12 @@ export function SecretFriendCard({ groupId }: { groupId: string }) {
           </p>
         )}
       </div>
+      {showName && giftValue != null && (
+        <p className="mb-2 text-sm text-text-muted">
+          Valor do presente:{' '}
+          <span className="font-medium text-text">{formatGiftValue(giftValue)}</span>
+        </p>
+      )}
       {showName && (
         <WishlistView
           wishlist={friend.data.wishlist ?? []}

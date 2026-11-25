@@ -110,6 +110,8 @@ export interface EventDetailsBody {
   eventDate: string;
   eventTime: string | null;
   location: string;
+  /** Valor do presente em reais inteiros, ou `null` (feature 003); só muda antes do sorteio. */
+  giftValue?: number | null;
 }
 
 export function createGroup(name: string, details: EventDetailsBody): Promise<GroupDetail> {

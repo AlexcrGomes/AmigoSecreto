@@ -1,5 +1,6 @@
 package br.com.amigosecreto.group;
 
+import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.UnprocessableException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -31,6 +32,11 @@ public class SecretGroup implements Persistable<UUID> {
 
     /** O sorteio precisa de pelo menos 3 participantes (FR-020 da 001). */
     public static final int MIN_PARTICIPANTS_TO_DRAW = 3;
+
+    /** Limites do valor do presente, em reais (feature 003, FR-020). */
+    public static final int MIN_GIFT_VALUE = 1;
+
+    public static final int MAX_GIFT_VALUE = 100_000;
 
     @Id
     private UUID id;
@@ -84,7 +90,7 @@ public class SecretGroup implements Persistable<UUID> {
     @Column(name = "draw_undone_at")
     private Instant drawUndoneAt;
 
-    /** Valor do presente em reais inteiros, ou nulo (feature 003, FR-020). A regra de alteração vem na US3. */
+    /** Valor do presente em reais inteiros, ou nulo (feature 003, FR-020); regras em {@link #updateGiftValue}. */
     @Column(name = "gift_value")
     private Integer giftValue;
 
@@ -157,6 +163,27 @@ public class SecretGroup implements Persistable<UUID> {
      *
      * @return se data, horário ou local mudaram (ou foram informados pela primeira vez)
      */
+    /**
+     * Valor do presente em reais inteiros, ou {@code null} para remover (feature 003, FR-020 a FR-023). Só muda com o
+     * grupo {@code OPEN}; depois do sorteio, o mesmo valor é aceito (o formulário reenvia todos os campos) e outro é
+     * recusado. Nunca mexe em {@code detailsVersion}: o valor não reabre confirmações (FR-023).
+     */
+    public void updateGiftValue(Integer value) {
+        if (status == GroupStatus.FINISHED) {
+            throw new GroupFinishedException();
+        }
+        if (Objects.equals(giftValue, value)) {
+            return;
+        }
+        if (status != GroupStatus.OPEN) {
+            throw new ConflictException("gift-value-locked", "O valor do presente não muda depois do sorteio.");
+        }
+        if (value != null && (value < MIN_GIFT_VALUE || value > MAX_GIFT_VALUE)) {
+            throw new IllegalArgumentException("O valor do presente vai de 1 a 100.000");
+        }
+        this.giftValue = value;
+    }
+
     public boolean updateEventDetails(EventDetails details, EventSchedule schedule) {
         Objects.requireNonNull(details, "details");
         if (status == GroupStatus.FINISHED) {

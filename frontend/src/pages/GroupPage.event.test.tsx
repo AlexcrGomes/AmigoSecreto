@@ -81,6 +81,7 @@ describe('GroupPage — detalhes do evento (US1)', () => {
       eventDate: '2026-12-19',
       eventTime: '19:00',
       location: 'Salão de festas',
+      giftValue: null,
     });
   });
 
