@@ -94,3 +94,27 @@ export type EventDetailsInput = z.infer<ReturnType<typeof eventDetailsSchema>>;
 export const createGroupSchema = eventDetailsSchema({ withName: true });
 
 export type CreateGroupInput = EventDetailsInput;
+
+/** Mensagens do item da lista de desejos, iguais às do backend (data-model.md da 003). */
+export const WISH_MESSAGES = {
+  description: 'Descreva a sugestão (até 120 caracteres).',
+  url: 'Informe um link que comece com http:// ou https://.',
+} as const;
+
+const WEB_LINK = /^https?:\/\/[^\s/?#]+[^\s]*$/i;
+
+/** Item da lista de desejos: descrição obrigatória e link opcional `http(s)://` (FR-002, FR-003). */
+export const wishItemSchema = z.object({
+  description: z
+    .string()
+    .trim()
+    .min(1, WISH_MESSAGES.description)
+    .max(120, WISH_MESSAGES.description),
+  url: z
+    .string()
+    .trim()
+    .max(500, WISH_MESSAGES.url)
+    .refine((value) => value === '' || WEB_LINK.test(value), WISH_MESSAGES.url),
+});
+
+export type WishItemInput = z.infer<typeof wishItemSchema>;

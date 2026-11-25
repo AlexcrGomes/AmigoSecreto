@@ -19,6 +19,7 @@ import { ExitRequestDecisionNotice, ExitRequestPanel } from '../components/group
 import { ExitRequestsList } from '../components/group/ExitRequestsList';
 import { ParticipantList } from '../components/group/ParticipantList';
 import { SecretFriendCard } from '../components/group/SecretFriendCard';
+import { WishlistEditor } from '../components/group/WishlistEditor';
 import { ShareCode } from '../components/group/ShareCode';
 import { Badge } from '../components/ui/Badge';
 import { Button, buttonClasses } from '../components/ui/Button';
@@ -257,6 +258,9 @@ export function GroupPage() {
       )}
 
       {drawn && detail.organizer && <ExitRequestsList group={detail} />}
+
+      {/* A própria lista de desejos, em todos os status (US1 da 003) */}
+      <WishlistEditor group={detail} />
 
       <ParticipantList
         participants={detail.participants}

@@ -32,6 +32,8 @@ import br.com.amigosecreto.group.dto.GroupSummary;
 import br.com.amigosecreto.group.dto.JoinGroupRequest;
 import br.com.amigosecreto.ratelimit.RateLimitPolicy;
 import br.com.amigosecreto.ratelimit.RateLimiter;
+import br.com.amigosecreto.wishlist.WishItem;
+import br.com.amigosecreto.wishlist.WishItemRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -75,6 +77,9 @@ class GroupServiceTest {
     private GroupExitBanRepository exitBans;
 
     @Mock
+    private WishItemRepository wishItems;
+
+    @Mock
     private GroupCodeGenerator codes;
 
     @Mock
@@ -101,6 +106,7 @@ class GroupServiceTest {
                 new GroupLock(groups, members, exitRequests, clock, events),
                 exitBans,
                 exitRequests,
+                wishItems,
                 events);
     }
 
@@ -731,5 +737,42 @@ class GroupServiceTest {
 
         verify(exitRequests, never()).findPending(any());
         verify(exitRequests, never()).findByGroupIdAndUserIdAndStatus(any(), any(), any());
+    }
+
+    // ---- lista de desejos (US1 da 003) ----
+
+    @Test
+    void theDetailBringsOnlyTheSessionUsersOwnWishlist() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+        WishItem livro = new WishItem(group.getId(), BRUNO, "Livro", "https://loja.com/livro", NOW);
+        WishItem caneca = new WishItem(group.getId(), BRUNO, "Caneca", null, NOW.plusSeconds(1));
+        when(wishItems.findByGroupIdAndUserIdOrderByCreatedAtAscIdAsc(group.getId(), BRUNO))
+                .thenReturn(List.of(livro, caneca));
+
+        GroupDetail forBruno = service.getDetail(BRUNO, group.getId());
+        assertThat(forBruno.myWishlist().items())
+                .extracting("description", "url")
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("Livro", "https://loja.com/livro"),
+                        org.assertj.core.groups.Tuple.tuple("Caneca", null));
+        assertThat(forBruno.myWishlist().maxItems()).isEqualTo(5);
+        assertThat(forBruno.myWishlist().editable()).isTrue();
+
+        // A organizadora não vê a lista do Bruno: só a própria (vazia)
+        GroupDetail forAna = service.getDetail(ANA, group.getId());
+        assertThat(forAna.myWishlist().items()).isEmpty();
+        verify(wishItems).findByGroupIdAndUserIdOrderByCreatedAtAscIdAsc(group.getId(), ANA);
+    }
+
+    @Test
+    void theWishlistIsReadOnlyOnceTheGroupIsFinished() {
+        SecretGroup group = lockedGroupWithDetails(ANA, BRUNO);
+        group.markDrawn(NOW);
+        group.finishIfDue(Instant.parse("2026-12-20T00:00:00Z"));
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+
+        assertThat(service.getDetail(BRUNO, group.getId()).myWishlist().editable())
+                .isFalse();
     }
 }

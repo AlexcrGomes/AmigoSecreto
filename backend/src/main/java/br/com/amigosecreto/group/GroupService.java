@@ -19,6 +19,9 @@ import br.com.amigosecreto.group.dto.JoinGroupRequest;
 import br.com.amigosecreto.group.dto.Participant;
 import br.com.amigosecreto.ratelimit.RateLimitPolicy;
 import br.com.amigosecreto.ratelimit.RateLimiter;
+import br.com.amigosecreto.wishlist.WishItemRepository;
+import br.com.amigosecreto.wishlist.dto.MyWishlist;
+import br.com.amigosecreto.wishlist.dto.WishItemResponse;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +49,7 @@ public class GroupService {
     private final GroupLock lock;
     private final GroupExitBanRepository exitBans;
     private final ExitRequestRepository exitRequests;
+    private final WishItemRepository wishItems;
     private final ApplicationEventPublisher events;
 
     public GroupService(
@@ -58,6 +62,7 @@ public class GroupService {
             GroupLock lock,
             GroupExitBanRepository exitBans,
             ExitRequestRepository exitRequests,
+            WishItemRepository wishItems,
             ApplicationEventPublisher events) {
         this.groups = groups;
         this.members = members;
@@ -68,6 +73,7 @@ public class GroupService {
         this.lock = lock;
         this.exitBans = exitBans;
         this.exitRequests = exitRequests;
+        this.wishItems = wishItems;
         this.events = events;
     }
 
@@ -249,7 +255,17 @@ public class GroupService {
                 group.getFinishedAt(),
                 open && group.getDrawUndoneAt() != null,
                 myExitRequest,
-                pendingExitRequests);
+                pendingExitRequests,
+                myWishlist(group, userId));
+    }
+
+    /** Só a lista do usuário da sessão; somente leitura em grupo finalizado (feature 003, FR-005). */
+    private MyWishlist myWishlist(SecretGroup group, UUID userId) {
+        List<WishItemResponse> items =
+                wishItems.findByGroupIdAndUserIdOrderByCreatedAtAscIdAsc(group.getId(), userId).stream()
+                        .map(WishItemResponse::from)
+                        .toList();
+        return MyWishlist.of(items, group.getStatus() != GroupStatus.FINISHED);
     }
 
     private static String nameOf(List<ParticipantView> views, UUID userId) {
