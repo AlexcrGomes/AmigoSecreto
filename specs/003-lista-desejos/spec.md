@@ -98,8 +98,8 @@ outra tela, resposta ou aviso mostra a lista de alguém para quem não a tirou.
 **Acceptance Scenarios**:
 
 1. **Given** um grupo sorteado, **When** o participante toca em "Revelar", **Then** ele vê o nome
-   de quem tirou, a lista de desejos dessa pessoa (descrição e link de cada item) e o valor do
-   presente do grupo.
+   de quem tirou e a lista de desejos dessa pessoa (descrição e link de cada item); se o grupo
+   tiver valor do presente (US3), ele aparece junto.
 2. **Given** que a pessoa tirada não cadastrou itens, **When** o participante revela, **Then** ele
    vê o nome e o aviso "Ainda não há sugestões de presente".
 3. **Given** o nome e a lista revelados, **When** o participante toca em "Ocultar", **Then** o nome
@@ -191,6 +191,8 @@ e as confirmações continuam valendo; depois do sorteio, não há como alterar.
   NOT ter preço próprio: a referência de preço é o valor do presente do grupo (FR-020).
 - **FR-003**: O link, quando informado, MUST ser um endereço web começando com `http://` ou
   `https://`, com até 500 caracteres.
+- **FR-004**: *(removida no clarify de 2026-11-23: os itens não têm faixa de preço; ver FR-002 e
+  FR-020.)*
 - **FR-005**: O dono MUST poder adicionar, editar e remover itens da própria lista enquanto o grupo
   estiver aguardando sorteio ou sorteado; em um grupo finalizado, a lista MUST ficar somente para
   leitura.
