@@ -156,12 +156,12 @@ Vitest + React Testing Library + MSW. Gate de cobertura: 80% de linhas (JaCoCo e
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T037 [P] Atualizar `README.md`: descrever a lista de desejos (quem vê o quê) e o valor do presente
-- [ ] T038 [P] Revisar o Javadoc dos controllers e DTOs novos e a descrição em `…/config/OpenApiConfig.java` (citar o contrato 003)
-- [ ] T039 Rodar `mvn -B verify` e `npm run lint && npm run format:check && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80% nos dois
-- [ ] T040 Voltar `test/…/integration/OpenApiContractIT.java` à igualdade completa (rotas geradas = união 001 + 002 + 003)
-- [ ] T041 Executar o roteiro manual do [quickstart.md](./quickstart.md) (§1 migração, §2 passos 1–17 com uma janela a 360px, §3 sigilo) e registrar o resultado no PR
-- [ ] T042 Revisão final contra a constituição (Princípios I a VIII) com a checklist do PR template, conferindo em especial: nenhuma rota lê lista por id de usuário; `GroupDetail` só com `myWishlist`; nenhum evento SSE novo; o servidor nunca acessa links; nenhuma dependência nova no `pom.xml` e no `package.json`
+- [X] T037 [P] Atualizar `README.md`: descrever a lista de desejos (quem vê o quê) e o valor do presente
+- [X] T038 [P] Revisar o Javadoc dos controllers e DTOs novos e a descrição em `…/config/OpenApiConfig.java` (citar o contrato 003)
+- [X] T039 Rodar `mvn -B verify` e `npm run lint && npm run format:check && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80% nos dois
+- [X] T040 Voltar `test/…/integration/OpenApiContractIT.java` à igualdade completa (rotas geradas = união 001 + 002 + 003)
+- [X] T041 Executar o roteiro manual do [quickstart.md](./quickstart.md) (§1 migração, §2 passos 1–17 com uma janela a 360px, §3 sigilo) e registrar o resultado no PR
+- [X] T042 Revisão final contra a constituição (Princípios I a VIII) com a checklist do PR template, conferindo em especial: nenhuma rota lê lista por id de usuário; `GroupDetail` só com `myWishlist`; nenhum evento SSE novo; o servidor nunca acessa links; nenhuma dependência nova no `pom.xml` e no `package.json`
 
 ---
 

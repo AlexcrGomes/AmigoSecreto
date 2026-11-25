@@ -21,10 +21,7 @@ import tools.jackson.databind.JsonNode;
  * da 002 e da 003 listam só o que é novo ou mudou; as rotas valem pela união dos três arquivos (research R24 da
  * 002).
  *
- * <p>Enquanto a feature 003 é entregue em vários PRs, as rotas dela ainda não existem todas: o teste exige que
- * toda rota gerada esteja documentada e que todas as rotas da 001 e da 002 existam. A tarefa T040 da 003 (fim da
- * entrega) volta à igualdade completa. Roda no perfil {@code dev}, o único em que o springdoc gera a
- * documentação.
+ * <p>Roda no perfil {@code dev}, o único em que o springdoc gera a documentação.
  */
 @ActiveProfiles({"test", "dev"})
 class OpenApiContractIT extends AbstractIntegrationTest {
@@ -43,17 +40,13 @@ class OpenApiContractIT extends AbstractIntegrationTest {
         }
 
         Set<String> generated = generatedRoutes();
-        Set<String> delivered = new TreeSet<>(contractRoutes(CONTRACT_001));
-        delivered.addAll(contractRoutes(CONTRACT_002));
-        Set<String> documented = new TreeSet<>(delivered);
+        Set<String> documented = new TreeSet<>(contractRoutes(CONTRACT_001));
+        documented.addAll(contractRoutes(CONTRACT_002));
         documented.addAll(contractRoutes(CONTRACT_003));
 
-        assertThat(documented)
-                .as("toda rota implementada precisa estar em um dos contratos 001, 002 ou 003")
-                .containsAll(generated);
         assertThat(generated)
-                .as("todas as rotas das features 001 e 002 continuam existindo")
-                .containsAll(delivered);
+                .as("as rotas implementadas são exatamente as dos contratos 001 + 002 + 003")
+                .isEqualTo(documented);
     }
 
     @Test
