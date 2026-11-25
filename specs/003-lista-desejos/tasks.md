@@ -51,8 +51,8 @@ Vitest + React Testing Library + MSW. Gate de cobertura: 80% de linhas (JaCoCo e
 
 **Purpose**: partir de uma base verde. Não há dependência nova nem mudança de infraestrutura.
 
-- [ ] T001 Confirmar a base: na branch `003-lista-desejos`, rodar `mvn -B verify` (backend) e `npm run lint && npm run format:check && npm run test:coverage` (frontend) nos containers e registrar que tudo está verde antes de mudar código
-- [ ] T002 [P] Atualizar `test/…/integration/OpenApiContractIT.java` para ler também `../specs/003-lista-desejos/contracts/openapi.yaml` e montar a união 001 + 002 + 003. Enquanto as histórias são entregues em PRs separados, o teste exige só que **toda rota gerada esteja documentada** (geradas ⊆ união) e que todas as rotas de 001 + 002 existam; a igualdade completa volta na T040
+- [X] T001 Confirmar a base: na branch `003-lista-desejos`, rodar `mvn -B verify` (backend) e `npm run lint && npm run format:check && npm run test:coverage` (frontend) nos containers e registrar que tudo está verde antes de mudar código
+- [X] T002 [P] Atualizar `test/…/integration/OpenApiContractIT.java` para ler também `../specs/003-lista-desejos/contracts/openapi.yaml` e montar a união 001 + 002 + 003. Enquanto as histórias são entregues em PRs separados, o teste exige só que **toda rota gerada esteja documentada** (geradas ⊆ união) e que todas as rotas de 001 + 002 existam; a igualdade completa volta na T040
 
 ---
 
