@@ -5,13 +5,15 @@ import { errorMessage } from '../../lib/errors';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Spinner } from '../ui/Spinner';
+import { WishlistView } from './WishlistView';
 
 export function secretFriendKey(groupId: string) {
   return ['secret-friend', groupId] as const;
 }
 
 /**
- * "Seu amigo secreto" (FR-028 a FR-031): o nome fica oculto até tocar em "Revelar" e some de novo em
+ * "Seu amigo secreto" (FR-028 a FR-031): o nome — e, na feature 003, a lista de desejos da pessoa — fica oculto
+ * até tocar em "Revelar" e some de novo em
  * "Ocultar". Nunca vai para cache persistente, localStorage ou sessionStorage — e é descartado da
  * memória ao ocultar.
  */
@@ -52,6 +54,12 @@ export function SecretFriendCard({ groupId }: { groupId: string }) {
           </p>
         )}
       </div>
+      {showName && (
+        <WishlistView
+          wishlist={friend.data.wishlist ?? []}
+          updatedAt={friend.data.wishlistUpdatedAt ?? null}
+        />
+      )}
       {revealed && friend.isError && (
         <p role="alert" className="mb-4 text-danger">
           {errorMessage(friend.error)}
