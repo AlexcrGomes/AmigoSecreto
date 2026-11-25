@@ -379,4 +379,22 @@ class SecretGroupTest {
         assertThatIllegalStateException().isThrownBy(() -> group.undoDraw(NOW));
         assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
     }
+
+    // ---- lista de desejos (feature 003) ----
+
+    @Test
+    void memberRemembersWhenTheWishlistLastChanged() {
+        GroupMember member = new GroupMember(UUID.randomUUID(), UUID.randomUUID(), NOW);
+        assertThat(member.getWishlistUpdatedAt()).isNull();
+
+        member.touchWishlist(NOW.plusSeconds(60));
+        member.touchWishlist(NOW.plusSeconds(120));
+
+        assertThat(member.getWishlistUpdatedAt()).isEqualTo(NOW.plusSeconds(120));
+    }
+
+    @Test
+    void newGroupHasNoGiftValue() {
+        assertThat(groupWith(PARTY).getGiftValue()).isNull();
+    }
 }

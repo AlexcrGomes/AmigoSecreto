@@ -25,6 +25,7 @@ export function openGroup(overrides: Partial<GroupDetail> = {}): GroupDetail {
       eventDate: '2026-12-19',
       eventTime: '19:00',
       location: 'Casa da Ana',
+      giftValue: null,
     },
     eventDetailsMissing: false,
     eventDatePassed: false,
@@ -36,6 +37,7 @@ export function openGroup(overrides: Partial<GroupDetail> = {}): GroupDetail {
     drawUndone: false,
     myExitRequest: null,
     pendingExitRequests: [],
+    myWishlist: { items: [], maxItems: 5, editable: true },
     ...overrides,
   };
 }

@@ -84,6 +84,10 @@ public class SecretGroup implements Persistable<UUID> {
     @Column(name = "draw_undone_at")
     private Instant drawUndoneAt;
 
+    /** Valor do presente em reais inteiros, ou nulo (feature 003, FR-020). A regra de alteração vem na US3. */
+    @Column(name = "gift_value")
+    private Integer giftValue;
+
     @Version
     @Column(name = "version", nullable = false)
     private long version;
@@ -289,5 +293,9 @@ public class SecretGroup implements Persistable<UUID> {
 
     public Instant getDrawUndoneAt() {
         return drawUndoneAt;
+    }
+
+    public Integer getGiftValue() {
+        return giftValue;
     }
 }

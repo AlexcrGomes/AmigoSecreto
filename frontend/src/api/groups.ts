@@ -9,6 +9,29 @@ export interface EventDetails {
   eventDate: string;
   eventTime: string | null;
   location: string;
+  /** Valor do presente em reais inteiros (feature 003); `null` ou ausente = não informado. */
+  giftValue?: number | null;
+}
+
+/** Item da própria lista de desejos (feature 003). */
+export interface WishItem {
+  id: string;
+  description: string;
+  url: string | null;
+}
+
+/** A lista de desejos do usuário da sessão no grupo: até `maxItems` itens, na ordem de cadastro. */
+export interface MyWishlist {
+  items: WishItem[];
+  maxItems: number;
+  /** `false` em grupo finalizado. */
+  editable: boolean;
+}
+
+/** Item da lista de quem o usuário tirou: sem id e sem dono (research R27 da 003). */
+export interface FriendWishItem {
+  description: string;
+  url: string | null;
 }
 
 /** Por que o sorteio ainda não pode ser feito (research R16), ou `null` se pode. */
@@ -73,6 +96,8 @@ export interface GroupDetail {
   myExitRequest: ExitRequest | null;
   /** Só para o organizador; vazio para os demais. */
   pendingExitRequests: ExitRequest[];
+  /** A lista de desejos do próprio usuário — nunca a de outra pessoa (feature 003). */
+  myWishlist: MyWishlist;
 }
 
 export function listGroups(signal?: AbortSignal): Promise<GroupSummary[]> {
@@ -128,6 +153,10 @@ export interface DrawResult {
 /** Schema `SecretFriend`: só o nome de quem o usuário da sessão tirou. */
 export interface SecretFriend {
   name: string;
+  /** Lista de desejos de quem o usuário tirou, na ordem de cadastro (feature 003). */
+  wishlist: FriendWishItem[];
+  /** Última alteração da lista, só se foi depois do sorteio; senão `null`. */
+  wishlistUpdatedAt: string | null;
 }
 
 export function drawGroup(id: string): Promise<DrawResult> {
