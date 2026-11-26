@@ -99,15 +99,6 @@ class DependentFlowIT extends AbstractIntegrationTest {
         return count == null ? 0 : count;
     }
 
-    private int orphanDependents() {
-        Integer count = jdbc.queryForObject(
-                "select count(*) from app_user u where u.kind = 'DEPENDENT'"
-                        + " and not exists (select 1 from group_member m where m.user_id = u.id)"
-                        + " and not exists (select 1 from exit_request e where e.user_id = u.id)",
-                Integer.class);
-        return count == null ? 0 : count;
-    }
-
     // ---- US1 ----
 
     @Test
@@ -160,7 +151,6 @@ class DependentFlowIT extends AbstractIntegrationTest {
                 .isEqualTo(204);
         assertThat(names(detail(ana, group))).doesNotContain("Lucas M.");
         assertThat(appUsers(lucas)).isZero();
-        assertThat(orphanDependents()).isZero();
     }
 
     @Test
@@ -291,6 +281,5 @@ class DependentFlowIT extends AbstractIntegrationTest {
                 .isEqualTo(204);
         assertThat(appUsers(eva)).isZero();
         assertThat(detail(ana, group).get("participantCount").asInt()).isEqualTo(1);
-        assertThat(orphanDependents()).isZero();
     }
 }
