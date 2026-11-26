@@ -28,23 +28,35 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
             order by m.joinedAt, u.name""")
     List<ParticipantView> findParticipants(@Param("groupId") UUID groupId);
 
-    /** Nomes de quem ainda não confirmou, na ordem de entrada (FR-014 da 002). */
+    /**
+     * Nomes de quem ainda não confirmou, na ordem de entrada (FR-014 da 002). Só participantes com conta: a
+     * confirmação dos dependentes acompanha a do responsável (research R36 da 004).
+     */
     @Query("""
             select u.name
             from GroupMember m join AppUser u on u.id = m.id.userId
-            where m.id.groupId = :groupId and m.confirmedAt is null
+            where m.id.groupId = :groupId and m.confirmedAt is null and m.guardianId is null
             order by m.joinedAt, u.name""")
     List<String> findPendingNames(@Param("groupId") UUID groupId);
 
     /**
-     * Volta todos, menos o organizador, a pendente (FR-015): data, horário ou local mudaram antes do
-     * sorteio. Quem chama já tem o lock do grupo.
+     * Volta todos, menos o organizador e os dependentes dele, a pendente (FR-015): data, horário ou local mudaram
+     * antes do sorteio. Os dependentes acompanham o responsável (research R36 da 004). Quem chama já tem o lock
+     * do grupo.
      */
     @Modifying(flushAutomatically = true)
     @Query("""
             update GroupMember m set m.confirmedAt = null
-            where m.id.groupId = :groupId and m.id.userId <> :organizerId""")
+            where m.id.groupId = :groupId and m.id.userId <> :organizerId
+              and (m.guardianId is null or m.guardianId <> :organizerId)""")
     int resetConfirmations(@Param("groupId") UUID groupId, @Param("organizerId") UUID organizerId);
+
+    /** Cada dependente do grupo e o responsável dele: os pares proibidos do sorteio (research R35). */
+    @Query("""
+            select new br.com.amigosecreto.group.DependentLink(m.id.userId, m.guardianId)
+            from GroupMember m
+            where m.id.groupId = :groupId and m.guardianId is not null""")
+    List<DependentLink> findDependentLinks(@Param("groupId") UUID groupId);
 
     /** Dependentes de um responsável no grupo, na ordem em que foram adicionados (feature 004). */
     @Query("""

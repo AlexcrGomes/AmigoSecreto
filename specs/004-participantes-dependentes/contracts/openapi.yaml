@@ -225,10 +225,10 @@ paths:
         Como na 001/002, mais: responsável e dependente nunca se tiram; sem atribuição válida, o
         sorteio é recusado antes de persistir qualquer coisa (research R35).
       responses:
-        '409':
+        '422':
           description: |
-            Além dos motivos da 001/002: não há sorteio possível com os dependentes do grupo
-            (`/problems/no-valid-draw`)
+            Além dos motivos da 001/002 (também `422`): não há sorteio possível com os dependentes do
+            grupo (`/problems/no-valid-draw`)
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }

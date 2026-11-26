@@ -89,7 +89,7 @@ de uma **verificação de viabilidade** por emparelhamento bipartido.
 - **Viabilidade**: existe atribuição válida ⇔ o grafo bipartido "quem dá → quem pode receber" tem
   um emparelhamento perfeito. Verificado com o algoritmo de caminhos aumentantes (Kuhn), O(n·m),
   trivial para n ≤ 100. Sem emparelhamento perfeito, o sorteio é recusado **antes de qualquer
-  escrita** com `409 no-valid-draw` e a mensagem da spec (FR-009b).
+  escrita** com `422 no-valid-draw` e a mensagem da spec (FR-009b).
 - **Uniformidade**: cada tentativa é um Fisher–Yates com `SecureRandom` (uniforme sobre todas as
   permutações); descartar inteiras as que violam qualquer regra dá distribuição **uniforme sobre as
   atribuições válidas**, como a constituição exige. Nenhuma "correção" local do resultado (trocar

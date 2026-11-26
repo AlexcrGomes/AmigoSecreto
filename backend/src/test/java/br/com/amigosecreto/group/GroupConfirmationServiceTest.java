@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -164,5 +165,20 @@ class GroupConfirmationServiceTest {
         assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
         assertThat(bruno.isConfirmed()).isFalse();
         verify(events).publishEvent(new GroupFinishedEvent(group.getId(), 3));
+    }
+
+    // ---- feature 004: os dependentes confirmam junto (FR-013, research R36) ----
+
+    @Test
+    void theGuardiansDependentsConfirmTogether() {
+        GroupMember lucas = GroupMember.dependentOf(bruno, UUID.randomUUID(), NOW);
+        GroupMember bia = GroupMember.dependentOf(bruno, UUID.randomUUID(), NOW);
+        when(members.findDependents(group.getId(), BRUNO)).thenReturn(List.of(lucas, bia));
+
+        service.confirm(BRUNO, group.getId(), new ConfirmationRequest(1));
+
+        assertThat(bruno.getConfirmedAt()).isEqualTo(NOW);
+        assertThat(lucas.getConfirmedAt()).isEqualTo(NOW);
+        assertThat(bia.getConfirmedAt()).isEqualTo(NOW);
     }
 }

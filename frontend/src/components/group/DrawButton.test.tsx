@@ -140,4 +140,46 @@ describe('DrawButton', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(detail);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
+
+  it('sem sorteio possível com os dependentes, explica o motivo (feature 004)', () => {
+    mockSession(ANA);
+    renderWithProviders(
+      <DrawButton group={{ ...THREE, canDraw: false, drawBlockedReason: 'no-valid-draw' }} />,
+    );
+
+    const button = screen.getByRole('button', { name: 'Realizar sorteio' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(
+      'Com os dependentes deste grupo, não há sorteio possível. Convide mais participantes.',
+    );
+  });
+
+  it('pendentes listam só quem tem conta: os dependentes confirmam junto', () => {
+    mockSession(ANA);
+    renderWithProviders(
+      <DrawButton
+        group={{
+          ...THREE,
+          canDraw: false,
+          drawBlockedReason: 'participants-pending',
+          participants: [
+            ...openGroup().participants,
+            { userId: 'c-3', name: 'Carla', organizer: false, confirmed: false },
+            {
+              userId: 'd-1',
+              name: 'Lucas',
+              organizer: false,
+              confirmed: false,
+              dependent: true,
+              guardianName: 'Carla',
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Realizar sorteio' })).toHaveAccessibleDescription(
+      'Falta 1 confirmar: Carla',
+    );
+  });
 });

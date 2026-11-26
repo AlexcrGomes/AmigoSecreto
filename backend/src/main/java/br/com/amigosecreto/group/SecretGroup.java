@@ -225,6 +225,17 @@ public class SecretGroup implements Persistable<UUID> {
      * @param pendingCount participantes que ainda não confirmaram
      */
     public DrawBlockedReason drawBlockedReason(int totalParticipants, long pendingCount, EventSchedule schedule) {
+        return drawBlockedReason(totalParticipants, pendingCount, true, schedule);
+    }
+
+    /**
+     * Como {@link #drawBlockedReason(int, long, EventSchedule)}, com a viabilidade das restrições de
+     * dependentes (feature 004, research R35) já calculada por quem chama.
+     *
+     * @param feasible existe atribuição válida com os responsáveis e dependentes do grupo
+     */
+    public DrawBlockedReason drawBlockedReason(
+            int totalParticipants, long pendingCount, boolean feasible, EventSchedule schedule) {
         if (location == null) {
             return DrawBlockedReason.EVENT_DETAILS_REQUIRED;
         }
@@ -233,6 +244,9 @@ public class SecretGroup implements Persistable<UUID> {
         }
         if (totalParticipants < MIN_PARTICIPANTS_TO_DRAW) {
             return DrawBlockedReason.NOT_ENOUGH_PARTICIPANTS;
+        }
+        if (!feasible) {
+            return DrawBlockedReason.NO_VALID_DRAW;
         }
         if (pendingCount > 0) {
             return DrawBlockedReason.PARTICIPANTS_PENDING;

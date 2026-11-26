@@ -17,8 +17,8 @@ export function participantsLabel(count: number): string {
 }
 
 /**
- * Lista de participantes: nomes, o selo do organizador e, antes do sorteio, quem já confirmou — nunca quem
- * tirou quem.
+ * Lista de participantes: nomes, o selo do organizador, de quem cada dependente é (feature 004) e, antes do
+ * sorteio, quem já confirmou — nunca quem tirou quem.
  */
 export function ParticipantList({
   participants,
@@ -46,6 +46,12 @@ export function ParticipantList({
             >
               <span className="min-w-0 truncate text-text">
                 {participant.name}
+                {participant.dependent && participant.guardianName && (
+                  <span className="text-text-muted">
+                    {' '}
+                    (dependente de {participant.guardianName})
+                  </span>
+                )}
                 {isMe && <span className="text-text-muted"> (você)</span>}
               </span>
               <span className="flex shrink-0 items-center gap-2">

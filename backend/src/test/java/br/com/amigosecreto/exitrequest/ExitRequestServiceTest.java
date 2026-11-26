@@ -8,6 +8,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,10 +25,12 @@ import br.com.amigosecreto.events.GroupEvents.MembershipRevokedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.events.GroupEvents.RevocationReason;
 import br.com.amigosecreto.exitrequest.dto.ExitRequestResponse;
+import br.com.amigosecreto.group.DependentAccounts;
 import br.com.amigosecreto.group.EventDetails;
 import br.com.amigosecreto.group.EventSchedule;
 import br.com.amigosecreto.group.GroupFinishedException;
 import br.com.amigosecreto.group.GroupLock;
+import br.com.amigosecreto.group.GroupMember;
 import br.com.amigosecreto.group.GroupMemberId;
 import br.com.amigosecreto.group.GroupMemberRepository;
 import br.com.amigosecreto.group.GroupService;
@@ -41,6 +44,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -89,6 +93,9 @@ class ExitRequestServiceTest {
     private GroupService groupService;
 
     @Mock
+    private DependentAccounts dependentAccounts;
+
+    @Mock
     private ApplicationEventPublisher events;
 
     private final GroupDetail detail = mock(GroupDetail.class);
@@ -126,6 +133,7 @@ class ExitRequestServiceTest {
                 users,
                 drawService,
                 groupService,
+                dependentAccounts,
                 clock,
                 events);
     }
@@ -350,5 +358,29 @@ class ExitRequestServiceTest {
         verify(events).publishEvent(new GroupFinishedEvent(group.getId(), 4));
         verify(drawService, never()).discardDraw(any(), any());
         verify(members, never()).deleteById(any());
+    }
+
+    // ---- feature 004: a saída aprovada do responsável leva os dependentes (FR-016, research R37) ----
+
+    @Test
+    void approvingAGuardiansExitTakesTheDependentsAlongWithoutBanningThem() {
+        ExitRequest request = pendingOf(BRUNO);
+        UUID lucasId = UUID.randomUUID();
+        GroupMember lucas = GroupMember.dependentOf(new GroupMember(group.getId(), BRUNO, WEEK_AGO), lucasId, WEEK_AGO);
+        when(members.findDependents(group.getId(), BRUNO)).thenReturn(List.of(lucas));
+
+        service.approve(ANA, group.getId(), request.getId());
+
+        InOrder order = inOrder(drawService, members, dependentAccounts);
+        order.verify(drawService).discardDraw(group, NOW);
+        order.verify(members).deleteAll(List.of(lucas));
+        order.verify(members).deleteById(new GroupMemberId(group.getId(), BRUNO));
+        order.verify(dependentAccounts).deleteUnreferenced(List.of(lucasId));
+        verify(exitBans, times(1)).save(any());
+        verify(exitBans).save(argThat(ban -> ban.getId().equals(new GroupExitBanId(group.getId(), BRUNO))));
+        verify(events, times(1)).publishEvent(any(DrawUndoneEvent.class));
+        verify(events).publishEvent(new MembershipRevokedEvent(group.getId(), BRUNO, RevocationReason.EXIT_APPROVED));
+        verify(events, never())
+                .publishEvent(new MembershipRevokedEvent(group.getId(), lucasId, RevocationReason.EXIT_APPROVED));
     }
 }

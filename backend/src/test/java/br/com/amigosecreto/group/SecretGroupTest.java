@@ -179,6 +179,19 @@ class SecretGroupTest {
     }
 
     @Test
+    void noValidDrawComesAfterTooFewParticipantsAndBeforePending() {
+        SecretGroup group = groupWith(PARTY);
+
+        assertThat(group.drawBlockedReason(2, 1, false, SCHEDULE)).isEqualTo(DrawBlockedReason.NOT_ENOUGH_PARTICIPANTS);
+        assertThat(group.drawBlockedReason(3, 1, false, SCHEDULE)).isEqualTo(DrawBlockedReason.NO_VALID_DRAW);
+        assertThat(group.drawBlockedReason(3, 0, false, SCHEDULE)).isEqualTo(DrawBlockedReason.NO_VALID_DRAW);
+        assertThat(group.drawBlockedReason(3, 1, true, SCHEDULE)).isEqualTo(DrawBlockedReason.PARTICIPANTS_PENDING);
+        assertThat(DrawBlockedReason.NO_VALID_DRAW.code()).isEqualTo("no-valid-draw");
+        assertThat(DrawBlockedReason.NO_VALID_DRAW.message())
+                .isEqualTo("Com os dependentes deste grupo, não há sorteio possível. Convide mais participantes.");
+    }
+
+    @Test
     void eventDatePassedStartsAtTheEventTime() {
         SecretGroup group = groupWith(PARTY); // 19/12 às 19:00 de Brasília = 22:00 UTC
 

@@ -15,6 +15,7 @@ import br.com.amigosecreto.common.ForbiddenException;
 import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.common.RateLimitExceededException;
 import br.com.amigosecreto.common.UnprocessableException;
+import br.com.amigosecreto.dependent.dto.MyDependent;
 import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
@@ -30,6 +31,7 @@ import br.com.amigosecreto.group.dto.EventDetailsResponse;
 import br.com.amigosecreto.group.dto.GroupDetail;
 import br.com.amigosecreto.group.dto.GroupSummary;
 import br.com.amigosecreto.group.dto.JoinGroupRequest;
+import br.com.amigosecreto.group.dto.Participant;
 import br.com.amigosecreto.ratelimit.RateLimitPolicy;
 import br.com.amigosecreto.ratelimit.RateLimiter;
 import br.com.amigosecreto.wishlist.WishItem;
@@ -834,5 +836,116 @@ class GroupServiceTest {
 
         assertThat(service.getDetail(BRUNO, group.getId()).eventDetails().giftValue())
                 .isEqualTo(80);
+    }
+
+    // ---- feature 004: dependentes no detalhe (FR-005, research R40) ----
+
+    private GroupMember confirmedMember(SecretGroup group, UUID userId) {
+        GroupMember member = new GroupMember(group.getId(), userId, NOW);
+        member.confirm(NOW);
+        return member;
+    }
+
+    @Test
+    void theDetailShowsWhoIsADependentAndOnlyMyOwnDependents() {
+        SecretGroup group = openGroup(ANA);
+        UUID lucas = UUID.randomUUID();
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+        when(members.existsById(any(GroupMemberId.class))).thenReturn(true);
+        when(members.findParticipants(group.getId()))
+                .thenReturn(List.of(
+                        new ParticipantView(ANA, "Ana", NOW),
+                        new ParticipantView(BRUNO, "Bruno", NOW),
+                        new ParticipantView(lucas, "Lucas", NOW, BRUNO, "Bruno")));
+        when(members.findDependents(group.getId(), BRUNO))
+                .thenReturn(List.of(GroupMember.dependentOf(confirmedMember(group, BRUNO), lucas, NOW)));
+
+        GroupDetail forBruno = service.getDetail(BRUNO, group.getId());
+        GroupDetail forAna = service.getDetail(ANA, group.getId());
+
+        assertThat(forBruno.participants())
+                .extracting(Participant::name, Participant::dependent, Participant::guardianName)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("Ana", false, null),
+                        org.assertj.core.groups.Tuple.tuple("Bruno", false, null),
+                        org.assertj.core.groups.Tuple.tuple("Lucas", true, "Bruno"));
+        assertThat(forBruno.participantCount()).isEqualTo(3);
+        assertThat(forBruno.myDependents()).singleElement().satisfies(dependent -> {
+            assertThat(dependent.id()).isEqualTo(lucas);
+            assertThat(dependent.name()).isEqualTo("Lucas");
+            assertThat(dependent.confirmed()).isTrue();
+            assertThat(dependent.wishlist().items()).isEmpty();
+            assertThat(dependent.wishlist().editable()).isTrue();
+            assertThat(dependent.exitRequest()).isNull();
+        });
+        assertThat(forBruno.maxDependents()).isEqualTo(5);
+        assertThat(forBruno.canAddDependents()).isTrue();
+        assertThat(forBruno.dependentsBlockedReason()).isNull();
+        assertThat(forAna.myDependents()).isEmpty();
+    }
+
+    @Test
+    void theDetailSaysWhyNoMoreDependentsCanBeAdded() {
+        SecretGroup group = openGroup(ANA);
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+        when(members.existsById(any(GroupMemberId.class))).thenReturn(true);
+        givenParticipants(group, ANA, BRUNO);
+        GroupMember bruno = confirmedMember(group, BRUNO);
+        List<GroupMember> five = new java.util.ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            five.add(GroupMember.dependentOf(bruno, UUID.randomUUID(), NOW));
+        }
+        when(members.findDependents(group.getId(), BRUNO)).thenReturn(five);
+
+        GroupDetail limit = service.getDetail(BRUNO, group.getId());
+        assertThat(limit.canAddDependents()).isFalse();
+        assertThat(limit.dependentsBlockedReason()).isEqualTo("dependents-limit");
+
+        UUID[] hundred = new UUID[100];
+        hundred[0] = ANA;
+        for (int i = 1; i < 100; i++) {
+            hundred[i] = UUID.randomUUID();
+        }
+        givenParticipants(group, hundred);
+        assertThat(service.getDetail(ANA, group.getId()).dependentsBlockedReason())
+                .isEqualTo("group-full");
+
+        group.markDrawn(NOW);
+        assertThat(service.getDetail(ANA, group.getId()).dependentsBlockedReason())
+                .isEqualTo("group-already-drawn");
+    }
+
+    @Test
+    void theOrganizerSeesThatThereIsNoValidDrawBeforeTrying() {
+        SecretGroup group = openGroup(ANA);
+        UUID lucas = UUID.randomUUID();
+        when(groups.findById(group.getId())).thenReturn(Optional.of(group));
+        when(members.existsById(any(GroupMemberId.class))).thenReturn(true);
+        givenParticipants(group, ANA, BRUNO, lucas);
+        when(members.findDependentLinks(group.getId())).thenReturn(List.of(new DependentLink(lucas, BRUNO)));
+
+        GroupDetail detail = service.getDetail(ANA, group.getId());
+
+        assertThat(detail.drawBlockedReason()).isEqualTo("no-valid-draw");
+        assertThat(detail.canDraw()).isFalse();
+    }
+
+    @Test
+    void myDependentShowsThePendingExitRequestOnceDrawn() {
+        SecretGroup group = openGroup(ANA);
+        group.markDrawn(NOW);
+        UUID lucas = UUID.randomUUID();
+        GroupMember member = GroupMember.dependentOf(confirmedMember(group, BRUNO), lucas, NOW);
+        br.com.amigosecreto.exitrequest.ExitRequest request =
+                new br.com.amigosecreto.exitrequest.ExitRequest(group.getId(), lucas, BRUNO, NOW);
+        when(exitRequests.findByGroupIdAndUserIdAndStatus(
+                        group.getId(), lucas, br.com.amigosecreto.exitrequest.ExitRequestStatus.PENDING))
+                .thenReturn(Optional.of(request));
+
+        MyDependent dependent = service.myDependent(group, member, "Lucas");
+
+        assertThat(dependent.exitRequest()).isNotNull();
+        assertThat(dependent.exitRequest().id()).isEqualTo(request.getId());
+        assertThat(dependent.exitRequest().name()).isEqualTo("Lucas");
     }
 }

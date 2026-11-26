@@ -95,7 +95,8 @@ class SecrecyIT extends AbstractIntegrationTest {
             detail.json()
                     .get("participants")
                     .forEach(p -> assertThat(p.propertyNames())
-                            .containsExactlyInAnyOrder("userId", "name", "organizer", "confirmed"));
+                            .containsExactlyInAnyOrder(
+                                    "userId", "name", "organizer", "confirmed", "dependent", "guardianName"));
 
             ApiClient.EventStream stream = streams.get(i);
             assertThat(stream.awaitLineContaining("group-drawn", Duration.ofSeconds(5)))
@@ -287,7 +288,8 @@ class SecrecyIT extends AbstractIntegrationTest {
             detail.json()
                     .get("participants")
                     .forEach(p -> assertThat(p.propertyNames())
-                            .containsExactlyInAnyOrder("userId", "name", "organizer", "confirmed"));
+                            .containsExactlyInAnyOrder(
+                                    "userId", "name", "organizer", "confirmed", "dependent", "guardianName"));
             assertThat(list.json().get(0).toString().toLowerCase(Locale.ROOT)).doesNotContain("wish");
         }
 

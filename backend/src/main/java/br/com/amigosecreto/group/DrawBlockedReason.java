@@ -11,6 +11,9 @@ public enum DrawBlockedReason {
     EVENT_DETAILS_REQUIRED("event-details-required", "Informe a data e o local do evento para sortear."),
     EVENT_DATE_PASSED("event-date-passed", "A data do evento já passou. Atualize a data para sortear."),
     NOT_ENOUGH_PARTICIPANTS("not-enough-participants", "São necessários pelo menos 3 participantes."),
+    /** Feature 004 (research R35): as restrições de responsáveis e dependentes não deixam nenhum sorteio. */
+    NO_VALID_DRAW(
+            "no-valid-draw", "Com os dependentes deste grupo, não há sorteio possível. Convide mais participantes."),
     PARTICIPANTS_PENDING("participants-pending", "Ainda há participantes que não confirmaram.");
 
     private final String code;

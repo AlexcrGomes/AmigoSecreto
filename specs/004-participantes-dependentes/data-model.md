@@ -84,7 +84,7 @@ próprio dependente o referencia — aí fica só como registro (R37).
 | participantes do grupo | ≤ 100, contando dependentes | `409 group-full` |
 | situação do grupo ao adicionar/renomear/remover | `OPEN` | `409 group-already-drawn` / `409 group-finished` |
 | saída aprovada de dependente seu no grupo | não pode adicionar mais | `409 dependents-locked` |
-| sorteio | existe atribuição válida (R35) | `409 no-valid-draw` |
+| sorteio | existe atribuição válida (R35) | `422 no-valid-draw` |
 
 ## Migração
 

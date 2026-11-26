@@ -63,6 +63,9 @@ public class GroupConfirmationService {
         }
 
         member.confirm(clock.instant());
+        // Os dependentes confirmam junto com o responsável (FR-013 da 004, research R36)
+        members.findDependents(groupId, userId)
+                .forEach(dependent -> dependent.mirrorConfirmation(member.getConfirmedAt()));
         int count = (int) members.countByIdGroupId(groupId);
         // Entregue aos membros só depois do commit (SseEmitterRegistry, AFTER_COMMIT)
         events.publishEvent(new GroupUpdatedEvent(groupId, GroupStatus.OPEN, count, false));
