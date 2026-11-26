@@ -38,6 +38,10 @@ export function openGroup(overrides: Partial<GroupDetail> = {}): GroupDetail {
     myExitRequest: null,
     pendingExitRequests: [],
     myWishlist: { items: [], maxItems: 5, editable: true },
+    myDependents: [],
+    maxDependents: 5,
+    canAddDependents: true,
+    dependentsBlockedReason: null,
     ...overrides,
   };
 }

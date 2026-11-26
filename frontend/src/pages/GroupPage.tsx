@@ -12,6 +12,7 @@ import {
 } from '../api/groups';
 import { useAuth } from '../auth/AuthProvider';
 import { ConfirmParticipationCard } from '../components/group/ConfirmParticipationCard';
+import { DependentsCard } from '../components/group/DependentsCard';
 import { DrawButton } from '../components/group/DrawButton';
 import { EventDetailsCard } from '../components/group/EventDetailsCard';
 import { EventDetailsForm } from '../components/group/EventDetailsForm';
@@ -135,6 +136,16 @@ export function GroupPage() {
   );
   const pending = open && detail.myConfirmation === 'PENDING' && !detail.eventDetailsMissing;
   const confirmedGuest = open && !detail.organizer && detail.myConfirmation === 'CONFIRMED';
+
+  // Quem sai leva os dependentes (FR-016 da 004): o aviso lista quem sai junto
+  const removingDependents =
+    removing && !removing.dependent
+      ? detail.participants
+          .filter(
+            (participant) => participant.dependent && participant.guardianName === removing.name,
+          )
+          .map((participant) => participant.name)
+      : [];
 
   async function confirmRemove() {
     if (!removing) return;
@@ -266,6 +277,9 @@ export function GroupPage() {
       {/* A própria lista de desejos, em todos os status (US1 da 003) */}
       <WishlistEditor group={detail} />
 
+      {/* Quem não tem e-mail participa pelo responsável (US1 da 004) */}
+      <DependentsCard group={detail} />
+
       <ParticipantList
         participants={detail.participants}
         currentUserId={user?.id}
@@ -311,10 +325,20 @@ export function GroupPage() {
         onConfirm={confirmRemove}
         onClose={() => setRemoving(null)}
       >
-        <p>
-          {removing?.name} sairá do grupo e será avisado. Enquanto não houver sorteio, poderá entrar
-          de novo com o código.
-        </p>
+        {removing?.dependent ? (
+          <p>{removing.name} sairá do grupo.</p>
+        ) : (
+          <p>
+            {removing?.name} sairá do grupo e será avisado. Enquanto não houver sorteio, poderá
+            entrar de novo com o código.
+          </p>
+        )}
+        {removingDependents.length > 0 && (
+          <p className="mt-2">
+            Os dependentes de {removing?.name} ({removingDependents.join(', ')}) também saem do
+            grupo.
+          </p>
+        )}
       </ConfirmModal>
 
       <ConfirmModal

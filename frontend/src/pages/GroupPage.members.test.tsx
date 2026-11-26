@@ -160,4 +160,65 @@ describe('GroupPage — sair e remover (US4)', () => {
 
     expect(screen.queryByRole('button', { name: 'Sair do grupo' })).not.toBeInTheDocument();
   });
+
+  it('mostra de quem é cada dependente (feature 004)', async () => {
+    mockGroup(
+      openGroup({
+        participants: [
+          ...ORGANIZER_VIEW.participants,
+          {
+            userId: 'd-1',
+            name: 'Lucas',
+            organizer: false,
+            confirmed: true,
+            dependent: true,
+            guardianName: 'Carla',
+          },
+        ],
+      }),
+    );
+    renderGroup();
+
+    const list = await screen.findByRole('list', { name: 'Participantes' });
+    expect(within(list).getByText(/dependente de Carla/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Meus dependentes' })).toBeInTheDocument();
+  });
+
+  it('remover um responsável avisa que os dependentes saem junto', async () => {
+    mockGroup(
+      openGroup({
+        participants: [
+          ...ORGANIZER_VIEW.participants,
+          {
+            userId: 'd-1',
+            name: 'Lucas',
+            organizer: false,
+            confirmed: true,
+            dependent: true,
+            guardianName: 'Carla',
+          },
+          {
+            userId: 'd-2',
+            name: 'Bia',
+            organizer: false,
+            confirmed: true,
+            dependent: true,
+            guardianName: 'Carla',
+          },
+        ],
+      }),
+    );
+    renderGroup();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Remover Carla' }));
+    expect(screen.getByRole('dialog', { name: 'Remover participante?' })).toHaveTextContent(
+      'Os dependentes de Carla (Lucas, Bia) também saem do grupo.',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remover Lucas' }));
+    const dialog = screen.getByRole('dialog', { name: 'Remover participante?' });
+    expect(dialog).toHaveTextContent('Lucas sairá do grupo.');
+    expect(dialog).not.toHaveTextContent('será avisado');
+  });
 });

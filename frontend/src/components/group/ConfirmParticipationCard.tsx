@@ -51,6 +51,12 @@ export function ConfirmParticipationCard({
   }
 
   const details = group.eventDetails;
+  // Os dependentes confirmam junto com o responsável (FR-013 da 004)
+  const dependentNames = group.myDependents.map((dependent) => dependent.name);
+  const confirmLabel =
+    dependentNames.length === 0
+      ? 'Confirmar participação'
+      : `Confirmar participação (você e ${joinNames(dependentNames)})`;
 
   return (
     <Card className="border border-primary">
@@ -74,11 +80,17 @@ export function ConfirmParticipationCard({
         </p>
       )}
       <Button fullWidth className="mt-4" loading={confirming} onClick={() => void confirm()}>
-        Confirmar participação
+        {confirmLabel}
       </Button>
       <Button variant="ghost" fullWidth className="mt-2" disabled={confirming} onClick={onLeave}>
         Não vou participar
       </Button>
     </Card>
   );
+}
+
+/** "Lucas", "Lucas e Bia", "Lucas, Bia e Davi". */
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names.join('');
+  return `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`;
 }

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -18,6 +19,7 @@ import br.com.amigosecreto.draw.dto.DrawResult;
 import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
 import br.com.amigosecreto.exitrequest.ExitRequestRepository;
+import br.com.amigosecreto.group.DependentLink;
 import br.com.amigosecreto.group.EventDetails;
 import br.com.amigosecreto.group.EventSchedule;
 import br.com.amigosecreto.group.GroupFinishedException;
@@ -95,7 +97,7 @@ class DrawServiceTest {
         when(members.existsById(any(GroupMemberId.class))).thenReturn(true);
         when(members.findUserIds(group.getId())).thenReturn(List.of(ANA, BRUNO, CARLA));
         when(members.findPendingNames(group.getId())).thenReturn(List.of());
-        when(derangement.generate(anyList())).thenReturn(Map.of(ANA, BRUNO, BRUNO, CARLA, CARLA, ANA));
+        when(derangement.generate(anyList(), anyMap())).thenReturn(Map.of(ANA, BRUNO, BRUNO, CARLA, CARLA, ANA));
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new DrawService(
                 new GroupLock(groups, members, exitRequests, clock, events),
@@ -127,7 +129,7 @@ class DrawServiceTest {
                     assertThat(ex.getMessage()).isEqualTo(detail);
                 });
         assertThat(group.getStatus()).isEqualTo(GroupStatus.OPEN);
-        verify(derangement, never()).generate(anyList());
+        verify(derangement, never()).generate(anyList(), anyMap());
         verify(assignments, never()).saveAll(any());
         verify(events, never()).publishEvent(any());
     }
@@ -189,6 +191,31 @@ class DrawServiceTest {
         when(members.findUserIds(group.getId())).thenReturn(List.of(ANA, BRUNO));
 
         assertBlocked("not-enough-participants", "São necessários pelo menos 3 participantes.");
+    }
+
+    @Test
+    void aGroupWithoutAnyValidAssignmentIsRefusedBeforeDrawing() {
+        UUID lucas = UUID.randomUUID();
+        when(members.findUserIds(group.getId())).thenReturn(List.of(ANA, lucas, BRUNO));
+        when(members.findDependentLinks(group.getId())).thenReturn(List.of(new DependentLink(lucas, ANA)));
+
+        assertBlocked(
+                "no-valid-draw",
+                "Com os dependentes deste grupo, não há sorteio possível. Convide mais participantes.");
+    }
+
+    @Test
+    void guardiansAndDependentsAreHandedToTheGenerator() {
+        UUID lucas = UUID.randomUUID();
+        when(members.findUserIds(group.getId())).thenReturn(List.of(ANA, lucas, BRUNO, CARLA));
+        when(members.findDependentLinks(group.getId())).thenReturn(List.of(new DependentLink(lucas, ANA)));
+        when(derangement.generate(anyList(), anyMap()))
+                .thenReturn(Map.of(ANA, BRUNO, BRUNO, lucas, lucas, CARLA, CARLA, ANA));
+
+        service.draw(ANA, group.getId());
+
+        verify(derangement).generate(List.of(ANA, lucas, BRUNO, CARLA), Map.of(lucas, ANA));
+        verify(assignments).saveAll(any());
     }
 
     @Test
@@ -257,7 +284,7 @@ class DrawServiceTest {
         assertThatThrownBy(() -> service.draw(ANA, group.getId()))
                 .isInstanceOfSatisfying(
                         ConflictException.class, ex -> assertThat(ex.getType()).isEqualTo("group-already-drawn"));
-        verify(derangement, never()).generate(anyList());
+        verify(derangement, never()).generate(anyList(), anyMap());
         verify(assignments, never()).saveAll(any());
     }
 
@@ -273,7 +300,7 @@ class DrawServiceTest {
 
     @Test
     void generatorFailurePropagatesAndPublishesNothing() {
-        when(derangement.generate(anyList())).thenThrow(new IllegalStateException("sem derangement"));
+        when(derangement.generate(anyList(), anyMap())).thenThrow(new IllegalStateException("sem derangement"));
 
         assertThatThrownBy(() -> service.draw(ANA, group.getId())).isInstanceOf(IllegalStateException.class);
         verify(assignments, never()).saveAll(any());

@@ -12,8 +12,10 @@ import br.com.amigosecreto.events.GroupEvents.MembershipRevokedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.events.GroupEvents.RevocationReason;
 import br.com.amigosecreto.exitrequest.dto.ExitRequestResponse;
+import br.com.amigosecreto.group.DependentAccounts;
 import br.com.amigosecreto.group.GroupFinishedException;
 import br.com.amigosecreto.group.GroupLock;
+import br.com.amigosecreto.group.GroupMember;
 import br.com.amigosecreto.group.GroupMemberId;
 import br.com.amigosecreto.group.GroupMemberRepository;
 import br.com.amigosecreto.group.GroupService;
@@ -22,6 +24,7 @@ import br.com.amigosecreto.group.SecretGroup;
 import br.com.amigosecreto.group.dto.GroupDetail;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -45,6 +48,7 @@ public class ExitRequestService {
     private final AppUserRepository users;
     private final DrawService drawService;
     private final GroupService groupService;
+    private final DependentAccounts dependentAccounts;
     private final Clock clock;
     private final ApplicationEventPublisher events;
 
@@ -56,6 +60,7 @@ public class ExitRequestService {
             AppUserRepository users,
             DrawService drawService,
             GroupService groupService,
+            DependentAccounts dependentAccounts,
             Clock clock,
             ApplicationEventPublisher events) {
         this.lock = lock;
@@ -65,6 +70,7 @@ public class ExitRequestService {
         this.users = users;
         this.drawService = drawService;
         this.groupService = groupService;
+        this.dependentAccounts = dependentAccounts;
         this.clock = clock;
         this.events = events;
     }
@@ -131,10 +137,17 @@ public class ExitRequestService {
         }
         Instant now = clock.instant();
         UUID leaving = request.getUserId();
+        // Os dependentes de quem sai saem junto (FR-016 da 004); o ban é só de quem saiu (research R37)
+        List<GroupMember> dependents = members.findDependents(groupId, leaving);
+        List<UUID> dependentIds =
+                dependents.stream().map(dependent -> dependent.getId().userId()).toList();
 
         // Os pares primeiro: draw_assignment referencia a participação de quem sai
         drawService.discardDraw(group, now);
+        members.deleteAll(dependents);
         members.deleteById(new GroupMemberId(groupId, leaving));
+        members.flush();
+        dependentAccounts.deleteUnreferenced(dependentIds);
         exitBans.save(new GroupExitBan(groupId, leaving, now));
         request.approve(now);
         exitRequests.cancelAllPending(groupId, now);

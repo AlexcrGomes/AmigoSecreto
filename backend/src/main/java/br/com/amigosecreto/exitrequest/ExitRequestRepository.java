@@ -17,6 +17,9 @@ public interface ExitRequestRepository extends JpaRepository<ExitRequest, UUID> 
 
     Optional<ExitRequest> findByIdAndUserId(UUID id, UUID userId);
 
+    /** Algum pedido de saída (de qualquer situação) é deste usuário? Dependentes assim não são apagados (R37). */
+    boolean existsByUserId(UUID userId);
+
     /** Pedidos pendentes do grupo, os mais antigos primeiro, com o nome de quem pediu (FR-026). */
     @Query("""
             select new br.com.amigosecreto.exitrequest.dto.ExitRequestResponse(r.id, r.userId, u.name, r.requestedAt)

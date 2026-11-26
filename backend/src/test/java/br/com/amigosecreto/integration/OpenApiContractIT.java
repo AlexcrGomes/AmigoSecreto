@@ -17,9 +17,12 @@ import org.yaml.snakeyaml.Yaml;
 import tools.jackson.databind.JsonNode;
 
 /**
- * A API implementada e os contratos (contracts/openapi.yaml das features 001, 002 e 003) batem. Os contratos
- * da 002 e da 003 listam só o que é novo ou mudou; as rotas valem pela união dos três arquivos (research R24 da
- * 002).
+ * A API implementada e os contratos (contracts/openapi.yaml das features 001 a 004) batem. Os contratos da 002
+ * em diante listam só o que é novo ou mudou; as rotas valem pela união dos arquivos (research R24 da 002).
+ *
+ * <p>Enquanto a feature 004 é entregue em PRs por história, o teste é parcial (tarefa T002): toda rota
+ * implementada precisa estar documentada, e todas as rotas de 001 + 002 + 003 precisam existir. A igualdade
+ * completa com a união 001 + 002 + 003 + 004 volta na tarefa T052.
  *
  * <p>Roda no perfil {@code dev}, o único em que o springdoc gera a documentação.
  */
@@ -29,24 +32,30 @@ class OpenApiContractIT extends AbstractIntegrationTest {
     private static final Path CONTRACT_001 = Path.of("../specs/001-amigo-secreto-sorteio/contracts/openapi.yaml");
     private static final Path CONTRACT_002 = Path.of("../specs/002-grupo-evento-confirmacao/contracts/openapi.yaml");
     private static final Path CONTRACT_003 = Path.of("../specs/003-lista-desejos/contracts/openapi.yaml");
+    private static final Path CONTRACT_004 = Path.of("../specs/004-participantes-dependentes/contracts/openapi.yaml");
     private static final Set<String> HTTP_METHODS = Set.of("get", "post", "put", "patch", "delete");
 
     @Test
     void implementedRoutesMatchTheContracts() throws IOException {
-        for (Path contract : List.of(CONTRACT_001, CONTRACT_002, CONTRACT_003)) {
+        for (Path contract : List.of(CONTRACT_001, CONTRACT_002, CONTRACT_003, CONTRACT_004)) {
             assertThat(contract)
                     .as("o teste roda a partir de backend/ com o repositório completo")
                     .exists();
         }
 
         Set<String> generated = generatedRoutes();
-        Set<String> documented = new TreeSet<>(contractRoutes(CONTRACT_001));
-        documented.addAll(contractRoutes(CONTRACT_002));
-        documented.addAll(contractRoutes(CONTRACT_003));
+        Set<String> delivered = new TreeSet<>(contractRoutes(CONTRACT_001));
+        delivered.addAll(contractRoutes(CONTRACT_002));
+        delivered.addAll(contractRoutes(CONTRACT_003));
+        Set<String> documented = new TreeSet<>(delivered);
+        documented.addAll(contractRoutes(CONTRACT_004));
 
+        assertThat(documented)
+                .as("toda rota implementada está documentada na união 001 + 002 + 003 + 004")
+                .containsAll(generated);
         assertThat(generated)
-                .as("as rotas implementadas são exatamente as dos contratos 001 + 002 + 003")
-                .isEqualTo(documented);
+                .as("todas as rotas dos contratos 001 + 002 + 003 continuam implementadas")
+                .containsAll(delivered);
     }
 
     @Test

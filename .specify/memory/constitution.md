@@ -6,15 +6,24 @@
 
 O resultado do sorteio é informação confidencial de cada participante.
 
-- Cada usuário MUST conseguir ver **somente** o amigo secreto que ele próprio tirou.
+- Cada usuário MUST conseguir ver **somente** o amigo secreto que ele próprio tirou e, se for
+  responsável por dependentes, o de cada dependente seu.
+- Um **dependente** é um participante sem conta (ex.: uma criança), adicionado ao grupo por um
+  participante com conta, o seu **responsável**. O dependente MUST NOT ter acesso próprio ao
+  sistema, e o resultado dele MUST ser visível somente para o seu responsável — nunca para outros
+  participantes nem para o organizador.
 - Endpoints, telas, logs, mensagens de erro, eventos e respostas de API MUST NOT expor o par
-  (quem tirou quem) de outro usuário — isso inclui o criador/dono do grupo.
+  (quem tirou quem) de outra pessoa — outro usuário ou dependente de terceiros —, o que inclui o
+  criador/dono do grupo.
 - MUST NOT existir endpoint administrativo, de depuração ou "listar todos os pares".
 - A API MUST derivar a identidade exclusivamente do usuário autenticado; IDs de usuário vindos
-  do cliente NUNCA são usados para decidir qual resultado retornar (prevenção de IDOR).
+  do cliente NUNCA são usados para decidir qual resultado retornar (prevenção de IDOR). Os
+  resultados de dependentes que podem ser mostrados MUST ser derivados do usuário autenticado
+  (os dependentes de que ele é responsável), nunca de um identificador enviado pelo cliente.
 - Os pares MUST ser armazenados apenas na medida necessária e nunca registrados em logs; a
   proteção em repouso (ex.: criptografia de coluna) MUST ser avaliada e decidida no `plan`.
-- Testes automatizados MUST comprovar que um usuário não consegue obter o resultado de outro.
+- Testes automatizados MUST comprovar que um usuário não consegue obter o resultado de outro,
+  nem o de dependentes de que não é responsável.
 
 **Justificativa**: o valor do amigo secreto está na surpresa; um vazamento destrói o propósito
 do sistema.
@@ -24,17 +33,23 @@ do sistema.
 - Cada sorteio MUST ser executado **uma única vez, no servidor**, para o grupo inteiro, em uma
   transação atômica — nunca no cliente e nunca de forma parcial ou por usuário.
 - O resultado MUST ser um *derangement*: cada participante dá e recebe exatamente um presente
-  e **ninguém tira a si mesmo**. Se uma tentativa produzir auto-sorteio, o sorteio MUST ser
-  refeito até ser válido, antes de qualquer resultado ser persistido ou exibido.
-- A aleatoriedade MUST usar fonte criptograficamente segura (`SecureRandom`); o resultado não
-  pode ser previsível nem influenciável por qualquer participante.
+  e **ninguém tira a si mesmo**. Quando há dependentes, além disso, **nenhum responsável tira um
+  dependente seu nem é tirado por ele**. Se uma tentativa produzir um resultado que viole essas
+  regras, o sorteio MUST ser refeito até ser válido, antes de qualquer resultado ser persistido
+  ou exibido.
+- A aleatoriedade MUST usar fonte criptograficamente segura (`SecureRandom`), e o resultado MUST
+  ser uniforme entre todas as atribuições válidas; ele não pode ser previsível nem influenciável
+  por qualquer participante.
+- Quando as regras tornam impossível qualquer atribuição válida (ex.: um responsável, um
+  dependente seu e mais uma pessoa), o sorteio MUST ser recusado antes de persistir qualquer
+  resultado, com um motivo claro para o organizador.
 - O sorteio MUST ser idempotente: um grupo sorteado não pode ser sorteado novamente por
   requisições concorrentes ou repetidas (controle de estado + bloqueio/versão no banco).
 - O resultado MUST ficar disponível para todos os participantes do grupo no mesmo momento
   (mudança de estado única do grupo); o mecanismo de notificação (polling, SSE ou WebSocket)
   é decidido no `plan`.
-- O sorteio MUST exigir no mínimo 3 participantes (com 2, cada um deduziria o par do outro,
-  violando o Princípio I).
+- O sorteio MUST exigir no mínimo 3 participantes, contando os dependentes (com 2, cada um
+  deduziria o par do outro, violando o Princípio I).
 - Um sorteio concluído é **definitivo**, com uma única exceção: o organizador aprovar o pedido
   de saída de um participante que não seja o organizador. Nesse caso, em uma única transação,
   o participante sai do grupo, **todos os pares do sorteio são descartados de forma definitiva
@@ -63,7 +78,9 @@ caminho para que um sorteio seja refeito à vontade.
 - Tokens/sessões MUST ter expiração; se forem usados cookies, MUST ser `HttpOnly`, `Secure` e
   `SameSite`. Tokens MUST NOT ser guardados em `localStorage` sem justificativa no `plan`.
 - Autorização MUST ser verificada no servidor a cada requisição: só membros de um grupo acessam
-  dados desse grupo; só o criador pode iniciar o sorteio e aprovar pedidos de saída.
+  dados desse grupo; só o criador pode iniciar o sorteio e aprovar pedidos de saída; só o
+  responsável age em nome de um dependente seu (além do que já cabe ao criador, como remover
+  participantes antes do sorteio).
 - Códigos de grupo MUST ser únicos, não sequenciais e gerados com `SecureRandom` com entropia
   suficiente para impedir adivinhação; login e entrada por código MUST ter limitação de
   tentativas (rate limiting).
@@ -83,7 +100,8 @@ caminho para que um sorteio seja refeito à vontade.
   escritas com testes primeiro (Red → Green → Refactor).
 - O algoritmo do sorteio MUST ter testes de propriedade/repetição (milhares de execuções, vários
   tamanhos de grupo) verificando: nenhum auto-sorteio, cada participante dá e recebe exatamente
-  uma vez.
+  uma vez, nenhum responsável e dependente se tiram, e grupos sem atribuição válida são sempre
+  recusados.
 - Integração com o banco MUST ser testada com PostgreSQL real via Testcontainers (sem H2).
 - Cobertura mínima: **80% de linhas** nas camadas de domínio/serviço do backend e na lógica do
   frontend; o CI MUST falhar abaixo disso (JaCoCo / Vitest coverage).
@@ -208,4 +226,4 @@ tasks aprovados.
   `plan` com justificativa. Toda aprovação de PR MUST verificar os Princípios I a VIII.
 - Princípios marcados como NÃO NEGOCIÁVEL (I, II, IV) não admitem exceção, apenas emenda.
 
-**Version**: 1.2.1 | **Ratified**: 2026-11-12 | **Last Amended**: 2026-11-18
+**Version**: 1.3.0 | **Ratified**: 2026-11-12 | **Last Amended**: 2026-11-25

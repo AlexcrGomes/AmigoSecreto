@@ -6,6 +6,7 @@ import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.common.UnprocessableException;
 import br.com.amigosecreto.draw.dto.DrawResult;
 import br.com.amigosecreto.events.GroupEvents.GroupDrawnEvent;
+import br.com.amigosecreto.group.DependentLink;
 import br.com.amigosecreto.group.DrawBlockedReason;
 import br.com.amigosecreto.group.EventSchedule;
 import br.com.amigosecreto.group.GroupFinishedException;
@@ -87,7 +88,9 @@ public class DrawService {
         // Condições da 002, na ordem de research R16; dentro do lock, então ninguém entra nem muda a data no meio
         List<UUID> participants = members.findUserIds(groupId);
         List<String> pending = members.findPendingNames(groupId);
-        DrawBlockedReason blocked = group.drawBlockedReason(participants.size(), pending.size(), schedule);
+        Map<UUID, UUID> guardians = DependentLink.toGuardianMap(members.findDependentLinks(groupId));
+        boolean feasible = DerangementGenerator.isFeasible(participants, guardians);
+        DrawBlockedReason blocked = group.drawBlockedReason(participants.size(), pending.size(), feasible, schedule);
         if (blocked == DrawBlockedReason.PARTICIPANTS_PENDING) {
             throw new UnprocessableException(
                     blocked.code(), DrawBlockedReason.pendingMessage(pending), Map.of("pending", pending));
@@ -96,7 +99,8 @@ public class DrawService {
             throw new UnprocessableException(blocked.code(), blocked.message());
         }
 
-        Map<UUID, UUID> pairs = derangement.generate(participants);
+        // Responsável e dependente nunca se tiram (research R35); a viabilidade já foi verificada acima
+        Map<UUID, UUID> pairs = derangement.generate(participants, guardians);
         Instant now = clock.instant();
         List<DrawAssignment> rows = pairs.entrySet().stream()
                 .map(pair -> new DrawAssignment(

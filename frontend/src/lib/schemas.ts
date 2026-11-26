@@ -128,3 +128,13 @@ export const wishItemSchema = z.object({
 });
 
 export type WishItemInput = z.infer<typeof wishItemSchema>;
+
+/** Mensagem do nome do dependente, igual à do backend (data-model.md da 004). */
+export const DEPENDENT_NAME_MESSAGE = 'Informe um nome de 2 a 80 caracteres.';
+
+/** Dependente: só o nome, de 2 a 80 caracteres sem os espaços nas pontas (FR-001 da 004). */
+export const dependentSchema = z.object({
+  name: z.string().trim().min(2, DEPENDENT_NAME_MESSAGE).max(80, DEPENDENT_NAME_MESSAGE),
+});
+
+export type DependentInput = z.infer<typeof dependentSchema>;

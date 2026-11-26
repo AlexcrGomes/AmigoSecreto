@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -18,6 +19,7 @@ import br.com.amigosecreto.exitrequest.ExitRequestRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +51,9 @@ class GroupMembershipServiceTest {
     private ExitRequestRepository exitRequests;
 
     @Mock
+    private DependentAccounts dependentAccounts;
+
+    @Mock
     private ApplicationEventPublisher events;
 
     private GroupMembershipService service;
@@ -63,6 +68,7 @@ class GroupMembershipServiceTest {
         service = new GroupMembershipService(
                 members,
                 new GroupLock(groups, members, exitRequests, Clock.fixed(NOW, ZoneOffset.UTC), events),
+                dependentAccounts,
                 events);
     }
 
@@ -206,5 +212,53 @@ class GroupMembershipServiceTest {
         assertThat(group.getStatus()).isEqualTo(GroupStatus.FINISHED);
         verify(events).publishEvent(new GroupFinishedEvent(group.getId(), 2));
         verify(members, never()).deleteById(any());
+    }
+
+    // ---- feature 004: dependentes saem junto com o responsável (FR-016) ----
+
+    private GroupMember dependentOf(UUID guardian, UUID dependentId) {
+        return GroupMember.dependentOf(new GroupMember(group.getId(), guardian, NOW), dependentId, NOW);
+    }
+
+    @Test
+    void aGuardianWhoLeavesTakesTheDependentsAlong() {
+        GroupMember lucas = dependentOf(BRUNO, UUID.randomUUID());
+        when(members.findDependents(group.getId(), BRUNO)).thenReturn(List.of(lucas));
+
+        service.leave(BRUNO, group.getId());
+
+        verify(members).deleteAll(List.of(lucas));
+        verify(members).deleteById(member(BRUNO));
+        verify(dependentAccounts).deleteUnreferenced(List.of(lucas.getId().userId()));
+        verify(events).publishEvent(new MembershipRevokedEvent(group.getId(), BRUNO, RevocationReason.LEFT));
+        verify(events, times(1)).publishEvent(any(ParticipantsChangedEvent.class));
+    }
+
+    @Test
+    void theOrganizerRemovesADependentWithoutRevokingAnyConnection() {
+        UUID lucasId = UUID.randomUUID();
+        when(members.findById(member(lucasId))).thenReturn(Optional.of(dependentOf(BRUNO, lucasId)));
+
+        service.remove(ANA, group.getId(), lucasId);
+
+        verify(members).deleteById(member(lucasId));
+        verify(dependentAccounts).deleteUnreferenced(List.of(lucasId));
+        verify(events, never()).publishEvent(any(MembershipRevokedEvent.class));
+        verify(events).publishEvent(any(ParticipantsChangedEvent.class));
+    }
+
+    @Test
+    void removingAGuardianRemovesTheDependentsToo() {
+        GroupMember lucas = dependentOf(CARLA, UUID.randomUUID());
+        GroupMember bia = dependentOf(CARLA, UUID.randomUUID());
+        when(members.findDependents(group.getId(), CARLA)).thenReturn(List.of(lucas, bia));
+
+        service.remove(ANA, group.getId(), CARLA);
+
+        verify(members).deleteAll(List.of(lucas, bia));
+        verify(members).deleteById(member(CARLA));
+        verify(dependentAccounts)
+                .deleteUnreferenced(List.of(lucas.getId().userId(), bia.getId().userId()));
+        verify(events).publishEvent(new MembershipRevokedEvent(group.getId(), CARLA, RevocationReason.REMOVED));
     }
 }

@@ -1,0 +1,417 @@
+openapi: 3.1.0
+info:
+  title: Amigo Secreto API — mudanças da feature 004
+  version: 1.3.0
+  description: |
+    Somente as rotas e os schemas NOVOS ou ALTERADOS pela feature 004 (participantes
+    dependentes). Todo o resto continua como em specs/001-amigo-secreto-sorteio,
+    specs/002-grupo-evento-confirmacao e specs/003-lista-desejos (contracts/openapi.yaml): cookie de
+    sessão, CSRF em escritas, erros RFC 9457 em pt-BR, `404` para quem não é membro,
+    `409 group-finished` em grupo finalizado. As rotas valem pela união dos quatro arquivos.
+
+    Mudanças são ADITIVAS no prefixo `/api/v1`.
+
+    SIGILO (Constituição I): as rotas `my-dependents` alcançam só os dependentes do usuário da
+    sessão; dependente de outra pessoa, de outro grupo ou inexistente responde `404`, igual. O
+    resultado dos dependentes sai só em `GET /groups/{groupId}/my-dependents/secret-friends`, que
+    não recebe nenhum id: o conjunto vem do usuário da sessão (research R38).
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: dependents
+  - name: draw
+  - name: groups
+  - name: exit-requests
+
+paths:
+  /groups/{groupId}/my-dependents:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    post:
+      tags: [dependents]
+      summary: Adiciona um dependente ao grupo (NOVA — FR-001 a FR-005, FR-015)
+      description: |
+        O usuário da sessão vira o responsável. Só com o grupo `OPEN`. A confirmação do dependente
+        nasce igual à do responsável (research R36). Publica `participants-changed`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DependentRequest' }
+      responses:
+        '201':
+          description: Dependente adicionado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyDependent' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/GroupNotFound' }
+        '409':
+          description: |
+            Grupo sorteado (`/problems/group-already-drawn`) ou finalizado (`/problems/group-finished`),
+            grupo cheio (`/problems/group-full`), 5 dependentes já adicionados
+            (`/problems/dependents-limit`) ou saída de dependente seu já aprovada neste grupo
+            (`/problems/dependents-locked`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /groups/{groupId}/my-dependents/{dependentId}:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+      - $ref: '#/components/parameters/DependentId'
+    put:
+      tags: [dependents]
+      summary: Renomeia um dependente seu (NOVA — FR-006, FR-007)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DependentRequest' }
+      responses:
+        '200':
+          description: Nome alterado; publica `participants-changed`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyDependent' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/DependentNotFound' }
+        '409': { $ref: '#/components/responses/GroupNotOpen' }
+    delete:
+      tags: [dependents]
+      summary: Remove um dependente seu (NOVA — FR-006, FR-007)
+      description: Apaga a participação, a lista de desejos e o dependente; publica `participants-changed`.
+      responses:
+        '204': { description: Removido }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/DependentNotFound' }
+        '409': { $ref: '#/components/responses/GroupNotOpen' }
+
+  /groups/{groupId}/my-dependents/secret-friends:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    get:
+      tags: [draw]
+      summary: Amigo secreto de cada dependente do usuário da sessão (NOVA — FR-010 a FR-012)
+      description: |
+        Sem id na rota: o conjunto é o dos dependentes de que o usuário da sessão é responsável
+        neste grupo (research R38). Vazio se não houver nenhum. `Cache-Control: no-store`. Nunca
+        traz o id de quem foi tirado.
+      responses:
+        '200':
+          description: Resultados dos dependentes do usuário da sessão, na ordem em que foram adicionados
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DependentSecretFriend' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/GroupNotFound' }
+        '409':
+          description: Grupo ainda não sorteado, inclusive depois de um sorteio desfeito (`/problems/group-not-drawn`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /groups/{groupId}/my-dependents/{dependentId}/wishlist/items:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+      - $ref: '#/components/parameters/DependentId'
+    post:
+      tags: [dependents]
+      summary: Adiciona um item à lista de um dependente seu (NOVA — FR-014)
+      description: Mesmas regras de `/groups/{groupId}/wishlist/mine/items` (feature 003).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WishItemRequest' }
+      responses:
+        '201':
+          description: Item criado; devolve a lista atualizada do dependente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyWishlist' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/DependentNotFound' }
+        '409':
+          description: Lista cheia (`/problems/wishlist-full`) ou grupo finalizado (`/problems/group-finished`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /groups/{groupId}/my-dependents/{dependentId}/wishlist/items/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+      - $ref: '#/components/parameters/DependentId'
+      - $ref: '#/components/parameters/ItemId'
+    put:
+      tags: [dependents]
+      summary: Altera um item da lista de um dependente seu (NOVA — FR-014)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WishItemRequest' }
+      responses:
+        '200':
+          description: Item alterado; devolve a lista atualizada do dependente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyWishlist' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/DependentNotFound' }
+        '409': { $ref: '#/components/responses/GroupFinished' }
+    delete:
+      tags: [dependents]
+      summary: Remove um item da lista de um dependente seu (NOVA — FR-014)
+      responses:
+        '204': { description: Removido }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/DependentNotFound' }
+        '409': { $ref: '#/components/responses/GroupFinished' }
+
+  /groups/{groupId}/my-dependents/{dependentId}/exit-request:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+      - $ref: '#/components/parameters/DependentId'
+    post:
+      tags: [exit-requests]
+      summary: Pede a saída de um dependente seu depois do sorteio (NOVA — FR-015)
+      description: |
+        Mesmas regras de `POST /groups/{groupId}/exit-requests` (feature 002), para o dependente.
+        O aviso da decisão vai para o responsável (`requested_by`, research R37). Publica `group-updated`.
+      responses:
+        '201':
+          description: Pedido criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExitRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/DependentNotFound' }
+        '409':
+          description: |
+            Grupo não sorteado (`/problems/group-not-drawn`), finalizado (`/problems/group-finished`)
+            ou já existe pedido pendente (`/problems/exit-request-already-pending`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+    delete:
+      tags: [exit-requests]
+      summary: Cancela o pedido de saída pendente de um dependente seu (NOVA — FR-015)
+      responses:
+        '204': { description: Cancelado; publica `group-updated` }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/DependentNotFound' }
+        '409':
+          description: Nenhum pedido pendente (`/problems/exit-request-not-pending`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /groups/{groupId}/draw:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    post:
+      tags: [draw]
+      summary: Organizador sorteia (ALTERADA — restrições de dependentes, FR-009a, FR-009b)
+      description: |
+        Como na 001/002, mais: responsável e dependente nunca se tiram; sem atribuição válida, o
+        sorteio é recusado antes de persistir qualquer coisa (research R35).
+      responses:
+        '422':
+          description: |
+            Além dos motivos da 001/002 (também `422`): não há sorteio possível com os dependentes do
+            grupo (`/problems/no-valid-draw`)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: SESSION
+
+  parameters:
+    GroupId:
+      name: groupId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DependentId:
+      name: dependentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Sem sessão válida
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    GroupNotFound:
+      description: Grupo inexistente ou usuário não é membro (indistinguíveis de propósito)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    DependentNotFound:
+      description: |
+        Grupo, dependente ou item inexistente, dependente de outra pessoa ou usuário não é membro
+        (indistinguíveis de propósito)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    GroupNotOpen:
+      description: Grupo sorteado (`/problems/group-already-drawn`) ou finalizado (`/problems/group-finished`)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    GroupFinished:
+      description: Grupo finalizado, somente leitura (`/problems/group-finished`)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ValidationError:
+      description: Dados inválidos; `errors` lista os campos
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    DependentRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80, description: 'sem espaços nas pontas; texto simples' }
+
+    MyDependent:
+      type: object
+      description: Um dependente do usuário da sessão — nunca o resultado dele
+      required: [id, name, confirmed, wishlist]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        confirmed: { type: boolean, description: 'espelho da confirmação do responsável (R36)' }
+        wishlist: { $ref: '#/components/schemas/MyWishlist' }
+        exitRequest:
+          description: pedido de saída pendente do dependente, se houver
+          oneOf:
+            - $ref: '#/components/schemas/ExitRequest'
+            - type: 'null'
+
+    DependentSecretFriend:
+      type: object
+      required: [dependentId, dependentName, secretFriend]
+      properties:
+        dependentId: { type: string, format: uuid, description: 'o dependente (não quem ele tirou)' }
+        dependentName: { type: string }
+        secretFriend: { $ref: '#/components/schemas/SecretFriend' }
+
+    Participant:
+      type: object
+      description: Como na 001/002, mais a indicação de dependente (FR-005)
+      properties:
+        dependent: { type: boolean, description: 'NOVO' }
+        guardianName: { type: [string, 'null'], description: 'NOVO; nome do responsável, se dependente' }
+
+    ExitRequest:
+      type: object
+      description: Como na 002, mais o responsável quando quem sai é um dependente
+      properties:
+        guardianName: { type: [string, 'null'], description: 'NOVO' }
+
+    ExitRequestNotice:
+      type: object
+      description: Como na 002, mais o nome de quem saiu (o próprio usuário ou um dependente dele)
+      properties:
+        subjectName: { type: string, description: 'NOVO' }
+
+    GroupDetail:
+      type: object
+      description: Como na 003, mais os dependentes do usuário da sessão e as regras para adicionar
+      properties:
+        myDependents:
+          type: array
+          maxItems: 5
+          description: 'NOVO; só os dependentes do usuário da sessão'
+          items: { $ref: '#/components/schemas/MyDependent' }
+        maxDependents: { type: integer, const: 5, description: 'NOVO' }
+        canAddDependents: { type: boolean, description: 'NOVO' }
+        dependentsBlockedReason:
+          type: [string, 'null']
+          enum: [group-already-drawn, group-finished, group-full, dependents-limit, dependents-locked, null]
+          description: 'NOVO; por que não dá para adicionar agora'
+        drawBlockedReason:
+          type: [string, 'null']
+          description: 'ALTERADO; ganha `no-valid-draw` (research R35)'
+
+    WishItemRequest:
+      type: object
+      required: [description]
+      description: Como na 003
+      properties:
+        description: { type: string, minLength: 1, maxLength: 120 }
+        url: { type: [string, 'null'], maxLength: 500 }
+
+    WishItem:
+      type: object
+      required: [id, description]
+      description: Como na 003
+      properties:
+        id: { type: string, format: uuid }
+        description: { type: string }
+        url: { type: [string, 'null'] }
+
+    MyWishlist:
+      type: object
+      description: Como na 003 (também usada para a lista de um dependente)
+      required: [items, maxItems]
+      properties:
+        items:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/WishItem' }
+        maxItems: { type: integer, const: 5 }
+        editable: { type: boolean }
+
+    FriendWishItem:
+      type: object
+      description: Como na 003
+      required: [description]
+      properties:
+        description: { type: string }
+        url: { type: [string, 'null'] }
+
+    SecretFriend:
+      type: object
+      description: Como na 003
+      required: [name, wishlist]
+      properties:
+        name: { type: string }
+        wishlist:
+          type: array
+          items: { $ref: '#/components/schemas/FriendWishItem' }
+        wishlistUpdatedAt: { type: [string, 'null'], format: date-time }
+
+    Problem:
+      type: object
+      description: RFC 9457
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }

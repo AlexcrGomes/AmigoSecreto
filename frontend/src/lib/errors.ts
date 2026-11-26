@@ -10,6 +10,10 @@ export const DETAILS_CHANGED = 'Os detalhes mudaram. Confira e confirme de novo.
 /** Aviso a quem não é organizador quando a data, o horário ou o local mudaram (FR-015). */
 export const CONFIRMATIONS_RESET = 'Os detalhes do evento mudaram. Confira e confirme de novo.';
 
+/** Responsáveis e dependentes não permitem nenhum sorteio (FR-009b da 004). */
+export const NO_VALID_DRAW =
+  'Com os dependentes deste grupo, não há sorteio possível. Convide mais participantes.';
+
 /** O problema é do tipo informado (ex.: `details-changed`)? */
 export function isProblem(error: unknown, type: string): boolean {
   return error instanceof ApiError && error.type === `/problems/${type}`;
@@ -19,10 +23,15 @@ export function isProblem(error: unknown, type: string): boolean {
 export function drawBlockedMessage(group: GroupDetail): string | null {
   switch (group.drawBlockedReason) {
     case 'participants-pending': {
-      const pending = group.participants.filter((participant) => !participant.confirmed);
+      // Só quem tem conta: os dependentes confirmam junto com o responsável (feature 004)
+      const pending = group.participants.filter(
+        (participant) => !participant.confirmed && !participant.dependent,
+      );
       const verb = pending.length === 1 ? 'Falta' : 'Faltam';
       return `${verb} ${pending.length} confirmar: ${pending.map((p) => p.name).join(', ')}`;
     }
+    case 'no-valid-draw':
+      return NO_VALID_DRAW;
     case 'not-enough-participants':
       return 'São necessários pelo menos 3 participantes';
     case 'event-date-passed':

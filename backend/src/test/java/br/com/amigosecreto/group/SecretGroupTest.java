@@ -179,6 +179,19 @@ class SecretGroupTest {
     }
 
     @Test
+    void noValidDrawComesAfterTooFewParticipantsAndBeforePending() {
+        SecretGroup group = groupWith(PARTY);
+
+        assertThat(group.drawBlockedReason(2, 1, false, SCHEDULE)).isEqualTo(DrawBlockedReason.NOT_ENOUGH_PARTICIPANTS);
+        assertThat(group.drawBlockedReason(3, 1, false, SCHEDULE)).isEqualTo(DrawBlockedReason.NO_VALID_DRAW);
+        assertThat(group.drawBlockedReason(3, 0, false, SCHEDULE)).isEqualTo(DrawBlockedReason.NO_VALID_DRAW);
+        assertThat(group.drawBlockedReason(3, 1, true, SCHEDULE)).isEqualTo(DrawBlockedReason.PARTICIPANTS_PENDING);
+        assertThat(DrawBlockedReason.NO_VALID_DRAW.code()).isEqualTo("no-valid-draw");
+        assertThat(DrawBlockedReason.NO_VALID_DRAW.message())
+                .isEqualTo("Com os dependentes deste grupo, não há sorteio possível. Convide mais participantes.");
+    }
+
+    @Test
     void eventDatePassedStartsAtTheEventTime() {
         SecretGroup group = groupWith(PARTY); // 19/12 às 19:00 de Brasília = 22:00 UTC
 
@@ -392,6 +405,29 @@ class SecretGroupTest {
         member.touchWishlist(NOW.plusSeconds(120));
 
         assertThat(member.getWishlistUpdatedAt()).isEqualTo(NOW.plusSeconds(120));
+    }
+
+    @Test
+    void aDependentFollowsTheGuardiansConfirmation() {
+        UUID groupId = UUID.randomUUID();
+        GroupMember pending = new GroupMember(groupId, UUID.randomUUID(), NOW);
+        GroupMember organizer = GroupMember.organizer(groupId, UUID.randomUUID(), NOW);
+
+        GroupMember lucas = GroupMember.dependentOf(pending, UUID.randomUUID(), NOW.plusSeconds(60));
+        GroupMember bia = GroupMember.dependentOf(organizer, UUID.randomUUID(), NOW.plusSeconds(60));
+
+        assertThat(lucas.isDependent()).isTrue();
+        assertThat(lucas.getGuardianId()).isEqualTo(pending.getId().userId());
+        assertThat(lucas.getId().groupId()).isEqualTo(groupId);
+        assertThat(lucas.isConfirmed()).isFalse();
+        assertThat(bia.getConfirmedAt()).isEqualTo(organizer.getConfirmedAt());
+        assertThat(pending.isDependent()).isFalse();
+        assertThat(pending.getGuardianId()).isNull();
+
+        lucas.mirrorConfirmation(NOW.plusSeconds(120));
+        assertThat(lucas.getConfirmedAt()).isEqualTo(NOW.plusSeconds(120));
+        lucas.mirrorConfirmation(null);
+        assertThat(lucas.isConfirmed()).isFalse();
     }
 
     @Test

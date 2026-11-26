@@ -112,4 +112,44 @@ describe('ConfirmParticipationCard', () => {
 
     expect(onLeave).toHaveBeenCalledTimes(1);
   });
+
+  it('com dependentes, o botão diz que eles confirmam junto (feature 004)', () => {
+    mockSession(ANA);
+    const dependents = ['Lucas', 'Bia', 'Davi'].map((name, index) => ({
+      id: `d-${index}`,
+      name,
+      confirmed: false,
+      wishlist: { items: [], maxItems: 5, editable: true },
+      exitRequest: null,
+    }));
+    renderWithProviders(
+      <ConfirmParticipationCard
+        group={{ ...PENDING, myDependents: dependents.slice(0, 1) }}
+        onLeave={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: 'Confirmar participação (você e Lucas)' }),
+    ).toBeInTheDocument();
+  });
+
+  it('com vários dependentes, junta os nomes', () => {
+    mockSession(ANA);
+    const dependents = ['Lucas', 'Bia', 'Davi'].map((name, index) => ({
+      id: `d-${index}`,
+      name,
+      confirmed: false,
+      wishlist: { items: [], maxItems: 5, editable: true },
+      exitRequest: null,
+    }));
+    renderWithProviders(
+      <ConfirmParticipationCard
+        group={{ ...PENDING, myDependents: dependents }}
+        onLeave={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: 'Confirmar participação (você e Lucas, Bia e Davi)' }),
+    ).toBeInTheDocument();
+  });
 });

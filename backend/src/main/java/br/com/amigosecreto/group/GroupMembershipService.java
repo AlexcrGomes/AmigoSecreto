@@ -6,6 +6,8 @@ import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.events.GroupEvents.MembershipRevokedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.events.GroupEvents.RevocationReason;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -23,11 +25,17 @@ public class GroupMembershipService {
 
     private final GroupMemberRepository members;
     private final GroupLock lock;
+    private final DependentAccounts dependentAccounts;
     private final ApplicationEventPublisher events;
 
-    public GroupMembershipService(GroupMemberRepository members, GroupLock lock, ApplicationEventPublisher events) {
+    public GroupMembershipService(
+            GroupMemberRepository members,
+            GroupLock lock,
+            DependentAccounts dependentAccounts,
+            ApplicationEventPublisher events) {
         this.members = members;
         this.lock = lock;
+        this.dependentAccounts = dependentAccounts;
         this.events = events;
     }
 
@@ -76,12 +84,31 @@ public class GroupMembershipService {
         }
     }
 
+    /**
+     * Tira o participante e, se ele for responsável, os dependentes dele (FR-016 da 004), apagando também o
+     * {@code app_user} dos dependentes. Um dependente removido não tem conexões, então não recebe
+     * {@code membership-revoked}.
+     */
     private void delete(SecretGroup group, UUID userId, RevocationReason reason) {
-        members.deleteById(new GroupMemberId(group.getId(), userId));
+        GroupMemberId leavingId = new GroupMemberId(group.getId(), userId);
+        boolean leavingIsDependent =
+                members.findById(leavingId).map(GroupMember::isDependent).orElse(false);
+        List<GroupMember> dependents = members.findDependents(group.getId(), userId);
+        List<UUID> leavingDependents = new ArrayList<>();
+        dependents.forEach(dependent -> leavingDependents.add(dependent.getId().userId()));
+        if (leavingIsDependent) {
+            leavingDependents.add(userId);
+        }
+        members.deleteAll(dependents);
+        members.deleteById(leavingId);
+        members.flush();
+        dependentAccounts.deleteUnreferenced(leavingDependents);
         int count = (int) members.countByIdGroupId(group.getId());
         // A revogação vem primeiro (os listeners pós-commit rodam na ordem de publicação): as conexões de
         // quem saiu são fechadas antes do sinal aos demais, então um ex-membro não recebe mais nada
-        events.publishEvent(new MembershipRevokedEvent(group.getId(), userId, reason));
+        if (!leavingIsDependent) {
+            events.publishEvent(new MembershipRevokedEvent(group.getId(), userId, reason));
+        }
         events.publishEvent(new ParticipantsChangedEvent(group.getId(), GroupStatus.OPEN, count));
     }
 }

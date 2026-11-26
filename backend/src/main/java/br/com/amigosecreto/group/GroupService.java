@@ -3,6 +3,8 @@ package br.com.amigosecreto.group;
 import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.ForbiddenException;
 import br.com.amigosecreto.common.NotFoundException;
+import br.com.amigosecreto.dependent.dto.MyDependent;
+import br.com.amigosecreto.draw.DerangementGenerator;
 import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
 import br.com.amigosecreto.exitrequest.ExitRequestRepository;
@@ -37,7 +39,7 @@ public class GroupService {
     public static final int MAX_PARTICIPANTS = 100;
     static final int CODE_ATTEMPTS = 5;
 
-    static final String GROUP_NOT_FOUND = "Grupo não encontrado.";
+    public static final String GROUP_NOT_FOUND = "Grupo não encontrado.";
     static final String INVALID_CODE = "Código inválido.";
 
     private final SecretGroupRepository groups;
@@ -207,15 +209,21 @@ public class GroupService {
     public GroupDetail detail(SecretGroup group, UUID userId) {
         List<ParticipantView> views = members.findParticipants(group.getId());
         List<Participant> participants = views.stream()
-                .map(view ->
-                        new Participant(view.userId(), view.name(), group.isOrganizer(view.userId()), view.confirmed()))
+                .map(view -> new Participant(
+                        view.userId(),
+                        view.name(),
+                        group.isOrganizer(view.userId()),
+                        view.confirmed(),
+                        view.dependent(),
+                        view.guardianName()))
                 .toList();
         int confirmedCount =
                 (int) views.stream().filter(ParticipantView::confirmed).count();
         boolean meConfirmed = views.stream().anyMatch(view -> view.userId().equals(userId) && view.confirmed());
         boolean open = group.getStatus() == GroupStatus.OPEN;
         DrawBlockedReason blocked = open
-                ? group.drawBlockedReason(participants.size(), participants.size() - confirmedCount, schedule)
+                ? group.drawBlockedReason(
+                        participants.size(), participants.size() - confirmedCount, feasible(group, views), schedule)
                 : null;
         boolean organizer = group.isOrganizer(userId);
         boolean canDraw = organizer && open && blocked == null;
@@ -235,6 +243,11 @@ public class GroupService {
                 pendingExitRequests = exitRequests.findPending(group.getId());
             }
         }
+        List<MyDependent> myDependents = members.findDependents(group.getId(), userId).stream()
+                .map(member ->
+                        myDependent(group, member, nameOf(views, member.getId().userId())))
+                .toList();
+        String dependentsBlocked = dependentsBlockedReason(group, participants.size(), myDependents.size());
         EventDetailsResponse eventDetails = group.eventDetails(schedule)
                 .map(details -> EventDetailsResponse.from(details, group.getGiftValue()))
                 .orElse(null);
@@ -260,7 +273,58 @@ public class GroupService {
                 open && group.getDrawUndoneAt() != null,
                 myExitRequest,
                 pendingExitRequests,
-                myWishlist(group, userId));
+                myWishlist(group, userId),
+                myDependents,
+                MAX_DEPENDENTS,
+                dependentsBlocked == null,
+                dependentsBlocked);
+    }
+
+    /** Até 5 dependentes por responsável e grupo (FR-003 da 004). */
+    public static final int MAX_DEPENDENTS = 5;
+
+    /** Existe sorteio válido com os responsáveis e dependentes do grupo (research R35)? */
+    private boolean feasible(SecretGroup group, List<ParticipantView> views) {
+        List<UUID> ids = views.stream().map(ParticipantView::userId).toList();
+        return DerangementGenerator.isFeasible(
+                ids, DependentLink.toGuardianMap(members.findDependentLinks(group.getId())));
+    }
+
+    /**
+     * Por que o usuário não pode adicionar dependentes agora (feature 004, research R40), ou nulo. A mesma
+     * ordem do {@code DependentService}.
+     */
+    private static String dependentsBlockedReason(SecretGroup group, int participantCount, int myDependentCount) {
+        if (group.getStatus() == GroupStatus.FINISHED) {
+            return "group-finished";
+        }
+        if (group.getStatus() != GroupStatus.OPEN) {
+            return "group-already-drawn";
+        }
+        if (participantCount >= MAX_PARTICIPANTS) {
+            return "group-full";
+        }
+        if (myDependentCount >= MAX_DEPENDENTS) {
+            return "dependents-limit";
+        }
+        return null;
+    }
+
+    /**
+     * Um dependente do usuário da sessão como ele o vê: nome, confirmação, lista de desejos e pedido de saída
+     * pendente — nunca o resultado do sorteio (feature 004).
+     */
+    public MyDependent myDependent(SecretGroup group, GroupMember member, String name) {
+        UUID dependentId = member.getId().userId();
+        ExitRequestResponse exitRequest = null;
+        if (group.getStatus() == GroupStatus.DRAWN) {
+            exitRequest = exitRequests
+                    .findByGroupIdAndUserIdAndStatus(group.getId(), dependentId, ExitRequestStatus.PENDING)
+                    .map(request ->
+                            new ExitRequestResponse(request.getId(), dependentId, name, request.getRequestedAt()))
+                    .orElse(null);
+        }
+        return new MyDependent(dependentId, name, member.isConfirmed(), myWishlist(group, dependentId), exitRequest);
     }
 
     /** Só a lista do usuário da sessão; somente leitura em grupo finalizado (feature 003, FR-005). */

@@ -69,7 +69,8 @@ public class AuthService {
         String key = email + "|" + clientIp;
         rateLimiter.ensureNotExhausted(RateLimitPolicy.LOGIN_FAILURE, key);
 
-        Optional<AppUser> user = users.findByEmail(email);
+        // Defesa em profundidade: um dependente não tem e-mail nem senha e nunca autentica (feature 004, FR-002)
+        Optional<AppUser> user = users.findByEmail(email).filter(found -> !found.isDependent());
         String hash = user.map(AppUser::getPasswordHash).orElse(dummyHash);
         boolean passwordMatches = passwordEncoder.matches(request.password(), hash);
 

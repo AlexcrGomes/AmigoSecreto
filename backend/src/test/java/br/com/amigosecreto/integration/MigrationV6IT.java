@@ -44,15 +44,17 @@ class MigrationV6IT extends AbstractIntegrationTest {
 
     private UUID insertRequest(String status, Timestamp decidedAt) {
         UUID id = UUID.randomUUID();
+        // requested_by é obrigatório desde a V8 (feature 004): o pedido do próprio usuário
         jdbc.update(
-                "insert into exit_request (id, group_id, user_id, status, requested_at, decided_at)"
-                        + " values (?, ?, ?, ?, ?, ?)",
+                "insert into exit_request (id, group_id, user_id, status, requested_at, decided_at, requested_by)"
+                        + " values (?, ?, ?, ?, ?, ?, ?)",
                 id,
                 groupId,
                 userId,
                 status,
                 NOW,
-                decidedAt);
+                decidedAt,
+                userId);
         return id;
     }
 

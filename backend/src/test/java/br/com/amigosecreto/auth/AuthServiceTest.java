@@ -179,6 +179,18 @@ class AuthServiceTest {
     }
 
     @Test
+    void aDependentNeverAuthenticatesAndFailsLikeAnUnknownEmail() {
+        AppUser lucas = AppUser.dependent("Lucas", NOW);
+        when(users.findByEmail("lucas")).thenReturn(Optional.of(lucas));
+
+        Throwable failure = catchApiException(() -> service.authenticate(new LoginRequest("Lucas", "qualquer"), IP));
+
+        assertThat(failure).isInstanceOf(UnauthorizedException.class).hasMessage("E-mail ou senha inválidos.");
+        verify(passwordEncoder).matches("qualquer", DUMMY_HASH);
+        verify(rateLimiter).consume(RateLimitPolicy.LOGIN_FAILURE, "lucas|" + IP);
+    }
+
+    @Test
     void blockedLoginIsRejectedBeforeCheckingThePassword() {
         doThrow(new RateLimitExceededException(600))
                 .when(rateLimiter)
