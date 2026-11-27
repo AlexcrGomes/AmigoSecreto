@@ -88,6 +88,29 @@ describe('GroupPage — status DRAWN', () => {
     expect(screen.queryByRole('button', { name: 'Realizar sorteio' })).not.toBeInTheDocument();
   });
 
+  // ---- visual novo (feature 005) ----
+
+  it('selo em pílula, aviso com ícone e as seções na mesma ordem', async () => {
+    mockGroup(READY, DRAWN);
+    renderGroup();
+    await screen.findByText('Aguardando sorteio');
+
+    act(() => FakeEventSource.latest().emit('group-drawn', { status: 'DRAWN' }));
+
+    const notice = await screen.findByText(
+      'O sorteio foi realizado! Toque em Revelar para ver quem você tirou.',
+    );
+    expect(notice.closest('[role="status"]')?.querySelector('svg')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
+    expect(screen.getByText('Sorteado')).toHaveClass('rounded-control');
+
+    const friend = screen.getByRole('heading', { name: 'Seu amigo secreto' });
+    const participants = screen.getByRole('heading', { name: '3 participantes' });
+    expect(friend.compareDocumentPosition(participants)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
   // ---- saída depois do sorteio (US4 da 002) ----
 
   /** Ana é só participante; Bruno organiza. */
@@ -146,11 +169,10 @@ describe('GroupPage — status DRAWN', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Ocultar' })).not.toBeInTheDocument();
-    expect(
-      await screen.findByText(
-        'Uma pessoa saiu do grupo e o sorteio foi desfeito. O organizador fará um novo sorteio.',
-      ),
-    ).toBeInTheDocument();
+    const undone = await screen.findByText(
+      'Uma pessoa saiu do grupo e o sorteio foi desfeito. O organizador fará um novo sorteio.',
+    );
+    expect(undone.closest('[role="status"]')?.querySelector('svg')).not.toBeNull();
     expect(await screen.findByText('Aguardando sorteio')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Seu amigo secreto' })).not.toBeInTheDocument();
   });

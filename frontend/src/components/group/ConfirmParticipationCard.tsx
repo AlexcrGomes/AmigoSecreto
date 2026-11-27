@@ -6,6 +6,7 @@ import { formatEventDate } from '../../lib/eventDate';
 import { DETAILS_CHANGED, errorMessage, isProblem } from '../../lib/errors';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { Notice } from '../ui/Notice';
 import { useToast } from '../ui/Toast';
 
 interface ConfirmParticipationCardProps {
@@ -59,7 +60,7 @@ export function ConfirmParticipationCard({
       : `Confirmar participação (você e ${joinNames(dependentNames)})`;
 
   return (
-    <Card className="border border-primary">
+    <Card highlight>
       <h2 className="text-lg font-semibold text-text">Confirme sua participação</h2>
       {details && (
         <p className="mt-1 text-text">
@@ -69,15 +70,11 @@ export function ConfirmParticipationCard({
       <p className="mt-1 text-sm text-text-muted">
         Confira os detalhes do evento. O sorteio só acontece quando todos confirmarem.
       </p>
-      {notice && !error && (
-        <p role="status" className="mt-3 rounded-control border border-primary px-3 py-2 text-text">
-          {notice}
-        </p>
-      )}
+      {notice && !error && <Notice className="mt-3">{notice}</Notice>}
       {error && (
-        <p role="alert" className="mt-3 rounded-control border border-danger px-3 py-2 text-danger">
+        <Notice tone="danger" role="alert" className="mt-3">
           {error}
-        </p>
+        </Notice>
       )}
       <Button fullWidth className="mt-4" loading={confirming} onClick={() => void confirm()}>
         {confirmLabel}

@@ -1,3 +1,4 @@
+import { Button as GlassButton, type ButtonProps as GlassButtonProps } from 'glisse';
 import type { ButtonHTMLAttributes } from 'react';
 import { Spinner } from './Spinner';
 
@@ -10,21 +11,29 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
-const VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'bg-primary text-on-primary hover:bg-primary-hover',
-  secondary: 'border border-border bg-surface text-text hover:bg-surface-muted',
-  danger: 'border border-danger bg-surface text-danger hover:bg-surface-muted',
-  ghost: 'bg-transparent text-primary hover:bg-surface-muted',
+/** Como cada variante vira o botão da Glisse (contracts/ui-components.md). */
+const GLISSE: Record<ButtonVariant, Pick<GlassButtonProps, 'variant' | 'destructive' | 'tint'>> = {
+  primary: { variant: 'filled' },
+  secondary: { variant: 'glass' },
+  ghost: { variant: 'glass', tint: 'var(--color-primary)' },
+  danger: { variant: 'glass', destructive: true },
 };
 
-/** Classes do botão, também usadas em links com cara de botão. */
+/** Visual equivalente para links com cara de botão (que não podem ser o botão da Glisse). */
+const LINK_VARIANTS: Record<ButtonVariant, string> = {
+  primary: 'bg-primary-fill text-on-primary hover:bg-primary-hover',
+  secondary: 'surface-glass text-text',
+  danger: 'surface-glass text-danger',
+  ghost: 'surface-glass text-primary',
+};
+
+/** Classes de um link em pílula, no mesmo formato do botão. */
 export function buttonClasses(variant: ButtonVariant = 'primary', fullWidth = false): string {
   return [
     // Alvo de toque mínimo de 44×44 px (Constituição VI)
     'inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-control px-4 font-semibold',
-    'transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-    'disabled:cursor-not-allowed disabled:opacity-60',
-    VARIANTS[variant],
+    'transition-colors',
+    LINK_VARIANTS[variant],
     fullWidth ? 'w-full' : '',
   ].join(' ');
 }
@@ -40,15 +49,18 @@ export function Button({
   ...rest
 }: ButtonProps) {
   return (
-    <button
+    <GlassButton
+      {...GLISSE[variant]}
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={`${buttonClasses(variant, fullWidth)} ${className}`}
+      className={['min-h-11 min-w-11 font-semibold', fullWidth ? 'w-full' : '', className]
+        .filter(Boolean)
+        .join(' ')}
       {...rest}
     >
       {loading && <Spinner />}
       <span>{children}</span>
-    </button>
+    </GlassButton>
   );
 }

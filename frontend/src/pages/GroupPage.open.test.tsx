@@ -192,9 +192,10 @@ describe('GroupPage — status OPEN', () => {
     mockGroup(ANA_PENDING);
     renderGroup();
 
-    expect(
-      await screen.findByRole('heading', { name: 'Confirme sua participação' }),
-    ).toBeInTheDocument();
+    const heading = await screen.findByRole('heading', { name: 'Confirme sua participação' });
+    // Cartão de destaque, com o vidro da Glisse (feature 005)
+    expect(heading.closest('.lg-glass')).not.toBeNull();
+    expect(screen.getByText('Aguardando sorteio')).toHaveClass('rounded-control');
     expect(screen.getByRole('button', { name: 'Confirmar participação' })).toBeInTheDocument();
     expect(screen.queryByText('Você confirmou')).not.toBeInTheDocument();
 

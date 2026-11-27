@@ -6,7 +6,14 @@ import { formatGiftValue } from '../../lib/giftValue';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Spinner } from '../ui/Spinner';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { WishlistView } from './WishlistView';
+
+/** Nome revelado em destaque; a entrada animada (até 300 ms) some com "reduzir movimento" (R50). */
+export function revealedNameClasses(reducedMotion: boolean): string {
+  const base = 'text-3xl font-extrabold break-words text-primary';
+  return reducedMotion ? base : `${base} reveal-in`;
+}
 
 export function secretFriendKey(groupId: string) {
   return ['secret-friend', groupId] as const;
@@ -44,15 +51,16 @@ export function SecretFriendCard({
   }
 
   const showName = revealed && friend.isSuccess;
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 
   return (
-    <Card className="text-center">
+    <Card highlight className="text-center">
       <h2 className="text-lg font-semibold text-text">Seu amigo secreto</h2>
       <div className="my-4 flex min-h-12 items-center justify-center">
         {revealed && friend.isFetching ? (
           <Spinner label="Revelando" className="size-8 text-primary" />
         ) : showName ? (
-          <p className="text-3xl font-bold break-words text-primary">{friend.data.name}</p>
+          <p className={revealedNameClasses(reducedMotion)}>{friend.data.name}</p>
         ) : (
           <p
             className="text-3xl font-bold tracking-widest text-text-muted"

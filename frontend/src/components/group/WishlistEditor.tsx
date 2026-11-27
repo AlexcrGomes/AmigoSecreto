@@ -109,7 +109,10 @@ export function WishlistEditor({
       ) : (
         <ul aria-labelledby={headingId} className="mt-4 flex flex-col gap-3">
           {items.map((item) => (
-            <li key={item.id} className="rounded-control border border-border p-3">
+            <li
+              key={item.id}
+              className="rounded-2xl bg-surface/60 p-3 ring-1 ring-border ring-inset"
+            >
               <p className="font-medium break-words whitespace-pre-line text-text">
                 {item.description}
               </p>

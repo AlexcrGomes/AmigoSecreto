@@ -128,7 +128,7 @@ export function ExitRequestDecisionNotice({
   }
 
   return (
-    <Card className="border border-primary">
+    <Card highlight>
       <p role="status" className="text-text">
         {decisionMessage(notice, status)}
       </p>

@@ -43,7 +43,7 @@ export function ShareCode({ code, groupName }: ShareCodeProps) {
   return (
     <Card className="text-center">
       <p className="text-sm font-medium text-text-muted">Código do grupo</p>
-      <p className="mt-1 font-mono text-3xl font-bold tracking-widest text-text select-all">
+      <p className="mt-1 font-mono text-4xl font-extrabold tracking-[0.2em] text-primary select-all">
         {code}
       </p>
       <p className="mt-2 text-sm text-text-muted">

@@ -22,9 +22,12 @@ export function AppHeader() {
   }
 
   return (
-    <header className="border-b border-border bg-surface">
-      <div className="mx-auto flex min-h-14 w-full max-w-md items-center justify-between gap-3 px-4">
-        <Link to="/" className="inline-flex min-h-11 items-center text-lg font-bold text-primary">
+    <header className="sticky top-0 z-40 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <div className="surface-glass mx-auto flex min-h-14 w-full max-w-md items-center justify-between gap-3 rounded-control py-1 pr-1.5 pl-5">
+        <Link
+          to="/"
+          className="inline-flex min-h-11 items-center text-lg font-extrabold tracking-tight text-primary"
+        >
           Amigo Secreto
         </Link>
         {user && (

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { errorMessage } from '../../lib/errors';
 import { Button, type ButtonVariant } from './Button';
+import { IconAlert } from './icons';
 import { Modal } from './Modal';
 
 interface ConfirmModalProps {
@@ -63,7 +64,11 @@ export function ConfirmModal({
     >
       {children}
       {error && (
-        <p role="alert" className="mt-3 rounded-control border border-danger px-3 py-2 text-danger">
+        <p
+          role="alert"
+          className="mt-3 flex items-start gap-2 rounded-field border border-danger bg-surface px-3 py-2 font-medium text-danger"
+        >
+          <IconAlert className="mt-0.5 size-4 shrink-0" />
           {error}
         </p>
       )}

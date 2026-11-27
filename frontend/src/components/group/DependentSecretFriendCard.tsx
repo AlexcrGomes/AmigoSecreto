@@ -7,6 +7,8 @@ import { formatGiftValue } from '../../lib/giftValue';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Spinner } from '../ui/Spinner';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { revealedNameClasses } from './SecretFriendCard';
 import { WishlistView } from './WishlistView';
 
 export function dependentsSecretFriendsKey(groupId: string) {
@@ -103,15 +105,16 @@ function DependentSecretFriendCard({
   onHide,
 }: DependentSecretFriendCardProps) {
   const friend = revealed ? result?.secretFriend : undefined;
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 
   return (
-    <Card className="text-center">
+    <Card highlight className="text-center">
       <h2 className="text-lg font-semibold break-words text-text">Amigo secreto de {name}</h2>
       <div className="my-4 flex min-h-12 items-center justify-center">
         {loading ? (
           <Spinner label="Revelando" className="size-8 text-primary" />
         ) : friend ? (
-          <p className="text-3xl font-bold break-words text-primary">{friend.name}</p>
+          <p className={revealedNameClasses(reducedMotion)}>{friend.name}</p>
         ) : (
           <p
             className="text-3xl font-bold tracking-widest text-text-muted"

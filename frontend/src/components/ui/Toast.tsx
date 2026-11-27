@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { IconAlert, IconCheck } from './icons';
 
 type ToastKind = 'info' | 'success' | 'error';
 
@@ -16,11 +17,16 @@ const DURATION_MS = 4000;
 
 const ToastContext = createContext<ToastApi | null>(null);
 
-const KIND_STYLES: Record<ToastKind, string> = {
-  info: 'border-border',
-  success: 'border-success',
-  error: 'border-danger',
-};
+/** Ícone de cada tipo de aviso: sucesso e erro não dependem só da cor (FR-009). */
+function KindIcon({ kind }: { kind: ToastKind }) {
+  if (kind === 'success') {
+    return <IconCheck data-testid="toast-icon-success" className="size-5 shrink-0 text-success" />;
+  }
+  if (kind === 'error') {
+    return <IconAlert data-testid="toast-icon-error" className="size-5 shrink-0 text-danger" />;
+  }
+  return null;
+}
 
 let nextId = 1;
 
@@ -49,19 +55,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div
         role="status"
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-4 z-50 mx-auto flex w-full max-w-md flex-col gap-2 px-4"
+        className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--toast-offset,1rem)+env(safe-area-inset-bottom))] z-50 mx-auto flex w-full max-w-md flex-col gap-2 px-4"
       >
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-center justify-between gap-3 rounded-control border-l-4 bg-surface py-2 pr-1 pl-4 text-text shadow-card ${KIND_STYLES[toast.kind]}`}
+            className="surface-glass pointer-events-auto flex items-center gap-3 rounded-3xl py-1.5 pr-1 pl-4 text-text"
           >
-            <span>{toast.message}</span>
+            <KindIcon kind={toast.kind} />
+            <span className="flex-1 font-medium">{toast.message}</span>
             <button
               type="button"
               aria-label="Fechar aviso"
               onClick={() => dismiss(toast.id)}
-              className="min-h-11 min-w-11 rounded-control text-text-muted hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-primary"
+              className="min-h-11 min-w-11 rounded-control text-text-muted hover:bg-surface/60"
             >
               ×
             </button>
