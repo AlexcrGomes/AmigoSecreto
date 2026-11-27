@@ -195,3 +195,72 @@ describe('WishlistEditor', () => {
     expect(await screen.findByText('<b>caro</b>')).toBeInTheDocument();
   });
 });
+
+describe('WishlistEditor — lista de um dependente (US3 da 004)', () => {
+  const LUCAS = {
+    id: 'd-1',
+    name: 'Lucas',
+    confirmed: true,
+    wishlist: { items: [], maxItems: 5, editable: true },
+    exitRequest: null,
+  };
+
+  /** O editor do dependente com a consulta do grupo viva. */
+  function WithLiveDependent() {
+    const group = useGroup('g-1');
+    const dependent = group.data?.myDependents[0];
+    return group.data && dependent ? (
+      <WishlistEditor group={group.data} dependent={dependent} />
+    ) : null;
+  }
+
+  it('usa as rotas do dependente e atualiza só a lista dele', async () => {
+    let body: unknown;
+    server.use(
+      http.post('/api/v1/groups/g-1/my-dependents/d-1/wishlist/items', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(listOf([LIVRO]), { status: 201 });
+      }),
+    );
+    mockSession(ANA);
+    mockGroup(openGroup({ myDependents: [LUCAS] }));
+    renderWithProviders(<WithLiveDependent />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Lista de desejos de Lucas' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Só você e quem tirar Lucas veem esta lista.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Lucas ainda não tem sugestões. Ajude quem tirar Lucas.'),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Adicionar sugestão' }));
+    await userEvent.type(screen.getByLabelText('Sugestão'), 'Livro de receitas');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByText('Sugestão adicionada.')).toBeInTheDocument();
+    expect(body).toEqual({ description: 'Livro de receitas', url: null });
+    expect(await screen.findByText('1 de 5')).toBeInTheDocument();
+  });
+
+  it('remove um item da lista do dependente', async () => {
+    let removed = false;
+    server.use(
+      http.delete('/api/v1/groups/g-1/my-dependents/d-1/wishlist/items/i-1', () => {
+        removed = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    mockSession(ANA);
+    mockGroup(openGroup({ myDependents: [{ ...LUCAS, wishlist: listOf([LIVRO]) }] }));
+    renderWithProviders(<WithLiveDependent />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Remover Livro de receitas' }));
+    const dialog = screen.getByRole('dialog', { name: 'Remover sugestão?' });
+    expect(dialog).toHaveTextContent('sairá da lista de Lucas');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Remover' }));
+
+    expect(await screen.findByText('Sugestão removida.')).toBeInTheDocument();
+    expect(removed).toBe(true);
+  });
+});

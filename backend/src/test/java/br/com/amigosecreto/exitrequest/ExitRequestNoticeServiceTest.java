@@ -2,6 +2,7 @@ package br.com.amigosecreto.exitrequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import br.com.amigosecreto.common.ConflictException;
@@ -44,7 +45,7 @@ class ExitRequestNoticeServiceTest {
             case CANCELLED -> request.cancel(NOW.minusSeconds(3600), true);
             case PENDING -> {}
         }
-        when(exitRequests.findByIdAndUserId(request.getId(), BRUNO)).thenReturn(Optional.of(request));
+        when(exitRequests.findByIdAndRequestedBy(request.getId(), BRUNO)).thenReturn(Optional.of(request));
         return request;
     }
 
@@ -71,7 +72,7 @@ class ExitRequestNoticeServiceTest {
     @Test
     void someoneElsesRequestOrAPendingOneIsNotFound() {
         UUID someoneElses = UUID.randomUUID();
-        when(exitRequests.findByIdAndUserId(someoneElses, BRUNO)).thenReturn(Optional.empty());
+        when(exitRequests.findByIdAndRequestedBy(someoneElses, BRUNO)).thenReturn(Optional.empty());
         ExitRequest pending = decided(ExitRequestStatus.PENDING);
 
         assertThatThrownBy(() -> serviceAt(NOW).acknowledge(BRUNO, someoneElses))
@@ -126,5 +127,24 @@ class ExitRequestNoticeServiceTest {
         request.markNotNew();
         assertThat(ban.isNew()).isFalse();
         assertThat(request.isNew()).isFalse();
+    }
+
+    // ---- feature 004: o aviso do pedido de um dependente vai para o responsável (research R37) ----
+
+    @Test
+    void theGuardianSeesAndDismissesTheDependentsNotice() {
+        UUID lucas = UUID.randomUUID();
+        ExitRequest request = new ExitRequest(GROUP, lucas, BRUNO, NOW.minusSeconds(7200));
+        request.approve(NOW.minusSeconds(3600));
+        when(exitRequests.findByIdAndRequestedBy(request.getId(), BRUNO)).thenReturn(Optional.of(request));
+        when(exitRequests.findUnseenNotices(BRUNO)).thenReturn(List.of());
+
+        serviceAt(NOW).unseen(BRUNO);
+        serviceAt(NOW).acknowledge(BRUNO, request.getId());
+
+        verify(exitRequests).findUnseenNotices(BRUNO);
+        assertThat(request.getDecisionSeenAt()).isEqualTo(NOW);
+        assertThatThrownBy(() -> serviceAt(NOW).acknowledge(lucas, request.getId()))
+                .isInstanceOf(NotFoundException.class);
     }
 }

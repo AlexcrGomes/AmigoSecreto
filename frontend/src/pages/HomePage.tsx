@@ -97,10 +97,18 @@ export function HomePage() {
         <div className="mt-6 flex flex-col gap-3">
           {approvals.map((notice) => (
             <Card key={notice.id} className="border border-primary">
-              <p role="status" className="text-text">
-                Você saiu do grupo <span className="font-semibold">{notice.groupName}</span>. O
-                organizador aprovou seu pedido de saída.
-              </p>
+              {notice.subjectName ? (
+                <p role="status" className="text-text">
+                  {notice.subjectName} saiu do grupo{' '}
+                  <span className="font-semibold">{notice.groupName}</span>. O organizador aprovou o
+                  pedido de saída.
+                </p>
+              ) : (
+                <p role="status" className="text-text">
+                  Você saiu do grupo <span className="font-semibold">{notice.groupName}</span>. O
+                  organizador aprovou seu pedido de saída.
+                </p>
+              )}
               <Button
                 variant="secondary"
                 fullWidth

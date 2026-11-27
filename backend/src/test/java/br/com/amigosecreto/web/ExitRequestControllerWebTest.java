@@ -220,4 +220,37 @@ class ExitRequestControllerWebTest {
 
         verifyNoInteractions(exitRequestService, noticeService);
     }
+
+    // ---- feature 004: pedido de saída de um dependente (FR-015, research R37) ----
+
+    @Test
+    void theGuardianAsksAndCancelsTheDependentsExit() throws Exception {
+        UUID lucas = UUID.randomUUID();
+        String path = "/api/v1/groups/" + GROUP_ID + "/my-dependents/" + lucas + "/exit-request";
+        when(exitRequestService.requestForDependent(BRUNO.id(), GROUP_ID, lucas))
+                .thenReturn(new ExitRequestResponse(REQUEST_ID, lucas, "Lucas", NOW, "Bruno"));
+
+        MvcResult created = mvc.perform(post(path).with(bruno()).with(spaCsrf()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Lucas"))
+                .andExpect(jsonPath("$.guardianName").value("Bruno"))
+                .andReturn();
+        assertNoPairs(created);
+        mvc.perform(delete(path).with(bruno()).with(spaCsrf())).andExpect(status().isNoContent());
+        verify(exitRequestService).cancelForDependent(BRUNO.id(), GROUP_ID, lucas);
+
+        mvc.perform(post(path).with(bruno())).andExpect(status().isForbidden());
+        mvc.perform(delete(path).with(bruno())).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void theNoticeOfADependentsExitCarriesItsName() throws Exception {
+        when(noticeService.unseen(BRUNO.id()))
+                .thenReturn(List.of(new ExitRequestNotice(
+                        REQUEST_ID, GROUP_ID, "Natal 2026", ExitRequestStatus.APPROVED, NOW, "Lucas")));
+
+        mvc.perform(get("/api/v1/exit-request-notices").with(bruno()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].subjectName").value("Lucas"));
+    }
 }

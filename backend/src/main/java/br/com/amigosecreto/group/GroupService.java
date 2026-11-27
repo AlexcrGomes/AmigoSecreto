@@ -247,7 +247,7 @@ public class GroupService {
                 .map(member ->
                         myDependent(group, member, nameOf(views, member.getId().userId())))
                 .toList();
-        String dependentsBlocked = dependentsBlockedReason(group, participants.size(), myDependents.size());
+        String dependentsBlocked = dependentsBlockedReason(group, userId, participants.size(), myDependents.size());
         EventDetailsResponse eventDetails = group.eventDetails(schedule)
                 .map(details -> EventDetailsResponse.from(details, group.getGiftValue()))
                 .orElse(null);
@@ -294,12 +294,15 @@ public class GroupService {
      * Por que o usuário não pode adicionar dependentes agora (feature 004, research R40), ou nulo. A mesma
      * ordem do {@code DependentService}.
      */
-    private static String dependentsBlockedReason(SecretGroup group, int participantCount, int myDependentCount) {
+    private String dependentsBlockedReason(SecretGroup group, UUID userId, int participantCount, int myDependentCount) {
         if (group.getStatus() == GroupStatus.FINISHED) {
             return "group-finished";
         }
         if (group.getStatus() != GroupStatus.OPEN) {
             return "group-already-drawn";
+        }
+        if (exitRequests.existsApprovedDependentExit(group.getId(), userId)) {
+            return "dependents-locked";
         }
         if (participantCount >= MAX_PARTICIPANTS) {
             return "group-full";

@@ -2,6 +2,7 @@ package br.com.amigosecreto.wishlist;
 
 import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.NotFoundException;
+import br.com.amigosecreto.dependent.DependentLookup;
 import br.com.amigosecreto.group.GroupFinishedException;
 import br.com.amigosecreto.group.GroupLock;
 import br.com.amigosecreto.group.GroupMember;
@@ -32,44 +33,96 @@ public class WishlistService {
     private final GroupLock lock;
     private final GroupMemberRepository members;
     private final WishItemRepository items;
+    private final DependentLookup dependentLookup;
     private final Clock clock;
 
-    public WishlistService(GroupLock lock, GroupMemberRepository members, WishItemRepository items, Clock clock) {
+    public WishlistService(
+            GroupLock lock,
+            GroupMemberRepository members,
+            WishItemRepository items,
+            DependentLookup dependentLookup,
+            Clock clock) {
         this.lock = lock;
         this.members = members;
         this.items = items;
+        this.dependentLookup = dependentLookup;
         this.clock = clock;
     }
 
-    /** Adiciona um item, até {@link MyWishlist#MAX_ITEMS} (FR-001). */
+    /** Adiciona um item à própria lista, até {@link MyWishlist#MAX_ITEMS} (FR-001). */
     @Transactional(noRollbackFor = GroupFinishedException.class)
     public MyWishlist add(UUID userId, UUID groupId, WishItemRequest request) {
-        GroupMember member = lockedMember(userId, groupId);
-        if (items.countByGroupIdAndUserId(groupId, userId) >= MyWishlist.MAX_ITEMS) {
-            throw new ConflictException("wishlist-full", "A lista tem no máximo 5 sugestões.");
-        }
-        Instant now = clock.instant();
-        items.save(new WishItem(groupId, userId, request.description(), WishItemUrl.normalize(request.url()), now));
-        member.touchWishlist(now);
-        return mine(groupId, userId);
+        return addTo(lockedMember(userId, groupId), request);
     }
 
     /** Altera descrição e link de um item da própria lista. */
     @Transactional(noRollbackFor = GroupFinishedException.class)
     public MyWishlist update(UUID userId, UUID groupId, UUID itemId, WishItemRequest request) {
-        GroupMember member = lockedMember(userId, groupId);
-        WishItem item = ownItem(userId, groupId, itemId);
-        item.update(request.description(), WishItemUrl.normalize(request.url()));
-        member.touchWishlist(clock.instant());
-        return mine(groupId, userId);
+        return updateIn(lockedMember(userId, groupId), itemId, request);
     }
 
     /** Remove um item da própria lista. */
     @Transactional(noRollbackFor = GroupFinishedException.class)
     public void remove(UUID userId, UUID groupId, UUID itemId) {
-        GroupMember member = lockedMember(userId, groupId);
-        items.delete(ownItem(userId, groupId, itemId));
-        member.touchWishlist(clock.instant());
+        removeFrom(lockedMember(userId, groupId), itemId);
+    }
+
+    /** Adiciona um item à lista de um dependente seu (FR-014 da 004), com as mesmas regras. */
+    @Transactional(noRollbackFor = GroupFinishedException.class)
+    public MyWishlist addForDependent(UUID userId, UUID groupId, UUID dependentId, WishItemRequest request) {
+        return addTo(lockedDependent(userId, groupId, dependentId), request);
+    }
+
+    /** Altera um item da lista de um dependente seu. */
+    @Transactional(noRollbackFor = GroupFinishedException.class)
+    public MyWishlist updateForDependent(
+            UUID userId, UUID groupId, UUID dependentId, UUID itemId, WishItemRequest request) {
+        return updateIn(lockedDependent(userId, groupId, dependentId), itemId, request);
+    }
+
+    /** Remove um item da lista de um dependente seu. */
+    @Transactional(noRollbackFor = GroupFinishedException.class)
+    public void removeForDependent(UUID userId, UUID groupId, UUID dependentId, UUID itemId) {
+        removeFrom(lockedDependent(userId, groupId, dependentId), itemId);
+    }
+
+    private MyWishlist addTo(GroupMember owner, WishItemRequest request) {
+        UUID groupId = owner.getId().groupId();
+        UUID ownerId = owner.getId().userId();
+        if (items.countByGroupIdAndUserId(groupId, ownerId) >= MyWishlist.MAX_ITEMS) {
+            throw new ConflictException("wishlist-full", "A lista tem no máximo 5 sugestões.");
+        }
+        Instant now = clock.instant();
+        items.save(new WishItem(groupId, ownerId, request.description(), WishItemUrl.normalize(request.url()), now));
+        owner.touchWishlist(now);
+        return mine(groupId, ownerId);
+    }
+
+    private MyWishlist updateIn(GroupMember owner, UUID itemId, WishItemRequest request) {
+        UUID groupId = owner.getId().groupId();
+        UUID ownerId = owner.getId().userId();
+        WishItem item = ownItem(ownerId, groupId, itemId);
+        item.update(request.description(), WishItemUrl.normalize(request.url()));
+        owner.touchWishlist(clock.instant());
+        return mine(groupId, ownerId);
+    }
+
+    private void removeFrom(GroupMember owner, UUID itemId) {
+        items.delete(ownItem(owner.getId().userId(), owner.getId().groupId(), itemId));
+        owner.touchWishlist(clock.instant());
+    }
+
+    /**
+     * Grupo travado; o dependente só se for do usuário da sessão (404 igual para qualquer outro caso, research
+     * R34); 409 se finalizado.
+     */
+    private GroupMember lockedDependent(UUID userId, UUID groupId, UUID dependentId) {
+        SecretGroup group = lock.acquire(groupId).orElseThrow(() -> new NotFoundException(GROUP_NOT_FOUND));
+        GroupMember dependent = dependentLookup.require(userId, groupId, dependentId);
+        if (group.getStatus() == GroupStatus.FINISHED) {
+            throw new GroupFinishedException();
+        }
+        return dependent;
     }
 
     /** Grupo travado (e finalizado, se for a hora); 404 para quem não é membro, 409 se finalizado. */

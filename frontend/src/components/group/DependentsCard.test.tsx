@@ -188,4 +188,77 @@ describe('DependentsCard', () => {
 
     expect(await screen.findByText('<b>Davi</b>')).toBeInTheDocument();
   });
+
+  it('depois do sorteio, pede a saída do dependente com confirmação', async () => {
+    let asked = false;
+    server.use(
+      http.post('/api/v1/groups/g-1/my-dependents/d-1/exit-request', () => {
+        asked = true;
+        return HttpResponse.json(
+          { id: 'r-1', userId: 'd-1', name: 'Lucas', requestedAt: '2026-12-02T15:00:00Z' },
+          { status: 201 },
+        );
+      }),
+    );
+    renderCard(openGroup({ status: 'DRAWN', myDependents: [LUCAS], canAddDependents: false }));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Pedir saída de Lucas' }));
+    const dialog = screen.getByRole('dialog', { name: 'Pedir saída de Lucas?' });
+    expect(dialog).toHaveTextContent('não poderá adicionar outros dependentes neste grupo');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Pedir saída' }));
+
+    expect(await screen.findByText('Pedido enviado ao organizador.')).toBeInTheDocument();
+    expect(asked).toBe(true);
+  });
+
+  it('com o pedido pendente, mostra a situação e cancela', async () => {
+    let cancelled = false;
+    server.use(
+      http.delete('/api/v1/groups/g-1/my-dependents/d-1/exit-request', () => {
+        cancelled = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const pending = {
+      ...LUCAS,
+      exitRequest: { id: 'r-1', userId: 'd-1', name: 'Lucas', requestedAt: '2026-12-02T15:00:00Z' },
+    };
+    renderCard(openGroup({ status: 'DRAWN', myDependents: [pending], canAddDependents: false }));
+
+    expect(
+      await screen.findByText('Saída de Lucas pendente: aguardando o organizador.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pedir saída de Lucas' })).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Cancelar o pedido de saída de Lucas' }),
+    );
+
+    expect(await screen.findByText('Pedido de saída cancelado.')).toBeInTheDocument();
+    expect(cancelled).toBe(true);
+  });
+
+  it('erro ao cancelar aparece no cartão', async () => {
+    server.use(
+      http.delete('/api/v1/groups/g-1/my-dependents/d-1/exit-request', () =>
+        problem(
+          409,
+          'Este dependente não tem pedido de saída pendente.',
+          '/problems/exit-request-not-pending',
+        ),
+      ),
+    );
+    const pending = {
+      ...LUCAS,
+      exitRequest: { id: 'r-1', userId: 'd-1', name: 'Lucas', requestedAt: '2026-12-02T15:00:00Z' },
+    };
+    renderCard(openGroup({ status: 'DRAWN', myDependents: [pending], canAddDependents: false }));
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Cancelar o pedido de saída de Lucas' }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Este dependente não tem pedido de saída pendente.',
+    );
+  });
 });

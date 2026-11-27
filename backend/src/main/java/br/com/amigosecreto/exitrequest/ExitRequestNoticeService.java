@@ -29,11 +29,14 @@ public class ExitRequestNoticeService {
         return exitRequests.findUnseenNotices(userId);
     }
 
-    /** Marca o aviso como visto. Idempotente; pedido de outra pessoa ou ainda pendente responde 404. */
+    /**
+     * Marca o aviso como visto. Idempotente; pedido de outra pessoa ou ainda pendente responde 404. Quem dispensa
+     * é quem pediu: o próprio usuário ou o responsável pelo dependente (research R37).
+     */
     @Transactional
     public void acknowledge(UUID userId, UUID requestId) {
         ExitRequest request = exitRequests
-                .findByIdAndUserId(requestId, userId)
+                .findByIdAndRequestedBy(requestId, userId)
                 .filter(found -> !found.isPending())
                 .orElseThrow(() -> new NotFoundException(ExitRequestService.REQUEST_NOT_FOUND));
         request.markSeen(clock.instant());

@@ -5,6 +5,7 @@ import br.com.amigosecreto.auth.AppUserRepository;
 import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.ForbiddenException;
 import br.com.amigosecreto.common.NotFoundException;
+import br.com.amigosecreto.dependent.DependentLookup;
 import br.com.amigosecreto.draw.DrawService;
 import br.com.amigosecreto.events.GroupEvents.DrawUndoneEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupUpdatedEvent;
@@ -49,6 +50,7 @@ public class ExitRequestService {
     private final DrawService drawService;
     private final GroupService groupService;
     private final DependentAccounts dependentAccounts;
+    private final DependentLookup dependentLookup;
     private final Clock clock;
     private final ApplicationEventPublisher events;
 
@@ -61,6 +63,7 @@ public class ExitRequestService {
             DrawService drawService,
             GroupService groupService,
             DependentAccounts dependentAccounts,
+            DependentLookup dependentLookup,
             Clock clock,
             ApplicationEventPublisher events) {
         this.lock = lock;
@@ -71,6 +74,7 @@ public class ExitRequestService {
         this.drawService = drawService;
         this.groupService = groupService;
         this.dependentAccounts = dependentAccounts;
+        this.dependentLookup = dependentLookup;
         this.clock = clock;
         this.events = events;
     }
@@ -109,6 +113,46 @@ public class ExitRequestService {
         ExitRequest request = exitRequests
                 .findByGroupIdAndUserIdAndStatus(groupId, userId, ExitRequestStatus.PENDING)
                 .orElseThrow(() -> new NotFoundException("Você não tem pedido de saída pendente neste grupo."));
+        request.cancel(clock.instant(), false);
+        signalUpdate(group);
+    }
+
+    /**
+     * O responsável pede a saída de um dependente seu depois do sorteio (FR-015 da 004, research R37), com as
+     * mesmas regras do pedido do próprio usuário. O aviso da decisão vai para o responsável.
+     */
+    @Transactional(noRollbackFor = GroupFinishedException.class)
+    public ExitRequestResponse requestForDependent(UUID userId, UUID groupId, UUID dependentId) {
+        SecretGroup group = lockedGroupOfMember(userId, groupId);
+        dependentLookup.require(userId, groupId, dependentId);
+        if (group.getStatus() != GroupStatus.DRAWN) {
+            throw new ConflictException(
+                    "group-not-drawn", "O sorteio ainda não foi feito: remova o dependente diretamente.");
+        }
+        if (exitRequests
+                .findByGroupIdAndUserIdAndStatus(groupId, dependentId, ExitRequestStatus.PENDING)
+                .isPresent()) {
+            throw new ConflictException(
+                    "exit-request-already-pending",
+                    "Já existe um pedido de saída deste dependente aguardando o organizador.");
+        }
+
+        ExitRequest request = exitRequests.save(new ExitRequest(groupId, dependentId, userId, clock.instant()));
+        signalUpdate(group);
+        String name = users.findById(dependentId).map(AppUser::getName).orElse("");
+        String guardianName = users.findById(userId).map(AppUser::getName).orElse("");
+        return new ExitRequestResponse(request.getId(), dependentId, name, request.getRequestedAt(), guardianName);
+    }
+
+    /** O responsável cancela o pedido pendente de um dependente seu. Sem aviso: foi ele quem cancelou. */
+    @Transactional(noRollbackFor = GroupFinishedException.class)
+    public void cancelForDependent(UUID userId, UUID groupId, UUID dependentId) {
+        SecretGroup group = lockedGroupOfMember(userId, groupId);
+        dependentLookup.require(userId, groupId, dependentId);
+        ExitRequest request = exitRequests
+                .findByGroupIdAndUserIdAndStatus(groupId, dependentId, ExitRequestStatus.PENDING)
+                .orElseThrow(() -> new ConflictException(
+                        "exit-request-not-pending", "Este dependente não tem pedido de saída pendente."));
         request.cancel(clock.instant(), false);
         signalUpdate(group);
     }
@@ -155,7 +199,10 @@ public class ExitRequestService {
         int count = (int) members.countByIdGroupId(groupId);
         // A revogação vem primeiro (os listeners pós-commit rodam na ordem de publicação): quem saiu perde as
         // conexões antes do sinal aos demais
-        events.publishEvent(new MembershipRevokedEvent(groupId, leaving, RevocationReason.EXIT_APPROVED));
+        // Um dependente não tem conexões próprias: não há o que revogar (feature 004)
+        if (request.getRequestedBy().equals(leaving)) {
+            events.publishEvent(new MembershipRevokedEvent(groupId, leaving, RevocationReason.EXIT_APPROVED));
+        }
         events.publishEvent(new DrawUndoneEvent(groupId, count));
         events.publishEvent(new ParticipantsChangedEvent(groupId, GroupStatus.OPEN, count));
         return groupService.detail(group, userId);

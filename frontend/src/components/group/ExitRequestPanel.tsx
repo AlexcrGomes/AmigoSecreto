@@ -90,6 +90,15 @@ export function ExitRequestPanel({ group }: { group: GroupDetail }) {
 
 /** Texto do aviso de pedido recusado ou cancelado automaticamente (contracts/ui-routes.md). */
 export function decisionMessage(notice: ExitRequestNotice, status: GroupStatus): string {
+  // Pedido de um dependente do usuário (feature 004): a mensagem fala do dependente
+  if (notice.subjectName) {
+    const who = notice.subjectName;
+    if (notice.status === 'REJECTED') return `O organizador recusou o pedido de saída de ${who}.`;
+    if (status === 'FINISHED') {
+      return `O pedido de saída de ${who} foi cancelado porque o evento aconteceu e o grupo foi finalizado.`;
+    }
+    return `O pedido de saída de ${who} foi cancelado porque o sorteio foi desfeito. Agora você pode removê-lo diretamente.`;
+  }
   if (notice.status === 'REJECTED') return 'O organizador recusou seu pedido de saída.';
   if (status === 'FINISHED') {
     return 'Seu pedido foi cancelado porque o evento aconteceu e o grupo foi finalizado.';

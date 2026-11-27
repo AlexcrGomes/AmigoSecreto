@@ -245,8 +245,8 @@ construção e misturaria a lista própria com a de terceiros.
   `dependents-locked` ou nulo) para a tela explicar antes de tentar.
 - `ExitRequest` ganha `guardianName` (nulo para conta): o organizador vê "Lucas (dependente de
   Ana)" no pedido.
-- `ExitRequestNotice` ganha `subjectName` (nome de quem saiu): a Ana vê "A saída do Lucas foi
-  aprovada".
+- `ExitRequestNotice` ganha `subjectName` (nome do dependente; nulo quando o pedido foi do próprio
+  usuário): a Ana vê "Lucas saiu do grupo X".
 
 **Rationale**: o cliente já lê esses schemas; campos novos não quebram as telas da 001–003.
 

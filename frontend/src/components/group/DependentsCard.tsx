@@ -1,8 +1,15 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { addDependent, removeDependent, renameDependent } from '../../api/dependents';
+import {
+  addDependent,
+  cancelDependentExit,
+  removeDependent,
+  renameDependent,
+  requestDependentExit,
+} from '../../api/dependents';
 import type { DependentsBlockedReason, GroupDetail, MyDependent } from '../../api/groups';
 import { groupKey } from '../../hooks/useGroup';
+import { errorMessage } from '../../lib/errors';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -31,7 +38,11 @@ export function DependentsCard({ group }: { group: GroupDetail }) {
   const toast = useToast();
   const [editing, setEditing] = useState<Editing>(null);
   const [removing, setRemoving] = useState<MyDependent | null>(null);
+  const [exiting, setExiting] = useState<MyDependent | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [exitError, setExitError] = useState<string | null>(null);
   const open = group.status === 'OPEN';
+  const drawn = group.status === 'DRAWN';
   const dependents = group.myDependents;
 
   // Depois do sorteio, sem dependentes, o cartão não tem o que mostrar
@@ -59,6 +70,28 @@ export function DependentsCard({ group }: { group: GroupDetail }) {
     toast.show(`${removing.name} não participa mais do grupo.`, 'success');
     setRemoving(null);
     await refresh();
+  }
+
+  async function confirmExit() {
+    if (!exiting) return;
+    await requestDependentExit(group.id, exiting.id);
+    toast.show('Pedido enviado ao organizador.', 'success');
+    setExiting(null);
+    await refresh();
+  }
+
+  async function cancelExit(dependent: MyDependent) {
+    setCancelling(dependent.id);
+    setExitError(null);
+    try {
+      await cancelDependentExit(group.id, dependent.id);
+      toast.show('Pedido de saída cancelado.', 'success');
+      await refresh();
+    } catch (failure) {
+      setExitError(errorMessage(failure));
+    } finally {
+      setCancelling(null);
+    }
   }
 
   const blocked = group.dependentsBlockedReason
@@ -117,9 +150,42 @@ export function DependentsCard({ group }: { group: GroupDetail }) {
                   </Button>
                 </div>
               )}
+              {drawn &&
+                (dependent.exitRequest ? (
+                  <div className="mt-3">
+                    <p role="status" className="text-sm text-text">
+                      Saída de {dependent.name} pendente: aguardando o organizador.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      fullWidth
+                      className="mt-2"
+                      loading={cancelling === dependent.id}
+                      aria-label={`Cancelar o pedido de saída de ${dependent.name}`}
+                      onClick={() => void cancelExit(dependent)}
+                    >
+                      Cancelar pedido
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    fullWidth
+                    className="mt-3"
+                    onClick={() => setExiting(dependent)}
+                  >
+                    Pedir saída de {dependent.name}
+                  </Button>
+                ))}
             </li>
           ))}
         </ul>
+      )}
+
+      {exitError && (
+        <p role="alert" className="mt-3 text-danger">
+          {exitError}
+        </p>
       )}
 
       {open &&
@@ -144,6 +210,19 @@ export function DependentsCard({ group }: { group: GroupDetail }) {
           />
         )}
       </Modal>
+
+      <ConfirmModal
+        open={exiting !== null}
+        title={`Pedir saída de ${exiting?.name ?? ''}?`}
+        confirmLabel="Pedir saída"
+        onConfirm={confirmExit}
+        onClose={() => setExiting(null)}
+      >
+        <p>
+          O organizador vai decidir. Se ele aprovar, {exiting?.name} sai do grupo, o sorteio será
+          refeito para todos e você não poderá adicionar outros dependentes neste grupo.
+        </p>
+      </ConfirmModal>
 
       <ConfirmModal
         open={removing !== null}

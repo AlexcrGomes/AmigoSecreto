@@ -129,4 +129,17 @@ describe('ExitRequestDecisionNotice', () => {
 
     expect(onAcknowledge).toHaveBeenCalledWith('r-1');
   });
+
+  it('aviso do pedido de um dependente fala do dependente (feature 004)', () => {
+    const lucas = notice({ subjectName: 'Lucas' });
+    expect(decisionMessage(lucas, 'DRAWN')).toBe(
+      'O organizador recusou o pedido de saída de Lucas.',
+    );
+    expect(decisionMessage({ ...lucas, status: 'CANCELLED' }, 'OPEN')).toBe(
+      'O pedido de saída de Lucas foi cancelado porque o sorteio foi desfeito. Agora você pode removê-lo diretamente.',
+    );
+    expect(decisionMessage({ ...lucas, status: 'CANCELLED' }, 'FINISHED')).toBe(
+      'O pedido de saída de Lucas foi cancelado porque o evento aconteceu e o grupo foi finalizado.',
+    );
+  });
 });

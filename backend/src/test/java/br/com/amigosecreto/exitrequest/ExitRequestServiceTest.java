@@ -17,6 +17,7 @@ import br.com.amigosecreto.auth.AppUserRepository;
 import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.ForbiddenException;
 import br.com.amigosecreto.common.NotFoundException;
+import br.com.amigosecreto.dependent.DependentLookup;
 import br.com.amigosecreto.draw.DrawService;
 import br.com.amigosecreto.events.GroupEvents.DrawUndoneEvent;
 import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
@@ -134,6 +135,7 @@ class ExitRequestServiceTest {
                 drawService,
                 groupService,
                 dependentAccounts,
+                new DependentLookup(members),
                 clock,
                 events);
     }
@@ -382,5 +384,79 @@ class ExitRequestServiceTest {
         verify(events).publishEvent(new MembershipRevokedEvent(group.getId(), BRUNO, RevocationReason.EXIT_APPROVED));
         verify(events, never())
                 .publishEvent(new MembershipRevokedEvent(group.getId(), lucasId, RevocationReason.EXIT_APPROVED));
+    }
+
+    // ---- US3: pedido de saída de um dependente (FR-015, research R37) ----
+
+    private UUID lucasOf(UUID guardian) {
+        UUID lucas = UUID.randomUUID();
+        when(members.findDependent(lucas, group.getId(), guardian))
+                .thenReturn(Optional.of(
+                        GroupMember.dependentOf(new GroupMember(group.getId(), guardian, WEEK_AGO), lucas, WEEK_AGO)));
+        AppUser lucasUser = mock(AppUser.class);
+        when(lucasUser.getName()).thenReturn("Lucas");
+        when(users.findById(lucas)).thenReturn(Optional.of(lucasUser));
+        return lucas;
+    }
+
+    @Test
+    void theGuardianAsksForTheDependentsExitAndIsTheOneWhoGetsTheNotice() {
+        UUID lucas = lucasOf(BRUNO);
+
+        ExitRequestResponse created = service.requestForDependent(BRUNO, group.getId(), lucas);
+
+        ArgumentCaptor<ExitRequest> saved = ArgumentCaptor.forClass(ExitRequest.class);
+        verify(exitRequests).save(saved.capture());
+        assertThat(saved.getValue().getUserId()).isEqualTo(lucas);
+        assertThat(saved.getValue().getRequestedBy()).isEqualTo(BRUNO);
+        assertThat(created.name()).isEqualTo("Lucas");
+        assertThat(created.guardianName()).isEqualTo("Bruno");
+        verify(events).publishEvent(any(GroupUpdatedEvent.class));
+    }
+
+    @Test
+    void theDependentsExitFollowsTheSameRules() {
+        UUID lucas = lucasOf(BRUNO);
+        pendingOf(lucas);
+        assertConflict(() -> service.requestForDependent(BRUNO, group.getId(), lucas), "exit-request-already-pending");
+
+        assertThatThrownBy(() -> service.requestForDependent(CARLA, group.getId(), lucas))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.cancelForDependent(CARLA, group.getId(), lucas))
+                .isInstanceOf(NotFoundException.class);
+
+        group.undoDraw(NOW);
+        UUID bia = lucasOf(BRUNO);
+        assertConflict(() -> service.requestForDependent(BRUNO, group.getId(), bia), "group-not-drawn");
+    }
+
+    @Test
+    void theGuardianCancelsTheDependentsPendingRequestWithoutNotice() {
+        UUID lucas = lucasOf(BRUNO);
+        ExitRequest request = pendingOf(lucas);
+
+        service.cancelForDependent(BRUNO, group.getId(), lucas);
+
+        assertThat(request.getStatus()).isEqualTo(ExitRequestStatus.CANCELLED);
+        assertThat(request.getDecisionSeenAt()).isNotNull();
+        UUID bia = lucasOf(BRUNO);
+        assertConflict(() -> service.cancelForDependent(BRUNO, group.getId(), bia), "exit-request-not-pending");
+    }
+
+    @Test
+    void approvingADependentsExitUndoesTheDrawBansTheDependentAndKeepsItsRecord() {
+        UUID lucas = lucasOf(BRUNO);
+        ExitRequest request = new ExitRequest(group.getId(), lucas, BRUNO, NOW.minusSeconds(3600));
+        when(exitRequests.findById(request.getId())).thenReturn(Optional.of(request));
+
+        service.approve(ANA, group.getId(), request.getId());
+
+        verify(drawService).discardDraw(group, NOW);
+        verify(members).deleteById(new GroupMemberId(group.getId(), lucas));
+        verify(exitBans).save(argThat(ban -> ban.getId().equals(new GroupExitBanId(group.getId(), lucas))));
+        verify(dependentAccounts).deleteUnreferenced(List.of());
+        assertThat(request.getStatus()).isEqualTo(ExitRequestStatus.APPROVED);
+        verify(events, never()).publishEvent(any(MembershipRevokedEvent.class));
+        verify(events).publishEvent(any(DrawUndoneEvent.class));
     }
 }

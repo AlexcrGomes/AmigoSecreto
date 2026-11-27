@@ -340,4 +340,121 @@ class DependentFlowIT extends AbstractIntegrationTest {
                 .isEqualTo(200);
         assertProblem(bruno.client().get(base(group) + "/my-dependents/secret-friends"), 409, "group-not-drawn");
     }
+
+    // ---- US3 ----
+
+    @Test
+    void theGuardianBuildsTheDependentsListAsksForItsExitAndThenCannotAddMore() {
+        User ana = newUser("Ana");
+        User bruno = newUser("Bruno");
+        User carla = newUser("Carla");
+        User davi = newUser("Davi");
+        Group group = groupOf(ana, bruno, carla, davi);
+        String lucas = addDependent(bruno, group, "Lucas");
+        addDependent(bruno, group, "Bia");
+        String lucasItems = dependents(group) + "/" + lucas + "/wishlist/items";
+
+        // Lista de desejos do dependente (FR-014): só o responsável edita
+        Map<String, Object> item = new HashMap<>();
+        item.put("description", "Bola");
+        item.put("url", null);
+        ApiClient.Response added = bruno.client().post(lucasItems, item);
+        assertThat(added.status()).isEqualTo(201);
+        assertThat(added.json().get("items").get(0).get("description").asString())
+                .isEqualTo("Bola");
+        assertThat(carla.client().post(lucasItems, item).status()).isEqualTo(404);
+        JsonNode lucasRow = detail(bruno, group).get("myDependents").get(0);
+        assertThat(lucasRow.get("wishlist").get("items")).hasSize(1);
+        assertThat(detail(bruno, group).get("myWishlist").get("items")).isEmpty();
+
+        for (User member : List.of(bruno, carla, davi)) {
+            member.client().confirm(group.id());
+        }
+        assertThat(ana.client().post(base(group) + "/draw").status()).isEqualTo(200);
+
+        // Quem tirou o Lucas vê a lista dele
+        for (User member : List.of(ana, carla, davi)) {
+            JsonNode friend =
+                    member.client().get(base(group) + "/my-secret-friend").json();
+            if (friend.get("name").asString().equals("Lucas")) {
+                assertThat(friend.get("wishlist").get(0).get("description").asString())
+                        .isEqualTo("Bola");
+            }
+        }
+
+        // Pedido de saída do dependente (FR-015): o organizador vê de quem é
+        String exitPath = dependents(group) + "/" + lucas + "/exit-request";
+        assertThat(carla.client().post(exitPath).status()).isEqualTo(404);
+        ApiClient.Response asked = bruno.client().post(exitPath);
+        assertThat(asked.status()).isEqualTo(201);
+        assertProblem(bruno.client().post(exitPath), 409, "exit-request-already-pending");
+        assertThat(detail(bruno, group)
+                        .get("myDependents")
+                        .get(0)
+                        .get("exitRequest")
+                        .get("id")
+                        .asString())
+                .isEqualTo(asked.json().get("id").asString());
+        JsonNode pending = detail(ana, group).get("pendingExitRequests").get(0);
+        assertThat(pending.get("name").asString()).isEqualTo("Lucas");
+        assertThat(pending.get("guardianName").asString()).isEqualTo("Bruno");
+
+        String requestId = asked.json().get("id").asString();
+        assertThat(ana.client()
+                        .post(base(group) + "/exit-requests/" + requestId + "/approve")
+                        .status())
+                .isEqualTo(200);
+        JsonNode reopened = detail(bruno, group);
+        assertThat(reopened.get("status").asString()).isEqualTo("OPEN");
+        assertThat(names(reopened)).doesNotContain("Lucas").contains("Bia");
+        assertThat(appUsers(lucas))
+                .as("o pedido guarda o registro do dependente")
+                .isEqualTo(1);
+
+        // O aviso da decisão vai para o responsável, com o nome do dependente
+        JsonNode notices = bruno.client().get("/api/v1/exit-request-notices").json();
+        assertThat(notices).hasSize(1);
+        assertThat(notices.get(0).get("subjectName").asString()).isEqualTo("Lucas");
+        assertThat(notices.get(0).get("status").asString()).isEqualTo("APPROVED");
+        assertThat(carla.client()
+                        .post("/api/v1/exit-request-notices/" + requestId + "/ack")
+                        .status())
+                .isEqualTo(404);
+        assertThat(bruno.client()
+                        .post("/api/v1/exit-request-notices/" + requestId + "/ack")
+                        .status())
+                .isEqualTo(204);
+
+        // Não readicionar (Clarifications Q3): só para o Bruno, naquele grupo
+        assertProblem(bruno.client().post(dependents(group), Map.of("name", "Lucas")), 409, "dependents-locked");
+        assertThat(detail(bruno, group).get("dependentsBlockedReason").asString())
+                .isEqualTo("dependents-locked");
+        assertThat(detail(bruno, group).get("canAddDependents").asBoolean()).isFalse();
+        assertThat(carla.client()
+                        .post(dependents(group), Map.of("name", "Davi Jr"))
+                        .status())
+                .isEqualTo(201);
+    }
+
+    @Test
+    void theGuardiansCancelledRequestChangesNothing() {
+        User ana = newUser("Ana");
+        User bruno = newUser("Bruno");
+        User carla = newUser("Carla");
+        Group group = groupOf(ana, bruno, carla);
+        String lucas = addDependent(bruno, group, "Lucas");
+        bruno.client().confirm(group.id());
+        carla.client().confirm(group.id());
+        assertThat(ana.client().post(base(group) + "/draw").status()).isEqualTo(200);
+
+        String exitPath = dependents(group) + "/" + lucas + "/exit-request";
+        assertThat(bruno.client().post(exitPath).status()).isEqualTo(201);
+        assertThat(bruno.client().delete(exitPath).status()).isEqualTo(204);
+        assertProblem(bruno.client().delete(exitPath), 409, "exit-request-not-pending");
+
+        JsonNode after = detail(bruno, group);
+        assertThat(after.get("status").asString()).isEqualTo("DRAWN");
+        assertThat(after.get("myDependents").get(0).hasNonNull("exitRequest")).isFalse();
+        assertThat(bruno.client().get("/api/v1/exit-request-notices").json()).isEmpty();
+    }
 }
