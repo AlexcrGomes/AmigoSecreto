@@ -45,8 +45,8 @@ MSW. Gate de cobertura: 80% de linhas. O backend não muda, mas `mvn -B verify` 
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Confirmar a base: na branch `005-redesenho-visual`, rodar `npm run lint && npm run format:check && npx tsc -b && npm run test:coverage && npm run build` no container do Node e registrar que tudo está verde antes de mudar código
-- [ ] T002 Adicionar `glisse` **0.6.0 exata** (sem `^`) em `frontend/package.json` `dependencies` e atualizar `frontend/package-lock.json` (`npm install glisse@0.6.0 --save-exact` no container); conferir com `npm audit --omit=dev` que não há vulnerabilidade nova (research R43)
+- [X] T001 Confirmar a base: na branch `005-redesenho-visual`, rodar `npm run lint && npm run format:check && npx tsc -b && npm run test:coverage && npm run build` no container do Node e registrar que tudo está verde antes de mudar código
+- [X] T002 Adicionar `glisse` **0.6.0 exata** (sem `^`) em `frontend/package.json` `dependencies` e atualizar `frontend/package-lock.json` (`npm install glisse@0.6.0 --save-exact` no container); conferir com `npm audit --omit=dev` que não há vulnerabilidade nova (research R43)
 
 ---
 
