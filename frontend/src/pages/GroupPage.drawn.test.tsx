@@ -241,3 +241,72 @@ describe('GroupPage — status DRAWN', () => {
     );
   });
 });
+
+describe('GroupPage — resultados dos dependentes (US2 da 004)', () => {
+  const LUCAS = {
+    id: 'd-1',
+    name: 'Lucas',
+    confirmed: true,
+    wishlist: { items: [], maxItems: 5, editable: true },
+    exitRequest: null,
+  };
+  const GUARDIAN = openGroup({ ...DRAWN, myDependents: [LUCAS] });
+
+  it('o responsável vê um cartão por dependente, oculto, abaixo do próprio', async () => {
+    mockGroup(GUARDIAN);
+    renderGroup();
+
+    expect(await screen.findByRole('heading', { name: 'Seu amigo secreto' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Amigo secreto de Lucas' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Revelar o amigo secreto de Lucas' }),
+    ).toBeInTheDocument();
+  });
+
+  it('sem dependentes, não há cartão nem chamada aos resultados', async () => {
+    let calls = 0;
+    server.use(
+      http.get('/api/v1/groups/g-1/my-dependents/secret-friends', () => {
+        calls += 1;
+        return HttpResponse.json([]);
+      }),
+    );
+    mockGroup(DRAWN);
+    renderGroup();
+
+    expect(await screen.findByRole('heading', { name: 'Seu amigo secreto' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Amigo secreto de/ })).not.toBeInTheDocument();
+    expect(calls).toBe(0);
+  });
+
+  it('draw-undone apaga o resultado revelado do dependente', async () => {
+    mockGroup(GUARDIAN);
+    server.use(
+      http.get('/api/v1/groups/g-1/my-dependents/secret-friends', () =>
+        HttpResponse.json([
+          {
+            dependentId: 'd-1',
+            dependentName: 'Lucas',
+            secretFriend: { name: 'Carla', wishlist: [] },
+          },
+        ]),
+      ),
+    );
+    renderGroup();
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Revelar o amigo secreto de Lucas' }),
+    );
+    expect(await screen.findByText('Carla', { selector: 'p.text-3xl' })).toBeInTheDocument();
+
+    mockGroup(openGroup({ ...READY, drawUndone: true, myDependents: [LUCAS] }));
+    act(() =>
+      FakeEventSource.latest().emit('draw-undone', { status: 'OPEN', participantCount: 3 }),
+    );
+
+    expect(await screen.findByText('Aguardando sorteio')).toBeInTheDocument();
+    expect(screen.queryByText('Carla', { selector: 'p.text-3xl' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Amigo secreto de Lucas' }),
+    ).not.toBeInTheDocument();
+  });
+});

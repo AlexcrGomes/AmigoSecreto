@@ -21,6 +21,7 @@ import br.com.amigosecreto.common.ProblemResponseWriter;
 import br.com.amigosecreto.common.RateLimitExceededException;
 import br.com.amigosecreto.common.UnprocessableException;
 import br.com.amigosecreto.config.SecurityConfig;
+import br.com.amigosecreto.dependent.dto.DependentSecretFriend;
 import br.com.amigosecreto.draw.DrawController;
 import br.com.amigosecreto.draw.DrawService;
 import br.com.amigosecreto.draw.SecretFriendService;
@@ -176,5 +177,54 @@ class DrawControllerWebTest {
     @Test
     void mySecretFriendRequiresSession() throws Exception {
         mvc.perform(get("/api/v1/groups/{id}/my-secret-friend", GROUP_ID)).andExpect(status().isUnauthorized());
+    }
+
+    // ---- feature 004: resultados dos dependentes (research R38) ----
+
+    @Test
+    void myDependentsSecretFriendsListsEachDependentWithoutTheReceiverIdAndNoStore() throws Exception {
+        UUID lucas = UUID.randomUUID();
+        when(secretFriendService.getMyDependents(ANA.id(), GROUP_ID))
+                .thenReturn(List.of(new DependentSecretFriend(
+                        lucas,
+                        "Lucas",
+                        new SecretFriendResponse("Carla", List.of(new FriendWishItem("Bola", null)), null))));
+
+        mvc.perform(get("/api/v1/groups/{id}/my-dependents/secret-friends", GROUP_ID)
+                        .with(ana()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]", aMapWithSize(3)))
+                .andExpect(jsonPath("$[0].dependentId").value(lucas.toString()))
+                .andExpect(jsonPath("$[0].dependentName").value("Lucas"))
+                .andExpect(jsonPath("$[0].secretFriend", aMapWithSize(3)))
+                .andExpect(jsonPath("$[0].secretFriend.name").value("Carla"))
+                .andExpect(jsonPath("$[0].secretFriend.wishlist[0].description").value("Bola"))
+                .andExpect(header().string("Cache-Control", "no-store"));
+    }
+
+    @Test
+    void myDependentsSecretFriendsIgnoresAnyIdParameter() throws Exception {
+        when(secretFriendService.getMyDependents(any(), any())).thenReturn(List.of());
+
+        mvc.perform(get("/api/v1/groups/{id}/my-dependents/secret-friends", GROUP_ID)
+                        .param("dependentId", UUID.randomUUID().toString())
+                        .param("userId", UUID.randomUUID().toString())
+                        .with(ana()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+        verify(secretFriendService).getMyDependents(ANA.id(), GROUP_ID);
+    }
+
+    @Test
+    void myDependentsSecretFriendsBeforeTheDrawIs409AndRequiresSession() throws Exception {
+        when(secretFriendService.getMyDependents(ANA.id(), GROUP_ID))
+                .thenThrow(new ConflictException("group-not-drawn", "O sorteio deste grupo ainda não foi realizado."));
+
+        mvc.perform(get("/api/v1/groups/{id}/my-dependents/secret-friends", GROUP_ID)
+                        .with(ana()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("/problems/group-not-drawn"));
+        mvc.perform(get("/api/v1/groups/{id}/my-dependents/secret-friends", GROUP_ID))
+                .andExpect(status().isUnauthorized());
     }
 }

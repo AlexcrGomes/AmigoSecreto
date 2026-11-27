@@ -12,6 +12,7 @@ import {
 } from '../api/groups';
 import { useAuth } from '../auth/AuthProvider';
 import { ConfirmParticipationCard } from '../components/group/ConfirmParticipationCard';
+import { DependentSecretFriendCards } from '../components/group/DependentSecretFriendCard';
 import { DependentsCard } from '../components/group/DependentsCard';
 import { DrawButton } from '../components/group/DrawButton';
 import { EventDetailsCard } from '../components/group/EventDetailsCard';
@@ -265,11 +266,20 @@ export function GroupPage() {
           <DrawButton group={detail} />
         </>
       ) : (
-        <SecretFriendCard
-          key={drawGeneration}
-          groupId={detail.id}
-          giftValue={detail.eventDetails?.giftValue ?? null}
-        />
+        <>
+          <SecretFriendCard
+            key={drawGeneration}
+            groupId={detail.id}
+            giftValue={detail.eventDetails?.giftValue ?? null}
+          />
+          {/* Um cartão por dependente, só para o responsável (US2 da 004) */}
+          <DependentSecretFriendCards
+            key={`dependentes-${drawGeneration}`}
+            groupId={detail.id}
+            dependents={detail.myDependents}
+            giftValue={detail.eventDetails?.giftValue ?? null}
+          />
+        </>
       )}
 
       {drawn && detail.organizer && <ExitRequestsList group={detail} />}

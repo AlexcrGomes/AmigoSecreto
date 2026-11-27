@@ -1,8 +1,10 @@
 package br.com.amigosecreto.draw;
 
 import br.com.amigosecreto.auth.CurrentUser;
+import br.com.amigosecreto.dependent.dto.DependentSecretFriend;
 import br.com.amigosecreto.draw.dto.DrawResult;
 import br.com.amigosecreto.draw.dto.SecretFriendResponse;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -38,5 +40,16 @@ public class DrawController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(secretFriendService.getMine(currentUser.id(), groupId));
+    }
+
+    /**
+     * O amigo secreto de cada dependente do usuário da sessão (feature 004, research R38). Não recebe nenhum id: o
+     * conjunto é o dos dependentes de que o usuário da sessão é responsável. Nunca em cache (no-store).
+     */
+    @GetMapping("/my-dependents/secret-friends")
+    public ResponseEntity<List<DependentSecretFriend>> myDependentsSecretFriends(@PathVariable UUID groupId) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(secretFriendService.getMyDependents(currentUser.id(), groupId));
     }
 }

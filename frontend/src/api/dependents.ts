@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { MyDependent } from './groups';
+import type { DependentSecretFriend, MyDependent } from './groups';
 
 /** Rotas dos dependentes do usuário da sessão (contracts/openapi.yaml da 004). */
 function dependentsPath(groupId: string) {
@@ -30,4 +30,15 @@ export function renameDependent(
 /** Remove um dependente seu (FR-006). */
 export async function removeDependent(groupId: string, dependentId: string): Promise<void> {
   await apiFetch(dependentPath(groupId, dependentId), { method: 'DELETE' });
+}
+
+/**
+ * O amigo secreto de cada dependente do usuário da sessão (FR-010 da 004). Sem id: o servidor usa os dependentes
+ * de que o usuário da sessão é responsável (research R38).
+ */
+export function getDependentsSecretFriends(
+  groupId: string,
+  signal?: AbortSignal,
+): Promise<DependentSecretFriend[]> {
+  return apiFetch<DependentSecretFriend[]>(`${dependentsPath(groupId)}/secret-friends`, { signal });
 }

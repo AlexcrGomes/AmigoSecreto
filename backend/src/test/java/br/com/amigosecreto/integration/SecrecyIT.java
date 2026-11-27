@@ -317,4 +317,93 @@ class SecrecyIT extends AbstractIntegrationTest {
                 .putLong(id.getLeastSignificantBits())
                 .array();
     }
+
+    /**
+     * Feature 004 (Constituição I, v1.3.0; SC-002): só o responsável vê o resultado do dependente — nem o
+     * organizador, nem outro participante, nem quem tirou o dependente — e por nenhuma outra rota.
+     */
+    @Test
+    void onlyTheGuardianSeesTheDependentsResult(CapturedOutput output) {
+        Member ana = newMember("Ana");
+        Member bruno = newMember("Bruno");
+        Member carla = newMember("Carla");
+        Member davi = newMember("Davi");
+        ApiClient.Response created = ana.client().createGroup("Sigilo dos dependentes");
+        String groupId = created.json().get("id").asString();
+        String code = created.json().get("code").asString();
+        String base = "/api/v1/groups/" + groupId;
+        for (Member member : List.of(bruno, carla, davi)) {
+            member.client().post("/api/v1/groups/join", Map.of("code", code));
+        }
+        ApiClient.Response added = bruno.client().post(base + "/my-dependents", Map.of("name", "Lucas"));
+        assertThat(added.status()).isEqualTo(201);
+        String lucas = added.json().get("id").asString();
+        for (Member member : List.of(bruno, carla, davi)) {
+            assertThat(member.client().confirm(groupId).status()).isEqualTo(200);
+        }
+        assertThat(ana.client().post(base + "/draw").status()).isEqualTo(200);
+
+        // O responsável recebe o resultado do Lucas, sem o id de quem foi tirado
+        ApiClient.Response mine = bruno.client().get(base + "/my-dependents/secret-friends");
+        assertThat(mine.status()).isEqualTo(200);
+        assertThat(mine.header("Cache-Control")).contains("no-store");
+        assertThat(mine.json()).hasSize(1);
+        assertThat(mine.json().get(0).propertyNames())
+                .containsExactlyInAnyOrder("dependentId", "dependentName", "secretFriend");
+        assertThat(mine.json().get(0).get("dependentId").asString()).isEqualTo(lucas);
+        assertThat(mine.json().get(0).get("secretFriend").propertyNames())
+                .containsExactlyInAnyOrder("name", "wishlist", "wishlistUpdatedAt");
+        String lucasDrew = mine.json().get(0).get("secretFriend").get("name").asString();
+        assertThat(lucasDrew).isNotIn("Lucas", "Bruno");
+
+        // Quem tirou o Lucas vê o nome dele, como o de qualquer participante, e só isso
+        Member drewLucas = null;
+        for (Member member : List.of(ana, carla, davi)) {
+            String name = member.client()
+                    .get(base + "/my-secret-friend")
+                    .json()
+                    .get("name")
+                    .asString();
+            if (name.equals("Lucas")) {
+                drewLucas = member;
+            }
+        }
+        assertThat(drewLucas).as("alguém com conta tirou o Lucas").isNotNull();
+        assertThat(bruno.client()
+                        .get(base + "/my-secret-friend")
+                        .json()
+                        .get("name")
+                        .asString())
+                .isNotEqualTo("Lucas");
+
+        // Organizador, outros participantes e quem tirou o Lucas: nenhum resultado de dependente, por nenhum caminho
+        for (Member other : List.of(ana, carla, davi)) {
+            ApiClient.Response none = other.client().get(base + "/my-dependents/secret-friends");
+            assertThat(none.status()).isEqualTo(200);
+            assertThat(none.json()).isEmpty();
+            ApiClient.Response tampered = other.client()
+                    .get(base + "/my-dependents/secret-friends?dependentId=" + lucas + "&userId=" + bruno.id());
+            assertThat(tampered.json()).isEmpty();
+
+            ApiClient.Response detail = other.client().get(base);
+            assertNoPairKeys(detail.body());
+            assertThat(detail.json().get("myDependents")).isEmpty();
+            assertNoPairKeys(other.client().get("/api/v1/groups").body());
+            assertThat(other.client()
+                            .put(base + "/my-dependents/" + lucas, Map.of("name", "Outro"))
+                            .status())
+                    .isEqualTo(404);
+            assertThat(other.client().delete(base + "/my-dependents/" + lucas).status())
+                    .isEqualTo(404);
+        }
+
+        // Nem o detalhe do próprio responsável traz o resultado: só a rota sem id
+        ApiClient.Response brunoDetail = bruno.client().get(base);
+        assertNoPairKeys(brunoDetail.body());
+        assertThat(brunoDetail.json().get("myDependents").get(0).propertyNames())
+                .containsExactlyInAnyOrder("id", "name", "confirmed", "wishlist", "exitRequest");
+
+        // Nenhum log liga o Lucas a quem ele tirou
+        assertThat(output.getAll()).doesNotContain(lucas + " " + lucasDrew).doesNotContain(lucasDrew + " " + lucas);
+    }
 }
