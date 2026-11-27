@@ -124,36 +124,92 @@ MSW. Gate de cobertura: 80% de linhas. O backend não muda, mas `mvn -B verify` 
 
 ---
 
-## Phase 5: User Story 3 - Telas de conta e de grupos + navegação por abas (Priority: P2)
+## Revisão de 2026-11-27 (depois do PR #24)
 
-**Goal**: entrar, criar conta, "Meus grupos", criar grupo e entrar com código no visual novo; abas embaixo no celular e no topo a partir de 768px; confirmação ao sair.
-
-**Independent Test**: criar conta, entrar, navegar pelas abas a 360px e a 1280px nos dois temas; "Sair" pede confirmação; o fim das telas fica acima da barra.
-
-### Tests for User Story 3 ⚠️
-
-- [ ] T029 [P] [US3] Criar `frontend/src/components/AppNavigation.test.tsx`: itens "Meus grupos", "Criar grupo", "Entrar com código" e "Sair"; a aba marcada segue a rota (`/` e `/grupos/:id` → "Meus grupos"; `/grupos/novo`; `/entrar-no-grupo`); tocar numa aba navega; "Sair" abre "Sair da sua conta?" — cancelar mantém a rota, não chama `POST /auth/logout` e a aba marcada continua a da rota (nunca "Sair"), confirmar chama e vai para `/entrar`; a < 768px a barra fica embaixo e some com um campo de texto em foco; a ≥ 768px fica no cabeçalho; só uma navegação no DOM (research R49)
-- [ ] T030 [P] [US3] Ampliar `frontend/src/components/AppHeader.test.tsx`, `frontend/src/pages/LoginPage.test.tsx` e `RegisterPage.test.tsx`: sem sessão, cabeçalho só com o nome do app e sem navegação; formulário num cartão de vidro; erros com ícone e texto
-- [ ] T031 [P] [US3] Ampliar `frontend/src/pages/HomePage.test.tsx`, `CreateGroupPage.test.tsx` e `JoinGroupPage.test.tsx`: grupos em cartões nas seções "Em andamento" e "Finalizados"; os botões "Criar grupo" e "Entrar com código" continuam; formulários no visual novo com as mesmas validações
-
-### Implementation for User Story 3
-
-- [ ] T032 [US3] Criar `frontend/src/components/AppNavigation.tsx`: `TabBar` da Glisse com adaptador `href → <Link to>` do React Router e os ícones de `icons.tsx`; `TabBar` **controlada**: `value` sempre calculado da rota, `onValueChange` só trata "Sair", que nunca fica marcada (research R49); "Sair" abre `ConfirmModal` e chama o `logout` atual; `useMediaQuery('(min-width: 768px)')` decide fixo embaixo ou dentro do `AppHeader`; esconde com `focusin`/`focusout` em campos de texto; `padding-bottom: env(safe-area-inset-bottom)` — faz T029 passar
-- [ ] T033 [US3] Alterar `frontend/src/components/AppHeader.tsx` e o `Layout` de `frontend/src/App.tsx`: cabeçalho de vidro com o nome do app (e, ≥ 768px, a `AppNavigation` e o nome do usuário); `<main>` com espaço inferior `--tabbar-height` + área segura quando a barra está embaixo; sem navegação nas telas de visitante — faz T029 e T030 passarem
-- [ ] T034 [P] [US3] Ajustar o layout no visual novo de `frontend/src/pages/LoginPage.tsx`, `RegisterPage.tsx` e `PagePlaceholder.tsx` — faz T030 passar
-- [ ] T035 [P] [US3] Ajustar o layout no visual novo de `frontend/src/pages/HomePage.tsx` (cartões de grupo, aviso de saída aprovada), `CreateGroupPage.tsx` e `JoinGroupPage.tsx` — faz T031 passar
-- [ ] T036 [US3] Rodar a suíte do frontend; corrigir quebras mantendo as consultas por papel/nome
-
-**Checkpoint**: as três histórias juntas; todo o sistema no visual novo.
+As tarefas T001–T028 foram entregues no PR #24. O usuário pediu outra paleta e outra disposição
+(spec, "Revisão 2026-11-27"; research R55–R60). As antigas T029–T040 (navegação no topo, polimento
+nos dois temas) foram **substituídas** pelas abaixo, na branch `005-layout-responsivo`.
 
 ---
 
-## Phase 6: Polish & Cross-Cutting Concerns
+## Phase 5: Revisão da paleta — branco, vermelho e dourado, tema único (US1)
 
-- [ ] T037 [P] Atualizar `README.md` (visual novo, tema do aparelho, Glisse como dependência e por quê) e `CONTRIBUTING.md` (regra: Glisse só em `components/ui/*`; cores só por tokens)
-- [ ] T038 Rodar `mvn -B verify` (backend, sem mudanças) e `npm run lint && npm run format:check && npx tsc -b && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80%
-- [ ] T039 Subir com `docker compose up -d --build` e executar o roteiro do [quickstart.md](./quickstart.md) (§1 sem violação de CSP no console, §2 passos 1–16 nos dois temas a 360px e 1280px, §3 contraste, 360px, Lighthouse e sigilo); registrar o resultado no PR com capturas de tela
-- [ ] T040 Revisão final contra a constituição v1.3.0 (Princípios I a VIII), conferindo em especial: CSP inalterada em `frontend/nginx.conf`; Glisse importada só onde as regras transversais permitem; `glisse` fixada em 0.6.0 sem `^`; nenhuma outra dependência nova; nenhum nome oculto no DOM
+**Goal**: o visual inteiro em branco e vermelho com detalhes dourados, sem verde, sempre claro.
+
+**Independent Test**: abrir qualquer tela com o aparelho em modo claro e em modo escuro; as duas
+iguais, brancas com vermelho e dourado, sem verde; contraste AA provado pelo teste.
+
+### Tests ⚠️
+
+- [ ] T029 [US1] Reescrever `frontend/src/lib/contrast.test.ts` para o tema único (R55, data-model §1): cada par (`text`, `textMuted`, `primary`, `accentGold`, `success`, `danger`) ≥ 4,5 sobre o vidro composto em cada parada de `BACKGROUND_STOPS` (`#ffffff`, `#fffaf3`, `#fdf3e3`, `#f7e7e9`, `#f5e2ba`) e sobre a superfície sólida; `onPrimary` sobre `primaryFill`; o `index.css` usa exatamente os valores de `designTokens.ts`, **não** tem `@media (prefers-color-scheme: dark)` e não tem nenhum token verde (`accent-green`); `index.html` tem `<html … data-theme="light">` e um só `theme-color` `#ffffff`
+- [ ] T030 [P] [US1] Ampliar `frontend/src/components/ui/Toast.test.tsx` (Badge `success` e `Notice` `success` usam a classe dourada `text-success`/`ring-success`, nunca verde) e `frontend/src/components/AppBackground.test.tsx` (três manchas: duas douradas e uma vermelha, sem verde)
+
+### Implementation
+
+- [ ] T031 [US1] Reescrever `frontend/src/lib/designTokens.ts` (um tema, valores do data-model §1 e `BACKGROUND_STOPS` do §2) e `frontend/src/index.css` (tokens únicos, sem bloco escuro, `--color-gold-soft`, `--color-surface-muted: #fdfaf6`, `--color-border: #eee2d3`, `--lg-on: var(--color-accent-gold)`, `color-scheme: light`, fundo branco com manchas `app-spot-red` e duas `app-spot-gold`) — faz T029 passar
+- [ ] T032 [US1] Alterar `frontend/index.html` (`<html lang="pt-BR" data-theme="light">`, um só `<meta name="theme-color" content="#ffffff">`) e `frontend/src/components/AppBackground.tsx` (manchas novas); trocar qualquer uso de verde restante por dourado (`grep -rn "green" frontend/src`) — faz T029 e T030 passarem
+
+**Checkpoint**: todas as telas já aparecem em branco, vermelho e dourado.
+
+---
+
+## Phase 6: User Story 3 - Navegação e telas de conta nos dois desenhos (Priority: P2)
+
+**Goal**: barra de abas embaixo no celular; menu lateral no tablet, iPad e computador; entrar e criar
+conta em duas metades no desenho largo; "Meus grupos" em lista ou grade; confirmação ao sair.
+
+**Independent Test**: a 360px e a 1280px, criar conta, entrar, navegar pelos três destinos, criar
+grupo e entrar com código; "Sair" pede confirmação; o fim das telas fica acima da barra.
+
+### Tests ⚠️
+
+- [ ] T033 [P] [US3] Criar `frontend/src/components/AppNavigation.test.tsx` (R49, R58): celular — `TabBar` com "Meus grupos", "Criar grupo", "Entrar com código" e "Sair", aba marcada pela rota (`/` e `/grupos/:id` → "Meus grupos"), some com um campo de texto em foco; ≥ 768px (`setMediaMatcher`) — `navigation` "Menu principal" lateral com os três links, o atual com `aria-current="page"`, o nome do usuário e "Sair"; só uma navegação no DOM; nos dois: "Sair" abre "Sair da sua conta?", cancelar não chama `POST /auth/logout` e mantém a rota e a marcação, confirmar chama e vai para `/entrar`; trocar a largura com a tela aberta troca a forma sem sair da rota
+- [ ] T034 [P] [US3] Criar `frontend/src/components/AuthLayout.test.tsx` e ampliar `frontend/src/pages/LoginPage.test.tsx`, `RegisterPage.test.tsx` e `frontend/src/components/AppHeader.test.tsx`: sem sessão, nenhuma navegação; a marca "Amigo Secreto" aparece; o formulário fica num cartão de vidro; ≥ 768px, o painel da marca e o formulário ficam lado a lado (`md:grid-cols-2`); erros com ícone e texto
+- [ ] T035 [P] [US3] Ampliar `frontend/src/pages/HomePage.test.tsx`, `CreateGroupPage.test.tsx` e `JoinGroupPage.test.tsx`: grupos em cartões nas seções "Em andamento" e "Finalizados", numa lista que vira grade (`md:grid-cols-2`); "Criar grupo" e "Entrar com código" continuam; os formulários de criar grupo e entrar com código ficam num cartão de largura limitada (`max-w-xl`), com as mesmas validações
+
+### Implementation
+
+- [ ] T036 [US3] Criar `frontend/src/components/AppNavigation.tsx`: `useMediaQuery('(min-width: 768px)')`; celular — `TabBar` da Glisse **controlada** pela rota, com adaptador `href → <Link to>` e os ícones de `icons.tsx`, fixa embaixo com `env(safe-area-inset-bottom)`, escondida com `focusin`/`focusout` em campos de texto; largo — `<nav aria-label="Menu principal">` lateral de vidro (5rem até 1023px, 16rem a partir de 1024px) com a marca, os links (`aria-current`), o nome do usuário e "Sair"; "Sair" abre `ConfirmModal` e chama o `logout` atual — faz T033 passar
+- [ ] T037 [US3] Alterar o `Layout` de `frontend/src/App.tsx` e `frontend/src/components/AppHeader.tsx`: logado no celular — cabeçalho compacto de vidro com a marca + `<main>` com espaço inferior `--tabbar-height` + área segura; logado ≥ 768px — grade `[menu lateral | conteúdo até 72rem]`, sem cabeçalho de topo; visitante — sem navegação (as telas de conta usam o `AuthLayout`) — faz T033 e T034 passarem
+- [ ] T038 [P] [US3] Criar `frontend/src/components/AuthLayout.tsx` (celular: marca acima + cartão; ≥ 768px: duas metades, painel da marca em vermelho com filetes dourados e frase curta já existente no app, formulário à direita) e usá-lo em `frontend/src/pages/LoginPage.tsx` e `RegisterPage.tsx`; ajustar `PagePlaceholder.tsx` — faz T034 passar
+- [ ] T039 [P] [US3] Reorganizar `frontend/src/pages/HomePage.tsx` (título + botões lado a lado no celular e à direita no largo; lista → grade `md:grid-cols-2 xl:grid-cols-3`; cartões de grupo com nome, status em pílula, data e participantes), `CreateGroupPage.tsx` e `JoinGroupPage.tsx` (cartão `max-w-xl` centralizado no largo) — faz T035 passar
+- [ ] T040 [US3] Rodar a suíte do frontend; corrigir quebras mantendo textos, rotas e consultas por papel/nome
+
+**Checkpoint**: moldura e telas de conta nos dois desenhos.
+
+---
+
+## Phase 7: User Story 4 - A tela do grupo em abas no celular e em duas colunas no largo (Priority: P1)
+
+**Goal**: a tela do grupo deixa de ser uma coluna longa: abas Resumo · Pessoas · Desejos no
+celular; duas colunas no tablet, iPad e computador (R57).
+
+**Independent Test**: a tela do grupo nos três status, como organizador, participante e
+responsável, a 360px (abas) e a 1280px (duas colunas); girar o tablet com um item de lista sendo
+editado não perde a edição.
+
+### Tests ⚠️
+
+- [ ] T041 [US4] Nos `frontend/src/pages/GroupPage.*.test.tsx` existentes, adicionar `beforeEach(() => setMediaMatcher((q) => q.includes('min-width: 768px')))` — rodam no desenho largo, **sem mudar nenhuma consulta** (R59); devem continuar passando
+- [ ] T042 [P] [US4] Criar `frontend/src/components/ui/SegmentedTabs.test.tsx`: `radiogroup` com o rótulo; cada item é um `radio` com o nome; o atual com `aria-checked="true"`; tocar chama `onValueChange`
+- [ ] T043 [P] [US4] Criar `frontend/src/pages/GroupPage.layout.test.tsx`: no celular — `radiogroup` "Partes do grupo" com "Resumo", "Pessoas" e "Desejos", "Resumo" marcada; as seções "Resumo", "Pessoas" e "Desejos" (regiões com título) estão no DOM e só a da aba aberta não tem `hidden`; tocar "Pessoas" mostra os participantes, esconde o resumo e põe `?aba=pessoas` no endereço; abrir `/grupos/g-1?aba=desejos` abre "Desejos"; `?aba=xyz` abre "Resumo"; com o amigo secreto revelado, trocar de aba e voltar mantém o nome (sem buscar de novo); no largo — sem `radiogroup`, nenhuma seção `hidden`, a coluna lateral contém Pessoas e Desejos; trocar a largura com um item de lista em edição mantém o campo e o texto digitado
+
+### Implementation
+
+- [ ] T044 [US4] Criar `frontend/src/components/ui/SegmentedTabs.tsx` sobre o `SegmentedControl` da Glisse (`aria-label` repassado; largura total no celular; itens com no mínimo 44px de altura via CSS fora de camada, como o `.lg-button.min-h-11`) — faz T042 passar
+- [ ] T045 [US4] Reorganizar `frontend/src/pages/GroupPage.tsx` em três `<section aria-labelledby>` ("Resumo", "Pessoas", "Desejos", títulos visíveis só no largo e acessíveis nos dois), com o conteúdo do contrato [ui-routes.md](./contracts/ui-routes.md) na mesma ordem interna; celular — `SegmentedTabs` abaixo do cabeçalho do grupo, aba por `useSearchParams` (`replace`), `hidden` nas seções fora da aba; largo — grade `md:grid-cols-[minmax(0,1fr)_18rem] lg:grid-cols-[minmax(0,1fr)_22rem]`, Resumo à esquerda e Pessoas + Desejos à direita; cabeçalho do grupo ocupando as duas colunas; nenhuma seção desmonta ao trocar de aba ou de desenho — faz T041 e T043 passarem
+- [ ] T046 [US4] Rodar a suíte do frontend; corrigir quebras mantendo textos e consultas
+
+**Checkpoint**: as quatro histórias juntas; todo o sistema nos dois desenhos.
+
+---
+
+## Phase 8: Polish & Cross-Cutting Concerns
+
+- [ ] T047 [P] Atualizar `README.md` (visual novo branco, vermelho e dourado, tema único, dois desenhos, Glisse como dependência e por quê) e `CONTRIBUTING.md` (Glisse só em `components/ui/*`; cores só por tokens; troca de desenho só em 768px)
+- [ ] T048 Rodar `mvn -B verify` (backend, sem mudanças) e `npm run lint && npm run format:check && npx tsc -b && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80%
+- [ ] T049 Subir com `docker compose up -d --build` e executar o roteiro do [quickstart.md](./quickstart.md) (§1 sem violação de CSP no console, §2 nas larguras 360, 390, 768, 1024 e 1280px, §3 contraste, sem rolagem horizontal, Lighthouse e sigilo), com capturas de tela de celular e de computador no PR
+- [ ] T050 Revisão final contra a constituição v1.3.0 (Princípios I a VIII), conferindo em especial: CSP inalterada em `frontend/nginx.conf`; Glisse importada só em `components/ui/*`; `glisse` fixada em 0.6.0 sem `^`; nenhuma outra dependência nova; nenhum nome oculto no DOM; nenhum verde e nenhum tema escuro
 
 ---
 
@@ -161,68 +217,44 @@ MSW. Gate de cobertura: 80% de linhas. O backend não muda, mas `mvn -B verify` 
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: sem dependências.
-- **Foundational (Phase 2)**: depende do Setup; **bloqueia todas as histórias**.
-- **US1 (Phase 3)**: depende da Foundational.
-- **US2 (Phase 4)**: depende da US1 (componentes base).
-- **US3 (Phase 5)**: depende da US1; independente da US2 (exceto `App.tsx`, que a US1 também toca).
-- **Polish (Phase 6)**: depende de todas as histórias.
+- **Phases 1–4 (T001–T028)**: entregues no PR #24.
+- **Paleta (Phase 5)**: sem dependências; vem primeiro porque mexe nos tokens que tudo usa.
+- **US3 (Phase 6)**: depende da Phase 5 (tokens), por causa das cores do menu e da marca.
+- **US4 (Phase 7)**: depende da Phase 5; independente da US3, exceto o espaço do menu lateral no
+  `Layout` (T037), que muda a largura disponível — fazer depois da US3.
+- **Polish (Phase 8)**: depende de tudo.
 
 ```text
-Setup ─▶ Foundational ─▶ US1 ─┬─▶ US2 ─┐
-                              └─▶ US3 ─┴─▶ Polish
+PR #24 (T001–T028) ─▶ Paleta ─▶ US3 ─▶ US4 ─▶ Polish
 ```
 
-### Within Each User Story
+### Within Each Phase
 
 - Testes primeiro, vendo-os **falhar**.
-- Tokens → componentes base → telas.
-- Commit ao fim de cada tarefa ou grupo lógico (Conventional Commits).
+- Tokens → componentes base → moldura → telas.
+- Commit ao fim de cada fase (Conventional Commits), com aprovação do usuário.
 
 ### Parallel Opportunities
 
-- Foundational: T003 e T004 juntos; depois T007, T008 e T009 (T005 e T006 em sequência, mexem na base dos testes e no carregamento).
-- US1: todos os testes [P] juntos; T014 e T018 em paralelo; T015, T016, T017 um de cada vez (podem compartilhar o `Spinner`/ícones).
-- US2: T025, T026 e T027 em paralelo (arquivos diferentes).
-- US3: T034 e T035 em paralelo; T032 → T033.
-
----
-
-## Parallel Example: User Story 1
-
-```bash
-# Testes primeiro, em paralelo:
-Task: "T010 Button.test.tsx"
-Task: "T011 Input.test.tsx"
-Task: "T012 Modal.test.tsx"
-Task: "T013 Toast/Card/AppBackground tests"
-
-# Depois, peças independentes em paralelo:
-Task: "T014 icons.tsx"
-Task: "T018 Card, Toast, Badge, Spinner"
-```
+- Paleta: T029 e T030 juntos.
+- US3: T033, T034 e T035 juntos; T038 e T039 em paralelo; T036 → T037.
+- US4: T042 e T043 juntos (T041 antes, mexe nos testes existentes); T044 → T045.
 
 ---
 
 ## Implementation Strategy
 
-### MVP
+1. Paleta → **parar e validar** (branco, vermelho e dourado em todas as telas; sem verde).
+2. US3 → **parar e validar** (barra embaixo no celular, menu lateral no largo, telas de conta).
+3. US4 → **parar e validar** (abas no celular, duas colunas no largo, nada se perde ao girar).
+4. Polish → roteiro manual nas cinco larguras → PR.
 
-**MVP = Setup + Foundational + US1**: com os componentes base trocados, todas as telas já ficam
-no visual novo, nos dois temas. US2 e US3 refinam cada tela e trazem a navegação por abas.
-
-1. Setup → Foundational → Glisse carregando sem violar a CSP; contraste provado.
-2. US1 → **parar e validar** (visual novo em todas as telas, dois temas, fallbacks).
-3. US2 → **parar e validar** (tela do grupo, revelação sem o nome no DOM).
-4. US3 → validar (navegação, sair com confirmação) → Polish → PR.
-
-### Sugestão de entregas (PRs menores)
+### Entrega
 
 | PR | Conteúdo |
 |----|----------|
-| 1 | Phase 1 + Phase 2 + US1 |
-| 2 | US2 |
-| 3 | US3 + Polish (com o roteiro manual) |
+| #24 (mesclado) | Phases 1–4 (base, US1, US2) |
+| 2 | Revisão: paleta + US3 + US4 + Polish, na branch `005-layout-responsivo` (R60) |
 
 Cada PR passa pelo CI, pelas varreduras e pela aprovação manual (`aprovacao-manual`).
 
@@ -233,5 +265,6 @@ Cada PR passa pelo CI, pelas varreduras e pela aprovação manual (`aprovacao-ma
 - [P] = arquivos diferentes, sem dependência de tarefa incompleta.
 - [USn] mapeia a tarefa para a história da [spec.md](./spec.md).
 - Todo teste deve falhar antes da implementação correspondente.
-- Evitar: importar a Glisse fora de `ui/`, cor solta fora dos tokens, mudar texto ou fluxo, e
-  qualquer efeito que deixe um nome oculto no DOM.
+- Evitar: importar a Glisse fora de `ui/`, cor solta fora dos tokens, verde, tema escuro, mudar
+  texto ou fluxo, desmontar seções da tela do grupo ao trocar de aba, e qualquer efeito que deixe
+  um nome oculto no DOM.
