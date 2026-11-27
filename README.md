@@ -10,8 +10,8 @@ todos confirmaram, o organizador faz o sorteio, e todos são avisados ao mesmo t
   Brasília. Mudar a data, o horário ou o local antes do sorteio pede uma nova confirmação de todos.
 - **Confirmação**: o sorteio só é liberado com pelo menos 3 participantes, todos confirmados, e o
   evento ainda por vir.
-- **Sorteio justo**: feito no servidor, com gerador criptográfico. Se alguém tirar a si mesmo, o
-  sorteio inteiro é refeito automaticamente. O sorteio é definitivo, com uma única exceção: se um
+- **Sorteio justo**: feito no servidor, com gerador criptográfico. Se alguém tirar a si mesmo (ou um
+  responsável e um dependente seu se tirarem), o sorteio inteiro é refeito automaticamente. O sorteio é definitivo, com uma única exceção: se um
   participante pedir para sair e o organizador aprovar, os pares são apagados e o organizador
   sorteia de novo entre quem ficou. Quem saiu não pode voltar.
 - **Grupo finalizado**: depois do evento, o grupo sorteado vira *finalizado* sozinho, aparece em
@@ -21,8 +21,15 @@ todos confirmaram, o organizador faz o sorteio, e todos são avisados ao mesmo t
   nunca para o organizador nem para os outros. Os links abrem fora do sistema, com aviso.
 - **Valor do presente**: o organizador pode informar quanto cada um gasta, em média; todos veem, e o
   valor fica fixo depois do sorteio.
-- **Sigilo**: os pares ficam cifrados no banco (AES-256-GCM) e a única rota que devolve um amigo
-  secreto responde sempre para o usuário logado.
+- **Participantes dependentes**: quem não tem e-mail (uma criança, por exemplo) participa pelo
+  responsável, um participante com conta que adiciona o dependente ao grupo só com o nome (até 5
+  por responsável). O dependente entra no sorteio como qualquer um, confirma junto com o responsável
+  e sai junto com ele. Só o responsável vê quem o dependente tirou — nem o organizador — e cuida da
+  lista de desejos e do pedido de saída dele. Responsável e dependente nunca se tiram; se o grupo não
+  tiver sorteio possível com essas regras, o organizador vê o motivo antes de tentar.
+- **Sigilo**: os pares ficam cifrados no banco (AES-256-GCM) e as rotas que devolvem um amigo
+  secreto respondem sempre para o usuário logado — o dele e o dos dependentes dele, sem receber
+  nenhum id.
 - **Tempo real**: participantes, confirmações, sorteio e finalização aparecem sem recarregar a
   página.
 
@@ -101,8 +108,10 @@ sorteio justo, testes, segurança), e cada funcionalidade passa por especificaç
 tarefas → implementação, em `specs/<NNN-nome>/`. As funcionalidades estão em
 [specs/001-amigo-secreto-sorteio](specs/001-amigo-secreto-sorteio/) (contas, grupos e sorteio) e
 [specs/002-grupo-evento-confirmacao](specs/002-grupo-evento-confirmacao/) (detalhes do evento,
-confirmação, grupo finalizado e saída depois do sorteio) e
-[specs/003-lista-desejos](specs/003-lista-desejos/) (lista de desejos e valor do presente).
+confirmação, grupo finalizado e saída depois do sorteio),
+[specs/003-lista-desejos](specs/003-lista-desejos/) (lista de desejos e valor do presente) e
+[specs/004-participantes-dependentes](specs/004-participantes-dependentes/) (participantes sem conta,
+pelo responsável).
 
 Toda mudança entra na `main` por Pull Request, com CI e varreduras verdes e aprovação manual — veja o
 [CONTRIBUTING.md](CONTRIBUTING.md).
