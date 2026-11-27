@@ -29,7 +29,8 @@ MSW. Gate de cobertura: 80% de linhas. O backend não muda, mas `mvn -B verify` 
 ## Regras transversais (valem para TODAS as tarefas)
 
 - **A Glisse só é importada em `frontend/src/components/ui/*`, `AppNavigation.tsx`, `main.tsx` e
-  `test/setup.ts`** (research R43, R46). Páginas e `components/group/*` usam os componentes de `ui/`.
+  `test/setup.ts`** (research R43, R46). O `Input` do projeto usa só as **classes** dela, não o
+  componente. Páginas e `components/group/*` usam os componentes de `ui/`.
 - **A API (props) dos componentes de `ui/` não muda** ([contracts/ui-components.md](./contracts/ui-components.md));
   os testes existentes, que consultam por papel e nome acessível, MUST continuar passando sem
   reescrever as consultas.
@@ -81,7 +82,7 @@ MSW. Gate de cobertura: 80% de linhas. O backend não muda, mas `mvn -B verify` 
 ### Tests for User Story 1 ⚠️
 
 - [ ] T010 [P] [US1] Ampliar `frontend/src/components/ui/Button.test.tsx`: cada `variant` renderiza um botão acessível com o rótulo; `primary` usa o preenchimento principal e `danger` a marca destrutiva da Glisse; `loading` mostra o `Spinner`, `aria-busy` e desabilita; `fullWidth`; `type="button"` por padrão; clique chama `onClick`; `buttonClasses` continua existindo para links
-- [ ] T011 [P] [US1] Ampliar `frontend/src/components/ui/Input.test.tsx`: rótulo visível ligado ao campo; erro com ícone, texto, `aria-invalid` e `aria-describedby`; funciona com `register()` do react-hook-form para `text`, `email` e `password` (valor digitado chega ao `handleSubmit`); `date`, `time` e `number` continuam nativos com as classes `.lg-input`
+- [ ] T011 [P] [US1] Ampliar `frontend/src/components/ui/Input.test.tsx`: rótulo visível ligado ao campo; erro com ícone, texto, `aria-invalid` e `aria-describedby`; com `register()` do react-hook-form, em `text`, `email`, `password`, `date`, `time` e `number`: o valor digitado chega ao `handleSubmit`, o valor de `defaultValues` aparece no campo ao montar e um `reset({ … })` depois da montagem atualiza o campo; o elemento é um `<input>` nativo com as classes `lg-glass lg-input` (research R46)
 - [ ] T012 [P] [US1] Ampliar `frontend/src/components/ui/Modal.test.tsx`: `role="dialog"` com `aria-modal` e título; foco vai para dentro ao abrir e fica preso com Tab/Shift+Tab; `Esc` fecha; o foco volta ao elemento que abriu
 - [ ] T013 [P] [US1] Ampliar `frontend/src/components/ui/Toast.test.tsx` e criar `frontend/src/components/ui/Card.test.tsx` e `frontend/src/components/AppBackground.test.tsx`: aviso de erro com ícone e texto (`role="status"`); `Card` comum com a classe de vidro fosco e `Card highlight` com a superfície de vidro da Glisse; o fundo tem `data-glisse-backdrop` e `aria-hidden`
 
@@ -89,7 +90,7 @@ MSW. Gate de cobertura: 80% de linhas. O backend não muda, mas `mvn -B verify` 
 
 - [ ] T014 [P] [US1] Criar `frontend/src/components/ui/icons.tsx` (`IconGroups`, `IconPlus`, `IconTicket`, `IconLogout`, `IconAlert`, `IconCheck`; SVG com `aria-hidden` e `currentColor` — research R51)
 - [ ] T015 [US1] Reescrever `frontend/src/components/ui/Button.tsx` sobre o `Button` da Glisse (`primary`→`filled`; `secondary`/`ghost`→`glass`; `danger`→`glass` + `destructive`), mantendo `loading`, `fullWidth`, `min-h-11` e a mesma API; `buttonClasses` com os tokens no mesmo formato de pílula — faz T010 passar
-- [ ] T016 [US1] Reescrever `frontend/src/components/ui/Input.tsx`: `Input` da Glisse para `text`/`email`/`password`/`search` com adaptador para `register()` (`ref` encaminhada, `onValueChange` → `onChange` com `{ target: { name, value } }`), e `<input>` nativo com `.lg-input` para `date`/`time`/`number`; rótulo visível, erro com `IconAlert` — faz T011 passar
+- [ ] T016 [US1] Reescrever `frontend/src/components/ui/Input.tsx`: `<input>` nativo (não o `Input` da Glisse, que é controlado — research R46) com as classes `lg-glass lg-input` da Glisse e os tokens, em todos os tipos, mantendo a API e a compatibilidade com `register()`; rótulo visível, erro com `IconAlert` — faz T011 passar
 - [ ] T017 [US1] Reescrever `frontend/src/components/ui/Modal.tsx` e `frontend/src/components/ui/ConfirmModal.tsx` com a superfície `Glass` da Glisse sobre um véu, mantendo foco preso, `Esc` e devolução do foco — faz T012 passar
 - [ ] T018 [P] [US1] Reescrever `frontend/src/components/ui/Card.tsx` (vidro fosco; prop `highlight` → `Glass` da Glisse), `Toast.tsx` (vidro, ícones de sucesso/erro), `Badge.tsx` (pílula, tons dos tokens) e `Spinner.tsx` (sem animação com reduzir movimento) — faz T013 passar (parte dos componentes)
 - [ ] T019 [US1] Criar `frontend/src/components/AppBackground.tsx` (degradê e manchas de luz de [data-model.md](./data-model.md) §2, fixo, `data-glisse-backdrop`, `aria-hidden`) e usá-lo no `Layout` de `frontend/src/App.tsx`; `AppHeader.tsx` vira um cabeçalho de vidro (por enquanto com o "Sair" atual; a navegação nova vem na US3) — faz T013 passar
@@ -131,13 +132,13 @@ MSW. Gate de cobertura: 80% de linhas. O backend não muda, mas `mvn -B verify` 
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T029 [P] [US3] Criar `frontend/src/components/AppNavigation.test.tsx`: itens "Meus grupos", "Criar grupo", "Entrar com código" e "Sair"; a aba marcada segue a rota (`/` e `/grupos/:id` → "Meus grupos"; `/grupos/novo`; `/entrar-no-grupo`); tocar numa aba navega; "Sair" abre "Sair da sua conta?" — cancelar mantém a rota e não chama `POST /auth/logout`, confirmar chama e vai para `/entrar`; a < 768px a barra fica embaixo e some com um campo de texto em foco; a ≥ 768px fica no cabeçalho; só uma navegação no DOM (research R49)
+- [ ] T029 [P] [US3] Criar `frontend/src/components/AppNavigation.test.tsx`: itens "Meus grupos", "Criar grupo", "Entrar com código" e "Sair"; a aba marcada segue a rota (`/` e `/grupos/:id` → "Meus grupos"; `/grupos/novo`; `/entrar-no-grupo`); tocar numa aba navega; "Sair" abre "Sair da sua conta?" — cancelar mantém a rota, não chama `POST /auth/logout` e a aba marcada continua a da rota (nunca "Sair"), confirmar chama e vai para `/entrar`; a < 768px a barra fica embaixo e some com um campo de texto em foco; a ≥ 768px fica no cabeçalho; só uma navegação no DOM (research R49)
 - [ ] T030 [P] [US3] Ampliar `frontend/src/components/AppHeader.test.tsx`, `frontend/src/pages/LoginPage.test.tsx` e `RegisterPage.test.tsx`: sem sessão, cabeçalho só com o nome do app e sem navegação; formulário num cartão de vidro; erros com ícone e texto
 - [ ] T031 [P] [US3] Ampliar `frontend/src/pages/HomePage.test.tsx`, `CreateGroupPage.test.tsx` e `JoinGroupPage.test.tsx`: grupos em cartões nas seções "Em andamento" e "Finalizados"; os botões "Criar grupo" e "Entrar com código" continuam; formulários no visual novo com as mesmas validações
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Criar `frontend/src/components/AppNavigation.tsx`: `TabBar` da Glisse com adaptador `href → <Link to>` do React Router e os ícones de `icons.tsx`; valor marcado pela rota; "Sair" abre `ConfirmModal` e chama o `logout` atual; `useMediaQuery('(min-width: 768px)')` decide fixo embaixo ou dentro do `AppHeader`; esconde com `focusin`/`focusout` em campos de texto; `padding-bottom: env(safe-area-inset-bottom)` — faz T029 passar
+- [ ] T032 [US3] Criar `frontend/src/components/AppNavigation.tsx`: `TabBar` da Glisse com adaptador `href → <Link to>` do React Router e os ícones de `icons.tsx`; `TabBar` **controlada**: `value` sempre calculado da rota, `onValueChange` só trata "Sair", que nunca fica marcada (research R49); "Sair" abre `ConfirmModal` e chama o `logout` atual; `useMediaQuery('(min-width: 768px)')` decide fixo embaixo ou dentro do `AppHeader`; esconde com `focusin`/`focusout` em campos de texto; `padding-bottom: env(safe-area-inset-bottom)` — faz T029 passar
 - [ ] T033 [US3] Alterar `frontend/src/components/AppHeader.tsx` e o `Layout` de `frontend/src/App.tsx`: cabeçalho de vidro com o nome do app (e, ≥ 768px, a `AppNavigation` e o nome do usuário); `<main>` com espaço inferior `--tabbar-height` + área segura quando a barra está embaixo; sem navegação nas telas de visitante — faz T029 e T030 passarem
 - [ ] T034 [P] [US3] Ajustar o layout no visual novo de `frontend/src/pages/LoginPage.tsx`, `RegisterPage.tsx` e `PagePlaceholder.tsx` — faz T030 passar
 - [ ] T035 [P] [US3] Ajustar o layout no visual novo de `frontend/src/pages/HomePage.tsx` (cartões de grupo, aviso de saída aprovada), `CreateGroupPage.tsx` e `JoinGroupPage.tsx` — faz T031 passar

@@ -9,7 +9,7 @@ valendo; o que muda é a aparência.
 |------------|---------------|-----------|--------|
 | `Button` | `variant` (`primary`, `secondary`, `ghost`, `danger`), `loading`, `fullWidth`, atributos de `<button>` | `glisse` `Button`: `primary` → `filled`; `secondary`/`ghost` → `glass`; `danger` → `glass` + `destructive` | 44px; `loading` mostra `Spinner`, `aria-busy` e desabilita; `type="button"` por padrão |
 | `buttonClasses(variant, fullWidth)` | igual | classes do projeto com os tokens | para `<Link>` com cara de botão; mesma forma e cores do `Button` |
-| `Input` | `label`, `error`, `hint`, atributos de `<input>`, compatível com `register()` | `glisse` `Input` para `text`/`email`/`password`/`search`; `<input>` nativo com as classes `.lg-input` para `date`/`time`/`number` | rótulo sempre visível; erro abaixo com ícone e `aria-describedby`; `aria-invalid` |
+| `Input` | `label`, `error`, `hint`, atributos de `<input>`, compatível com `register()` | `<input>` nativo com as classes `lg-glass lg-input` da Glisse, em todos os tipos (research R46: o `Input` da Glisse é controlado e não funciona com `register()`) | rótulo sempre visível; erro abaixo com ícone e `aria-describedby`; `aria-invalid`; valores iniciais e `reset()` aparecem no campo |
 | `Card` | `children`, `className` | vidro fosco do projeto | `Card` com `highlight` usa `glisse` `Glass` (amigo secreto, confirmação) |
 | `Modal` | `open`, `title`, `onClose`, `footer`, `children` | `glisse` `Glass` sobre um véu | `role="dialog"`, `aria-modal`, foco preso, `Esc` fecha, foco volta ao gatilho |
 | `ConfirmModal` | igual | `Modal` | loading e erro dentro da janela |

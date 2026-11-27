@@ -88,8 +88,7 @@ trocar a identidade; a Glisse e os componentes do projeto saem da mesma paleta.
 |-----------------------|------|
 | `Button` (primary, secondary, ghost, danger) | `glisse` `Button` (`filled` / `glass` / `destructive`), embrulhado para manter `loading` (spinner + `aria-busy`), `fullWidth` e 44px |
 | `buttonClasses` (links com cara de botão) | classes do projeto com os mesmos tokens e o mesmo formato do `Button` da Glisse |
-| `Input` (texto, e-mail, senha) | `glisse` `Input`, embrulhado para continuar compatível com o `register` do react-hook-form, rótulo visível e erro abaixo |
-| `Input` de data, horário e número | input nativo com as classes `.lg-input` da própria Glisse (mesma aparência), porque o seletor nativo de data/hora não pode ser trocado |
+| `Input` (todos os tipos) | `<input>` **nativo** com as classes `lg-glass lg-input` da própria Glisse (mesma aparência), compatível com o `register()` do react-hook-form; rótulo visível e erro abaixo |
 | Navegação (abas) | `glisse` `TabBar` |
 | `Modal` / `ConfirmModal` | superfície `glisse` `Glass` + foco preso e `Esc` do projeto |
 | `Card` | vidro fosco do projeto (R47); `glisse` `Glass` só nos cartões de destaque (amigo secreto e confirmação) |
@@ -101,8 +100,20 @@ trocar a identidade; a Glisse e os componentes do projeto saem da mesma paleta.
 **Rationale**: atende FR-002 e mantém a API atual dos componentes, então as telas mudam pouco e os
 testes de comportamento continuam válidos.
 
-**Alternatives considered**: trocar os formulários para `Controller` do react-hook-form para usar o
-`Input` controlado da Glisse — reescreveria todos os formulários sem ganho visível.
+**Por que o `Input` não usa o componente da Glisse** (achado do `/speckit-analyze`, lendo o código
+publicado): o `Input` da Glisse é sempre **controlado** — guarda o valor em estado próprio
+(`useControllable`), escreve `value` no `<input>` a cada renderização e espalha `...props` **depois**
+do próprio `onChange`. Com o `register()` do react-hook-form (que escreve o valor inicial direto no
+elemento e passa um `onChange`), o valor inicial seria apagado na próxima renderização e um
+`onChange` nosso substituiria o dela, travando o campo. Usar as classes dela num `<input>` nativo
+mantém a aparência (pílula de vidro, cores dos tokens) e só perde a distorção do fundo nos campos,
+que ficam em vidro fosco — o mesmo nível dos cartões comuns (R47).
+
+**Alternatives considered**:
+- `Input` da Glisse com `Controller` do react-hook-form — reescreveria todos os formulários (login,
+  cadastro, grupo, evento, lista, dependente) sem ganho visível e com risco nos testes existentes.
+- `Input` da Glisse só com `defaultValue`/`onValueChange` adaptados — o valor inicial vindo de
+  `reset()`/`defaultValues` depois da montagem não chega ao estado interno dela.
 
 ---
 
@@ -162,6 +173,9 @@ dourado). Só CSS — sem imagens nem ilustrações.
   (`focusin`/`focusout`), para não cobrir o campo nem o botão de enviar.
 - **"Sair"**: não navega; abre um `ConfirmModal` "Sair da sua conta?"; confirmar chama o `logout`
   atual e vai para `/entrar`; cancelar mantém a tela.
+- **Aba marcada só pela rota**: a `TabBar` da Glisse marca a aba tocada por conta própria; por isso
+  ela é usada **controlada** (`value` sempre calculado da rota e `onValueChange` só para "Sair"), e
+  "Sair" nunca fica marcada — cancelar a confirmação mantém marcada a aba da tela atual.
 - Telas de entrar e de criar conta: sem navegação (só o nome do app no topo).
 
 ---

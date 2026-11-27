@@ -113,7 +113,7 @@ frontend/
     │   ├── AppBackground.tsx                ➕ degradê festivo com data-glisse-backdrop
     │   ├── ui/
     │   │   ├── Button.tsx                   ✏️ sobre glisse Button (mesma API)
-    │   │   ├── Input.tsx                    ✏️ sobre glisse Input / .lg-input
+    │   │   ├── Input.tsx                    ✏️ <input> nativo com as classes lg-input da Glisse
     │   │   ├── Card.tsx                     ✏️ vidro fosco; highlight → glisse Glass
     │   │   ├── Modal.tsx, ConfirmModal.tsx  ✏️ glisse Glass, foco preso
     │   │   ├── Toast.tsx, Badge.tsx, Spinner.tsx ✏️
@@ -138,7 +138,7 @@ depois os ajustes de cada tela. Nenhuma página importa a Glisse direto.
 | Erro confundido com o vermelho da marca | erro sempre com ícone + texto; cor de erro distinta (`#be123c`/`#fb7185`) |
 | Testes quebram no jsdom (canvas, ResizeObserver) | stubs no `setup.ts` (R53); consultas por papel/nome não dependem da implementação |
 | Barra de abas cobre conteúdo ou o teclado | espaço reservado com área segura; barra some com campo em foco (R49) |
-| react-hook-form deixa de funcionar com o `Input` da Glisse | adaptador no `Input` do projeto mantém `register()`; testes de formulário existentes cobrem |
+| react-hook-form deixa de funcionar com o `Input` da Glisse (controlado) | o `Input` do projeto usa `<input>` nativo com as classes da Glisse (R46); testes de valores iniciais e `reset()` (T011) |
 
 ## Complexity Tracking
 
