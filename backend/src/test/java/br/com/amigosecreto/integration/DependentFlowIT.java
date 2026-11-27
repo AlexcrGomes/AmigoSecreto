@@ -282,4 +282,62 @@ class DependentFlowIT extends AbstractIntegrationTest {
         assertThat(appUsers(eva)).isZero();
         assertThat(detail(ana, group).get("participantCount").asInt()).isEqualTo(1);
     }
+
+    // ---- US2 ----
+
+    @Test
+    void theGuardianRevealsWhoEachDependentDrewUntilTheDrawIsUndone() {
+        User ana = newUser("Ana");
+        User bruno = newUser("Bruno");
+        User carla = newUser("Carla");
+        User davi = newUser("Davi");
+        Group group = groupOf(ana, bruno, carla, davi);
+        String lucas = addDependent(bruno, group, "Lucas");
+        String bia = addDependent(bruno, group, "Bia");
+        Map<String, Object> item = new HashMap<>();
+        item.put("description", "Livro");
+        item.put("url", null);
+        assertThat(carla.client()
+                        .post(base(group) + "/wishlist/mine/items", item)
+                        .status())
+                .isEqualTo(201);
+        for (User member : List.of(bruno, carla, davi)) {
+            member.client().confirm(group.id());
+        }
+
+        assertProblem(bruno.client().get(base(group) + "/my-dependents/secret-friends"), 409, "group-not-drawn");
+        assertThat(ana.client().post(base(group) + "/draw").status()).isEqualTo(200);
+
+        JsonNode results = bruno.client()
+                .get(base(group) + "/my-dependents/secret-friends")
+                .json();
+        assertThat(results).hasSize(2);
+        assertThat(results.get(0).get("dependentId").asString()).isEqualTo(lucas);
+        assertThat(results.get(0).get("dependentName").asString()).isEqualTo("Lucas");
+        assertThat(results.get(1).get("dependentId").asString()).isEqualTo(bia);
+        for (JsonNode result : results) {
+            String drew = result.get("secretFriend").get("name").asString();
+            assertThat(drew)
+                    .isNotEqualTo("Bruno")
+                    .isNotEqualTo(result.get("dependentName").asString());
+            if (drew.equals("Carla")) {
+                assertThat(result.get("secretFriend")
+                                .get("wishlist")
+                                .get(0)
+                                .get("description")
+                                .asString())
+                        .isEqualTo("Livro");
+            }
+        }
+
+        // Uma saída aprovada desfaz o sorteio: o resultado dos dependentes some junto (como na 002)
+        ApiClient.Response exit = davi.client().post(base(group) + "/exit-requests");
+        assertThat(exit.status()).isEqualTo(201);
+        String requestId = exit.json().get("id").asString();
+        assertThat(ana.client()
+                        .post(base(group) + "/exit-requests/" + requestId + "/approve")
+                        .status())
+                .isEqualTo(200);
+        assertProblem(bruno.client().get(base(group) + "/my-dependents/secret-friends"), 409, "group-not-drawn");
+    }
 }

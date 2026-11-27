@@ -13,6 +13,7 @@ import br.com.amigosecreto.auth.AppUser;
 import br.com.amigosecreto.auth.AppUserRepository;
 import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.NotFoundException;
+import br.com.amigosecreto.dependent.dto.DependentSecretFriend;
 import br.com.amigosecreto.draw.dto.SecretFriendResponse;
 import br.com.amigosecreto.group.GroupMember;
 import br.com.amigosecreto.group.GroupMemberId;
@@ -212,5 +213,86 @@ class SecretFriendServiceTest {
         assertThatThrownBy(() -> service.getMine(ANA, group.getId())).isInstanceOf(ConflictException.class);
 
         verifyNoInteractions(wishItems);
+    }
+
+    // ---- feature 004: resultados dos dependentes do usuário da sessão (US2, research R38) ----
+
+    /** Lucas e Bia são dependentes da Ana: Lucas tirou a Carla e Bia tirou a própria Ana. */
+    private List<AppUser> anaWithTwoDependents() {
+        group.markDrawn(NOW);
+        AppUser lucas = AppUser.dependent("Lucas", NOW);
+        AppUser bia = AppUser.dependent("Bia", NOW);
+        AppUser ana = new AppUser("Ana", "ana@x.com", "h", NOW);
+        ReflectionTestUtils.setField(ana, "id", ANA);
+        when(users.findById(lucas.getId())).thenReturn(Optional.of(lucas));
+        when(users.findById(bia.getId())).thenReturn(Optional.of(bia));
+        when(users.findById(ANA)).thenReturn(Optional.of(ana));
+        GroupMember anaMember = new GroupMember(group.getId(), ANA, NOW);
+        when(members.findDependents(group.getId(), ANA))
+                .thenReturn(List.of(
+                        GroupMember.dependentOf(anaMember, lucas.getId(), NOW),
+                        GroupMember.dependentOf(anaMember, bia.getId(), NOW)));
+        when(assignments.findByIdGroupIdAndIdGiverId(group.getId(), lucas.getId()))
+                .thenReturn(Optional.of(new DrawAssignment(
+                        group.getId(),
+                        lucas.getId(),
+                        cipher.encrypt(carla.getId(), group.getId(), lucas.getId()),
+                        NOW)));
+        when(assignments.findByIdGroupIdAndIdGiverId(group.getId(), bia.getId()))
+                .thenReturn(Optional.of(new DrawAssignment(
+                        group.getId(), bia.getId(), cipher.encrypt(ANA, group.getId(), bia.getId()), NOW)));
+        return List.of(lucas, bia);
+    }
+
+    @Test
+    void theGuardianGetsEachDependentsResultInTheOrderTheyWereAdded() {
+        List<AppUser> dependents = anaWithTwoDependents();
+        carlasListChangedAt(NOW.plusSeconds(60), new WishItem(group.getId(), carla.getId(), "Livro", null, NOW));
+
+        List<DependentSecretFriend> results = service.getMyDependents(ANA, group.getId());
+
+        assertThat(results).hasSize(2);
+        assertThat(results.get(0).dependentId()).isEqualTo(dependents.get(0).getId());
+        assertThat(results.get(0).dependentName()).isEqualTo("Lucas");
+        assertThat(results.get(0).secretFriend().name()).isEqualTo("Carla");
+        assertThat(results.get(0).secretFriend().wishlist())
+                .extracting("description")
+                .containsExactly("Livro");
+        assertThat(results.get(0).secretFriend().wishlistUpdatedAt()).isEqualTo(NOW.plusSeconds(60));
+        assertThat(results.get(1).dependentName()).isEqualTo("Bia");
+        assertThat(results.get(1).secretFriend().name()).isEqualTo("Ana");
+        // O id de quem foi tirado nunca sai
+        assertThat(results.toString()).doesNotContain(carla.getId().toString());
+    }
+
+    @Test
+    void withoutDependentsTheListIsEmptyAndNothingIsDecrypted() {
+        group.markDrawn(NOW);
+
+        assertThat(service.getMyDependents(ANA, group.getId())).isEmpty();
+        verify(assignments, never()).findByIdGroupIdAndIdGiverId(any(), any());
+    }
+
+    @Test
+    void dependentsResultsFollowTheSameRulesAsMine() {
+        assertThatThrownBy(() -> service.getMyDependents(ANA, group.getId()))
+                .isInstanceOfSatisfying(
+                        ConflictException.class, ex -> assertThat(ex.getType()).isEqualTo("group-not-drawn"));
+        anaWithTwoDependents();
+        assertThatThrownBy(() -> service.getMyDependents(UUID.randomUUID(), group.getId()))
+                .isInstanceOf(NotFoundException.class);
+        verify(assignments, never()).findByIdGroupIdAndIdGiverId(any(), any());
+
+        ReflectionTestUtils.setField(group, "status", GroupStatus.FINISHED);
+        assertThat(service.getMyDependents(ANA, group.getId())).hasSize(2);
+    }
+
+    @Test
+    void onlyTheSessionUsersDependentsAreLookedUp() {
+        group.markDrawn(NOW);
+
+        service.getMyDependents(ANA, group.getId());
+
+        verify(members).findDependents(group.getId(), ANA);
     }
 }

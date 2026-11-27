@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import { dependentsSecretFriendsKey } from '../components/group/DependentSecretFriendCard';
 import { secretFriendKey } from '../components/group/SecretFriendCard';
 import { EXIT_NOTICES_KEY } from './useExitRequestNotices';
 import { GROUPS_KEY, groupKey } from './useGroup';
@@ -87,6 +88,8 @@ export function useGroupEvents(groupId: string | undefined, handlers: GroupEvent
     // Saída aprovada: o nome revelado sai da memória antes de qualquer outra coisa (FR-028)
     source.addEventListener('draw-undone', () => {
       queryClient.removeQueries({ queryKey: secretFriendKey(groupId) });
+      // Os resultados dos dependentes também (feature 004)
+      queryClient.removeQueries({ queryKey: dependentsSecretFriendsKey(groupId) });
       refresh();
       refreshNotices();
       handlersRef.current.onDrawUndone?.();
