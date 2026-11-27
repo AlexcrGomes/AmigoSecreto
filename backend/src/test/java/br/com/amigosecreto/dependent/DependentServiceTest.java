@@ -117,6 +117,7 @@ class DependentServiceTest {
                 users,
                 new DependentLookup(members),
                 accounts,
+                exitRequests,
                 groupService,
                 clock,
                 events);
@@ -267,5 +268,21 @@ class DependentServiceTest {
             return ex;
         }
         throw new AssertionError("era esperada uma exceção");
+    }
+
+    // ---- US3: não readicionar depois de uma saída aprovada de dependente (Clarifications Q3) ----
+
+    @Test
+    void afterAnApprovedDependentExitThatGuardianCannotAddMore() {
+        when(exitRequests.existsApprovedDependentExit(group.getId(), ANA)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.add(ANA, group.getId(), new DependentRequest("Bia")))
+                .isInstanceOfSatisfying(ConflictException.class, ex -> {
+                    assertThat(ex.getType()).isEqualTo("dependents-locked");
+                    assertThat(ex.getMessage())
+                            .isEqualTo(
+                                    "Depois da saída de um dependente seu, não dá para adicionar outros neste grupo.");
+                });
+        verify(users, never()).save(any());
     }
 }

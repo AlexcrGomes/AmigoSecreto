@@ -49,7 +49,15 @@ export function ExitRequestsList({ group }: { group: GroupDetail }) {
       <ul aria-labelledby="pedidos-de-saida" className="mt-3 flex flex-col gap-3">
         {group.pendingExitRequests.map((request) => (
           <li key={request.id} className="rounded-control border border-border p-3">
-            <p className="font-medium break-words text-text">{request.name}</p>
+            <p className="font-medium break-words text-text">
+              {request.name}
+              {request.guardianName && (
+                <span className="font-normal text-text-muted">
+                  {' '}
+                  (dependente de {request.guardianName})
+                </span>
+              )}
+            </p>
             <p className="text-sm text-text-muted">
               Pediu para sair em {requestedDate.format(new Date(request.requestedAt))}
             </p>

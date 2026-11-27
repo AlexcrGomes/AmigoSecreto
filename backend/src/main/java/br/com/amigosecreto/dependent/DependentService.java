@@ -7,6 +7,7 @@ import br.com.amigosecreto.common.NotFoundException;
 import br.com.amigosecreto.dependent.dto.DependentRequest;
 import br.com.amigosecreto.dependent.dto.MyDependent;
 import br.com.amigosecreto.events.GroupEvents.ParticipantsChangedEvent;
+import br.com.amigosecreto.exitrequest.ExitRequestRepository;
 import br.com.amigosecreto.group.DependentAccounts;
 import br.com.amigosecreto.group.GroupFinishedException;
 import br.com.amigosecreto.group.GroupLock;
@@ -40,6 +41,7 @@ public class DependentService {
     private final AppUserRepository users;
     private final DependentLookup lookup;
     private final DependentAccounts accounts;
+    private final ExitRequestRepository exitRequests;
     private final GroupService groupService;
     private final Clock clock;
     private final ApplicationEventPublisher events;
@@ -50,6 +52,7 @@ public class DependentService {
             AppUserRepository users,
             DependentLookup lookup,
             DependentAccounts accounts,
+            ExitRequestRepository exitRequests,
             GroupService groupService,
             Clock clock,
             ApplicationEventPublisher events) {
@@ -58,6 +61,7 @@ public class DependentService {
         this.users = users;
         this.lookup = lookup;
         this.accounts = accounts;
+        this.exitRequests = exitRequests;
         this.groupService = groupService;
         this.clock = clock;
         this.events = events;
@@ -71,6 +75,11 @@ public class DependentService {
                 .filter(member -> !member.isDependent())
                 .orElseThrow(() -> new NotFoundException(GroupService.GROUP_NOT_FOUND));
         requireOpen(group);
+        if (exitRequests.existsApprovedDependentExit(groupId, userId)) {
+            throw new ConflictException(
+                    "dependents-locked",
+                    "Depois da saída de um dependente seu, não dá para adicionar outros neste grupo.");
+        }
         long count = members.countByIdGroupId(groupId);
         if (count >= GroupService.MAX_PARTICIPANTS) {
             throw new ConflictException("group-full", "Este grupo está cheio.");

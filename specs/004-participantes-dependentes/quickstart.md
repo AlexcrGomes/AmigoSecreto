@@ -29,7 +29,7 @@ Quatro sessões: A = organizador, B = Ana (responsável), C = Bruno, D = Carla; 
 | 2 | B tenta nome vazio e "L" | recusado com a mensagem do campo | US1-2 |
 | 3 | B renomeia para "Lucas M." e depois adiciona "Bia" | lista atualizada ao vivo para todos | US1-4 |
 | 4 | C tenta, pela API, `PUT`/`DELETE /my-dependents/{id do Lucas}` | `404` | US1-5, SC-004 |
-| 5 | Só A, B, Lucas e Bia no grupo; A tenta sortear | "Com os dependentes deste grupo, não há sorteio possível…" antes de tentar | FR-009b |
+| 5 | B remove a Bia por um instante: só A, B e Lucas no grupo (B e Lucas só poderiam tirar A); A tenta sortear. Depois B adiciona a Bia de novo | "Com os dependentes deste grupo, não há sorteio possível…" antes de tentar. Com A, B, Lucas e Bia o sorteio **é** possível (A↔B, Lucas↔Bia) | FR-009b |
 | 6 | C e D entram e confirmam; B confirma | botão "Confirmar participação (você, Lucas M. e Bia)"; Lucas e Bia confirmados junto | US3-1, FR-013 |
 | 7 | A muda a data do evento | B, Lucas e Bia voltam a pendente; B confirma e os três voltam juntos | US3-2 |
 | 8 | B monta a lista de desejos do Lucas (2 itens) | "2 de 5"; só B edita | US3-3, FR-014 |

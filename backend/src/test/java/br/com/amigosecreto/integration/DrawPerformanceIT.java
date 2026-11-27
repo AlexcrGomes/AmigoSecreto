@@ -80,4 +80,63 @@ class DrawPerformanceIT extends AbstractIntegrationTest {
                 .as("pior tempo entre 100 leituras simultâneas, em ms")
                 .isLessThanOrEqualTo(2_000);
     }
+
+    /**
+     * Feature 004 (plan.md, Performance Goals): 100 participantes com 15 responsáveis de 5 dependentes cada — a
+     * viabilidade e a rejeição com as restrições continuam abaixo de 1 s.
+     */
+    @Test
+    void hundredParticipantsWithManyDependentsDrawUnderOneSecond() throws Exception {
+        List<ApiClient> accounts = new ArrayList<>();
+        try (ExecutorService pool = Executors.newFixedThreadPool(16)) {
+            List<Future<ApiClient>> created = new ArrayList<>();
+            for (int i = 0; i < 25; i++) {
+                int n = i;
+                created.add(pool.submit(() -> {
+                    ApiClient client = newClient();
+                    assertThat(client.register(
+                                            "Conta " + n, "c" + n + "." + UUID.randomUUID() + "@ex.com", "senha-forte")
+                                    .status())
+                            .isEqualTo(201);
+                    return client;
+                }));
+            }
+            for (Future<ApiClient> client : created) {
+                accounts.add(client.get());
+            }
+        }
+
+        ApiClient organizer = accounts.getFirst();
+        var group = organizer.createGroup("Família grande").json();
+        String groupId = group.get("id").asString();
+        String code = group.get("code").asString();
+        for (ApiClient member : accounts.subList(1, accounts.size())) {
+            assertThat(member.post("/api/v1/groups/join", Map.of("code", code)).status())
+                    .isEqualTo(200);
+        }
+        for (ApiClient guardian : accounts.subList(1, 16)) {
+            for (int d = 0; d < 5; d++) {
+                assertThat(guardian.post("/api/v1/groups/" + groupId + "/my-dependents", Map.of("name", "Filho " + d))
+                                .status())
+                        .isEqualTo(201);
+            }
+        }
+        for (ApiClient member : accounts.subList(1, accounts.size())) {
+            assertThat(member.confirm(groupId).status()).isEqualTo(200);
+        }
+        assertThat(organizer
+                        .get("/api/v1/groups/" + groupId)
+                        .json()
+                        .get("participantCount")
+                        .asInt())
+                .isEqualTo(100);
+
+        long start = System.nanoTime();
+        ApiClient.Response draw = organizer.post("/api/v1/groups/" + groupId + "/draw");
+        long drawMillis = Duration.ofNanos(System.nanoTime() - start).toMillis();
+        assertThat(draw.status()).isEqualTo(200);
+        assertThat(drawMillis)
+                .as("sorteio de 100 participantes com dependentes, em ms")
+                .isLessThan(1_000);
+    }
 }

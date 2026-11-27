@@ -118,7 +118,8 @@ class ExitRequestFlowIT extends AbstractIntegrationTest {
             assertThat(anaEvents.status()).isEqualTo(200);
             ApiClient.Response asked = askToLeave(bruno, group);
             assertThat(asked.status()).isEqualTo(201);
-            assertThat(asked.json().propertyNames()).containsExactlyInAnyOrder("id", "userId", "name", "requestedAt");
+            assertThat(asked.json().propertyNames())
+                    .containsExactlyInAnyOrder("id", "userId", "name", "requestedAt", "guardianName");
             assertThat(asked.json().get("name").asString()).isEqualTo("Bruno");
             assertThat(anaEvents.awaitLineContaining("group-updated", Duration.ofSeconds(5)))
                     .isTrue();

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import br.com.amigosecreto.common.ConflictException;
 import br.com.amigosecreto.common.NotFoundException;
+import br.com.amigosecreto.dependent.DependentLookup;
 import br.com.amigosecreto.events.GroupEvents.GroupFinishedEvent;
 import br.com.amigosecreto.exitrequest.ExitRequestRepository;
 import br.com.amigosecreto.group.EventDetails;
@@ -86,6 +87,7 @@ class WishlistServiceTest {
                 new GroupLock(groups, members, mock(ExitRequestRepository.class), clock, events),
                 members,
                 items,
+                new DependentLookup(members),
                 clock);
     }
 
@@ -256,5 +258,65 @@ class WishlistServiceTest {
         service.remove(BRUNO, group.getId(), livro.getId());
 
         verify(events, never()).publishEvent(any());
+    }
+
+    // ---- feature 004: a lista de um dependente (FR-014, research R39) ----
+
+    private GroupMember lucasOfBruno() {
+        GroupMember lucas = GroupMember.dependentOf(bruno, UUID.randomUUID(), NOW);
+        when(members.findDependent(lucas.getId().userId(), group.getId(), BRUNO))
+                .thenReturn(Optional.of(lucas));
+        return lucas;
+    }
+
+    @Test
+    void theGuardianBuildsTheDependentsListWithTheSameRules() {
+        GroupMember lucas = lucasOfBruno();
+        UUID lucasId = lucas.getId().userId();
+        givenListOf(lucasId);
+
+        service.addForDependent(BRUNO, group.getId(), lucasId, new WishItemRequest("Bola", null));
+
+        org.mockito.ArgumentCaptor<WishItem> saved = org.mockito.ArgumentCaptor.forClass(WishItem.class);
+        verify(items).save(saved.capture());
+        assertThat(saved.getValue().getUserId()).isEqualTo(lucasId);
+        assertThat(lucas.getWishlistUpdatedAt()).isEqualTo(NOW);
+        assertThat(bruno.getWishlistUpdatedAt()).isNull();
+
+        WishItem bola = itemOf(lucasId, "Bola");
+        service.updateForDependent(BRUNO, group.getId(), lucasId, bola.getId(), new WishItemRequest("Bola azul", null));
+        assertThat(bola.getDescription()).isEqualTo("Bola azul");
+        service.removeForDependent(BRUNO, group.getId(), lucasId, bola.getId());
+        verify(items).delete(bola);
+    }
+
+    @Test
+    void theDependentsListAlsoHoldsAtMostFiveItemsAndFreezesWhenFinished() {
+        GroupMember lucas = lucasOfBruno();
+        UUID lucasId = lucas.getId().userId();
+        when(items.countByGroupIdAndUserId(group.getId(), lucasId)).thenReturn(5L);
+
+        assertThatThrownBy(() -> service.addForDependent(BRUNO, group.getId(), lucasId, new WishItemRequest("X", null)))
+                .isInstanceOfSatisfying(
+                        br.com.amigosecreto.common.ConflictException.class,
+                        ex -> assertThat(ex.getType()).isEqualTo("wishlist-full"));
+
+        group.markDrawn(NOW);
+        assertThat(group.finishIfDue(Instant.parse("2026-12-20T12:00:00Z"))).isTrue();
+        assertThatThrownBy(() -> service.addForDependent(BRUNO, group.getId(), lucasId, new WishItemRequest("X", null)))
+                .isInstanceOf(br.com.amigosecreto.group.GroupFinishedException.class);
+    }
+
+    @Test
+    void someoneElsesDependentLooksLikeItDoesNotExist() {
+        GroupMember lucas = lucasOfBruno();
+        UUID lucasId = lucas.getId().userId();
+
+        assertThatThrownBy(() -> service.addForDependent(CARLA, group.getId(), lucasId, new WishItemRequest("X", null)))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Dependente não encontrado.");
+        assertThatThrownBy(() -> service.removeForDependent(ANA, group.getId(), lucasId, UUID.randomUUID()))
+                .isInstanceOf(NotFoundException.class);
+        verify(items, never()).save(any());
     }
 }

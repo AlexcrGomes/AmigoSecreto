@@ -252,4 +252,27 @@ describe('HomePage', () => {
       expect(screen.queryByText(/Você saiu do grupo/)).not.toBeInTheDocument(),
     );
   });
+
+  it('a saída aprovada de um dependente fala do dependente (feature 004)', async () => {
+    server.use(
+      http.get('/api/v1/exit-request-notices', () =>
+        HttpResponse.json([
+          {
+            id: 'r-3',
+            groupId: 'g-9',
+            groupName: 'Firma',
+            status: 'APPROVED',
+            decidedAt: '2026-12-03T12:00:00Z',
+            subjectName: 'Lucas',
+          },
+        ]),
+      ),
+    );
+    renderHome([]);
+
+    expect(await screen.findByText(/Lucas saiu do grupo/)).toHaveTextContent(
+      'Lucas saiu do grupo Firma. O organizador aprovou o pedido de saída.',
+    );
+    expect(screen.queryByText(/Você saiu do grupo/)).not.toBeInTheDocument();
+  });
 });

@@ -336,9 +336,13 @@ components:
 
     ExitRequestNotice:
       type: object
-      description: Como na 002, mais o nome de quem saiu (o próprio usuário ou um dependente dele)
+      description: |
+        Como na 002. O aviso vai para quem pediu (`requested_by`): o próprio usuário ou o responsável pelo
+        dependente (research R37).
       properties:
-        subjectName: { type: string, description: 'NOVO' }
+        subjectName:
+          type: [string, 'null']
+          description: 'NOVO; nome do dependente quando o pedido foi de um dependente do usuário; senão nulo'
 
     GroupDetail:
       type: object

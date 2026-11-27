@@ -290,6 +290,11 @@ export function GroupPage() {
       {/* Quem não tem e-mail participa pelo responsável (US1 da 004) */}
       <DependentsCard group={detail} />
 
+      {/* A lista de desejos de cada dependente, montada pelo responsável (US3 da 004) */}
+      {detail.myDependents.map((dependent) => (
+        <WishlistEditor key={dependent.id} group={detail} dependent={dependent} />
+      ))}
+
       <ParticipantList
         participants={detail.participants}
         currentUserId={user?.id}

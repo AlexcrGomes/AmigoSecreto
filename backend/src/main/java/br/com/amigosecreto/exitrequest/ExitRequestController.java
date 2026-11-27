@@ -49,6 +49,22 @@ public class ExitRequestController {
         return ResponseEntity.noContent().build();
     }
 
+    /** O responsável pede a saída de um dependente seu depois do sorteio (FR-015 da 004). */
+    @PostMapping("/groups/{groupId}/my-dependents/{dependentId}/exit-request")
+    public ResponseEntity<ExitRequestResponse> requestForDependent(
+            @PathVariable UUID groupId, @PathVariable UUID dependentId) {
+        ExitRequestResponse created = exitRequestService.requestForDependent(currentUser.id(), groupId, dependentId);
+        return ResponseEntity.created(URI.create("/api/v1/groups/" + groupId + "/exit-requests/" + created.id()))
+                .body(created);
+    }
+
+    /** O responsável cancela o pedido pendente de um dependente seu. */
+    @DeleteMapping("/groups/{groupId}/my-dependents/{dependentId}/exit-request")
+    public ResponseEntity<Void> cancelForDependent(@PathVariable UUID groupId, @PathVariable UUID dependentId) {
+        exitRequestService.cancelForDependent(currentUser.id(), groupId, dependentId);
+        return ResponseEntity.noContent().build();
+    }
+
     /** O organizador aprova: a pessoa sai e o sorteio é desfeito (FR-028). */
     @PostMapping("/groups/{groupId}/exit-requests/{requestId}/approve")
     public GroupDetail approve(@PathVariable UUID groupId, @PathVariable UUID requestId) {

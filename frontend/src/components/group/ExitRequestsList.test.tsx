@@ -112,4 +112,25 @@ describe('ExitRequestsList', () => {
       'Este pedido de saída já foi decidido.',
     );
   });
+
+  it('pedido de um dependente mostra de quem ele é (feature 004)', () => {
+    renderList(
+      openGroup({
+        ...WITH_REQUEST,
+        pendingExitRequests: [
+          {
+            id: 'r-2',
+            userId: 'd-1',
+            name: 'Lucas',
+            requestedAt: '2026-12-02T15:00:00Z',
+            guardianName: 'Bruno',
+          },
+        ],
+      }),
+    );
+
+    const list = screen.getByRole('list', { name: 'Pedidos de saída' });
+    expect(within(list).getByText(/dependente de Bruno/)).toBeInTheDocument();
+    expect(within(list).getByText('Lucas', { exact: false })).toBeInTheDocument();
+  });
 });

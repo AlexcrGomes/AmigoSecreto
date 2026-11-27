@@ -183,8 +183,8 @@ class SecrecyIT extends AbstractIntegrationTest {
         forOrganizer
                 .json()
                 .get("pendingExitRequests")
-                .forEach(r ->
-                        assertThat(r.propertyNames()).containsExactlyInAnyOrder("id", "userId", "name", "requestedAt"));
+                .forEach(r -> assertThat(r.propertyNames())
+                        .containsExactlyInAnyOrder("id", "userId", "name", "requestedAt", "guardianName"));
 
         String requestId = asked.json().get("id").asString();
         ApiClient.Response approved =

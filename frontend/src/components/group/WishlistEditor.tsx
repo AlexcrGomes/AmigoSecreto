@@ -2,7 +2,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import type { GroupDetail, MyWishlist, WishItem } from '../../api/groups';
+import {
+  addDependentWishItem,
+  removeDependentWishItem,
+  updateDependentWishItem,
+} from '../../api/dependents';
+import type { GroupDetail, MyDependent, MyWishlist, WishItem } from '../../api/groups';
 import { addWishItem, removeWishItem, updateWishItem } from '../../api/wishlist';
 import { groupKey } from '../../hooks/useGroup';
 import { applyFieldErrors, errorMessage } from '../../lib/errors';
@@ -19,28 +24,50 @@ type Editing = WishItem | 'new' | null;
 
 /**
  * "Minha lista de desejos" (US1 da 003): até 5 sugestões, com descrição e link opcional. Só o próprio usuário
- * e quem o tirar no sorteio veem a lista (FR-009). Texto sempre como texto, nunca HTML (FR-008).
+ * e quem o tirar no sorteio veem a lista (FR-009). Texto sempre como texto, nunca HTML (FR-008). Com
+ * `dependent`, é a lista de um dependente do usuário, que o responsável monta (FR-014 da 004).
  */
-export function WishlistEditor({ group }: { group: GroupDetail }) {
+export function WishlistEditor({
+  group,
+  dependent,
+}: {
+  group: GroupDetail;
+  dependent?: MyDependent;
+}) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { items, maxItems, editable } = group.myWishlist;
+  const wishlist = dependent ? dependent.wishlist : group.myWishlist;
+  const { items, maxItems, editable } = wishlist;
+  const headingId = dependent ? `lista-${dependent.id}` : 'minha-lista';
   const [editing, setEditing] = useState<Editing>(null);
   const [removing, setRemoving] = useState<WishItem | null>(null);
 
   /** Troca a lista guardada na consulta do grupo pela devolvida pelo servidor. */
   function replaceList(list: MyWishlist) {
-    queryClient.setQueryData<GroupDetail>(groupKey(group.id), (old) =>
-      old ? { ...old, myWishlist: list } : old,
-    );
+    queryClient.setQueryData<GroupDetail>(groupKey(group.id), (old) => {
+      if (!old) return old;
+      if (!dependent) return { ...old, myWishlist: list };
+      return {
+        ...old,
+        myDependents: old.myDependents.map((item) =>
+          item.id === dependent.id ? { ...item, wishlist: list } : item,
+        ),
+      };
+    });
   }
 
   async function save(values: WishItemInput) {
     const body = { description: values.description, url: values.url === '' ? null : values.url };
-    const list =
-      editing === 'new' || editing === null
-        ? await addWishItem(group.id, body)
+    let list: MyWishlist;
+    if (editing === 'new' || editing === null) {
+      list = dependent
+        ? await addDependentWishItem(group.id, dependent.id, body)
+        : await addWishItem(group.id, body);
+    } else {
+      list = dependent
+        ? await updateDependentWishItem(group.id, dependent.id, editing.id, body)
         : await updateWishItem(group.id, editing.id, body);
+    }
     replaceList(list);
     toast.show(editing === 'new' ? 'Sugestão adicionada.' : 'Sugestão atualizada.', 'success');
     setEditing(null);
@@ -48,8 +75,9 @@ export function WishlistEditor({ group }: { group: GroupDetail }) {
 
   async function confirmRemove() {
     if (!removing) return;
-    await removeWishItem(group.id, removing.id);
-    replaceList({ ...group.myWishlist, items: items.filter((item) => item.id !== removing.id) });
+    if (dependent) await removeDependentWishItem(group.id, dependent.id, removing.id);
+    else await removeWishItem(group.id, removing.id);
+    replaceList({ ...wishlist, items: items.filter((item) => item.id !== removing.id) });
     toast.show('Sugestão removida.', 'success');
     setRemoving(null);
   }
@@ -59,19 +87,27 @@ export function WishlistEditor({ group }: { group: GroupDetail }) {
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
-        <h2 id="minha-lista" className="text-lg font-semibold text-text">
-          Minha lista de desejos
+        <h2 id={headingId} className="text-lg font-semibold break-words text-text">
+          {dependent ? `Lista de desejos de ${dependent.name}` : 'Minha lista de desejos'}
         </h2>
         <span className="text-sm text-text-muted">
           {items.length} de {maxItems}
         </span>
       </div>
-      <p className="mt-1 text-sm text-text-muted">Só você e quem tirar você veem esta lista.</p>
+      <p className="mt-1 text-sm text-text-muted">
+        {dependent
+          ? `Só você e quem tirar ${dependent.name} veem esta lista.`
+          : 'Só você e quem tirar você veem esta lista.'}
+      </p>
 
       {items.length === 0 ? (
-        <p className="mt-4 text-text">Você ainda não sugeriu presentes. Ajude quem tirar você.</p>
+        <p className="mt-4 text-text">
+          {dependent
+            ? `${dependent.name} ainda não tem sugestões. Ajude quem tirar ${dependent.name}.`
+            : 'Você ainda não sugeriu presentes. Ajude quem tirar você.'}
+        </p>
       ) : (
-        <ul aria-labelledby="minha-lista" className="mt-4 flex flex-col gap-3">
+        <ul aria-labelledby={headingId} className="mt-4 flex flex-col gap-3">
           {items.map((item) => (
             <li key={item.id} className="rounded-control border border-border p-3">
               <p className="font-medium break-words whitespace-pre-line text-text">
@@ -131,7 +167,10 @@ export function WishlistEditor({ group }: { group: GroupDetail }) {
         onConfirm={confirmRemove}
         onClose={() => setRemoving(null)}
       >
-        <p className="break-words">“{removing?.description}” sairá da sua lista.</p>
+        <p className="break-words">
+          “{removing?.description}” sairá da{' '}
+          {dependent ? `lista de ${dependent.name}` : 'sua lista'}.
+        </p>
       </ConfirmModal>
     </Card>
   );
