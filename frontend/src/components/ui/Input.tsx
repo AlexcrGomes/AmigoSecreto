@@ -1,4 +1,5 @@
 import { useId, type InputHTMLAttributes, type Ref } from 'react';
+import { IconAlert } from './icons';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -9,6 +10,10 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   ref?: Ref<HTMLInputElement>;
 }
 
+/**
+ * Campo de texto nativo com o vidro da Glisse (research R46): o `Input` da Glisse é sempre
+ * controlado e não funciona com o `register()` do react-hook-form, então usamos só as classes dela.
+ */
 export function Input({ label, error, hint, id, className = '', ref, ...rest }: InputProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
@@ -18,7 +23,7 @@ export function Input({ label, error, hint, id, className = '', ref, ...rest }: 
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-sm font-medium text-text">
+      <label htmlFor={inputId} className="text-sm font-semibold text-text">
         {label}
       </label>
       <input
@@ -26,12 +31,7 @@ export function Input({ label, error, hint, id, className = '', ref, ...rest }: 
         id={inputId}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
-        className={[
-          'min-h-11 w-full rounded-control border bg-surface px-3 text-base text-text',
-          'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary',
-          error ? 'border-danger' : 'border-border',
-          className,
-        ].join(' ')}
+        className={`lg-glass lg-input field-input min-h-11 w-full ${className}`.trim()}
         {...rest}
       />
       {hint && (
@@ -40,7 +40,8 @@ export function Input({ label, error, hint, id, className = '', ref, ...rest }: 
         </p>
       )}
       {error && (
-        <p id={errorId} className="text-sm text-danger">
+        <p id={errorId} className="flex items-start gap-1.5 text-sm font-medium text-danger">
+          <IconAlert className="mt-px size-4 shrink-0" />
           {error}
         </p>
       )}

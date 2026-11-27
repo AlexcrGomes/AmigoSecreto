@@ -117,13 +117,91 @@
   }
 }
 
+/*
+ * Ajustes sobre as classes da Glisse. Ficam fora de @layer de propósito: o CSS da Glisse não tem
+ * camada e venceria qualquer utilitário do Tailwind; aqui a especificidade maior decide.
+ */
+
+/* Campos nativos com o vidro da Glisse (research R46): largura da coluna, 44px e 16px de fonte */
+.lg-input.field-input {
+  max-width: none;
+  height: auto;
+  min-height: 2.75rem;
+  padding-block: 0.5rem;
+  font-size: 1rem;
+  outline: none;
+}
+
+.lg-input.field-input:focus-visible {
+  box-shadow:
+    inset 0 0 0 0.5px var(--lg-edge),
+    0 0 0 2px var(--color-primary);
+}
+
+.lg-input.field-input[aria-invalid='true'] {
+  box-shadow: inset 0 0 0 1.5px var(--color-danger);
+}
+
+.lg-input.field-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Botões da Glisse no tamanho de toque do projeto (44px) */
+.lg-button.min-h-11 {
+  height: auto;
+  min-height: 2.75rem;
+  font-size: 1rem;
+}
+
+/* Janela de diálogo: vidro mais denso para a leitura sobre o véu */
+.lg-glass.modal-glass {
+  --lg-blur: 28px;
+  background-color: var(--color-glass);
+  box-shadow:
+    inset 0 0 0 0.5px var(--color-glass-edge),
+    0 24px 60px rgb(0 0 0 / 0.25);
+}
+
+/* Fundo festivo (AppBackground) */
+.app-background {
+  background: linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 55%, var(--bg-3) 100%);
+}
+
+.app-spot {
+  position: absolute;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 9999px;
+}
+
+.app-spot-red {
+  top: -30vmax;
+  left: -25vmax;
+  background: radial-gradient(closest-side, var(--bg-spot-red), transparent);
+}
+
+.app-spot-green {
+  right: -30vmax;
+  top: 25vh;
+  background: radial-gradient(closest-side, var(--bg-spot-green), transparent);
+}
+
+.app-spot-gold {
+  bottom: -35vmax;
+  left: 10vw;
+  background: radial-gradient(closest-side, var(--bg-spot-gold), transparent);
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    /* Controles nativos (data, hora, rolagem) seguem o tema do aparelho */
+    color-scheme: light dark;
   }
 
   body {
-    @apply bg-surface-muted text-text antialiased;
+    @apply text-text antialiased;
+    background-color: var(--bg-1);
     min-width: 360px;
   }
 

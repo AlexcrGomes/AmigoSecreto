@@ -9,7 +9,7 @@ export function Spinner({ label, className = '' }: SpinnerProps) {
     <span
       data-testid="spinner"
       aria-hidden="true"
-      className={`inline-block size-5 animate-spin rounded-full border-2 border-current border-t-transparent ${className}`}
+      className={`inline-block size-5 rounded-full motion-safe:animate-spin border-2 border-current border-t-transparent ${className}`}
     />
   );
   if (!label) return circle;

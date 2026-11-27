@@ -1,3 +1,4 @@
+import { Glass } from 'glisse';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -69,18 +70,18 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
   return createPortal(
     <div
       data-testid="modal-backdrop"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onCloseRef.current();
       }}
     >
-      <div
+      <Glass
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="w-full max-w-md rounded-card bg-surface p-6 text-text shadow-card focus-visible:outline-none"
+        className="modal-glass w-full max-w-md rounded-card p-6 text-text focus-visible:outline-none"
       >
         <h2 id={titleId} className="text-lg font-semibold">
           {title}
@@ -91,7 +92,7 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
             {footer}
           </div>
         )}
-      </div>
+      </Glass>
     </div>,
     document.body,
   );

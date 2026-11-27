@@ -58,6 +58,8 @@ describe('Modal', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Confirmar sorteio' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
+    // Superfície de vidro da Glisse (feature 005)
+    expect(dialog).toHaveClass('lg-glass');
     expect(screen.getByText('Ninguém mais poderá entrar ou sair.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus();
   });

@@ -4,6 +4,7 @@ import { BrowserRouter, Outlet, Route, Routes } from 'react-router';
 import { ApiError, apiFetch } from './api/client';
 import { AuthProvider } from './auth/AuthProvider';
 import { GuestOnly, RequireAuth } from './auth/RequireAuth';
+import { AppBackground } from './components/AppBackground';
 import { AppHeader } from './components/AppHeader';
 import { ToastProvider } from './components/ui/Toast';
 import { CreateGroupPage } from './pages/CreateGroupPage';
@@ -33,8 +34,9 @@ function createQueryClient() {
 function Layout() {
   return (
     <div className="flex min-h-dvh flex-col">
+      <AppBackground />
       <AppHeader />
-      <main className="mx-auto w-full max-w-md flex-1 px-4">
+      <main className="mx-auto w-full max-w-md flex-1 px-4 pb-8">
         <Outlet />
       </main>
     </div>

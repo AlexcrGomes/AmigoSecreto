@@ -30,6 +30,7 @@ describe('Toast', () => {
 
     expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
     expect(screen.getByText('Código copiado!')).toBeInTheDocument();
+    expect(screen.getByTestId('toast-icon-success')).toHaveAttribute('aria-hidden', 'true');
 
     await userEvent.click(screen.getByRole('button', { name: 'Fechar aviso' }));
     expect(screen.queryByText('Código copiado!')).not.toBeInTheDocument();
@@ -45,6 +46,8 @@ describe('Toast', () => {
 
     act(() => screen.getByRole('button', { name: 'erro' }).click());
     expect(screen.getByText('Falhou.')).toBeInTheDocument();
+    // Erro com ícone e texto, não só cor
+    expect(screen.getByTestId('toast-icon-error')).toHaveAttribute('aria-hidden', 'true');
 
     act(() => vi.advanceTimersByTime(5000));
     expect(screen.queryByText('Falhou.')).not.toBeInTheDocument();
