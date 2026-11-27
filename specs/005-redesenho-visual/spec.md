@@ -29,6 +29,15 @@ continuam valendo; esta feature muda **só a aparência e a experiência visual*
   abas fixa embaixo, como nos apps do iPhone ("Meus grupos", "Criar grupo", "Entrar com código",
   "Sair").
 - Q: Qual o tom das cores da identidade? → A: Festivo de fim de ano (vermelho, verde e dourado).
+- Q: Qual fundo as telas devem ter por trás do vidro? → A: Degradê suave nos tons festivos, com
+  manchas de luz desfocadas, igual em todas as telas.
+- Q: O que mostrar nos navegadores que não desenham o efeito completo de vidro? → A: Vidro fosco
+  simplificado (desfocado e translúcido, sem distorção); superfície sólida só com "reduzir
+  transparência" ou em navegador muito antigo.
+- Q: No computador, a navegação também fica numa barra de abas embaixo? → A: Não: barra embaixo só no
+  celular; no tablet e no computador, a navegação fica no topo.
+- Q: Tocar em "Sair" encerra a sessão na hora ou pede confirmação? → A: Pede confirmação ("Sair da
+  sua conta?") antes de sair.
 
 **Decisões do pedido** (tomadas com o usuário antes da spec; não são detalhes a decidir no
 plano):
@@ -65,8 +74,9 @@ a tela aberta muda o tema na hora.
 4. **Given** um aparelho configurado para reduzir transparência ou movimento, **When** o usuário
    abre o sistema, **Then** as superfícies aparecem sólidas e sem animações de lente, mantendo o
    mesmo estilo de cores, cantos e espaçamentos.
-5. **Given** um navegador que não consegue desenhar o efeito de vidro, **When** o usuário abre o
-   sistema, **Then** as superfícies aparecem sólidas e legíveis, sem nada quebrado.
+5. **Given** um navegador que não desenha o efeito completo de vidro (ex.: Safari do iPhone), **When** o
+   usuário abre o sistema, **Then** as superfícies aparecem como vidro fosco (desfocado, sem
+   distorção), legíveis e sem nada quebrado; num navegador sem nenhum desfoque, aparecem sólidas.
 
 ---
 
@@ -120,9 +130,12 @@ no visual novo e com os mesmos fluxos.
 3. **Given** os formulários de criar grupo e de entrar com código, **When** o usuário os preenche,
    **Then** os campos (texto, data, horário, número) seguem o visual novo e continuam com as
    validações de antes.
-4. **Given** qualquer tela logada, **When** o usuário quer ir para outra parte do sistema, **Then** usa a
-   barra de abas embaixo, com a aba atual marcada, e chega aos mesmos lugares de antes.
-5. **Given** a última ação de uma tela comprida (ex.: "Sair do grupo"), **When** o usuário rola até o
+4. **Given** qualquer tela logada no celular, **When** o usuário quer ir para outra parte do sistema,
+   **Then** usa a barra de abas embaixo, com a aba atual marcada, e chega aos mesmos lugares de antes;
+   no tablet ou no computador, a mesma navegação fica no topo.
+5. **Given** qualquer tela logada, **When** o usuário toca em "Sair", **Then** vê "Sair da sua conta?" e
+   só sai ao confirmar; cancelar o mantém na mesma tela.
+6. **Given** a última ação de uma tela comprida (ex.: "Sair do grupo"), **When** o usuário rola até o
    fim, **Then** ela fica inteira acima da barra de abas e pode ser tocada.
 
 ---
@@ -131,12 +144,15 @@ no visual novo e com os mesmos fluxos.
 
 - **Preferências de acessibilidade do aparelho**: reduzir transparência e reduzir movimento deixam
   as superfícies sólidas e sem animações, mas com o mesmo estilo.
-- **Navegador sem suporte ao efeito de vidro**: superfícies sólidas, legíveis e com o mesmo
-  contraste; nada some nem fica transparente demais.
+- **Navegador sem suporte ao efeito completo de vidro**: vidro fosco simplificado; sem nenhum
+  desfoque, superfícies sólidas — sempre legíveis e com o mesmo contraste; nada some nem fica
+  transparente demais.
 - **Texto sobre vidro**: o fundo colorido nunca pode baixar o contraste do texto abaixo do mínimo;
   se o fundo atrás variar, a superfície fica opaca o suficiente para manter o contraste.
 - **Nomes e textos longos** (grupos, participantes, dependentes, itens de lista, links): quebram
   linha dentro das superfícies, sem estourar a largura de 360px.
+- **Girar o tablet ou redimensionar a janela**: ao cruzar a largura de 768px, a navegação passa de
+  baixo para o topo (ou o contrário) sem perder a tela atual.
 - **Teclado aberto no celular**: com um campo em foco, a barra de abas não cobre o campo nem o
   botão de enviar.
 - **Vermelho da marca e vermelho de erro**: um erro nunca é mostrado só pela cor; vem com texto e,
@@ -166,8 +182,9 @@ no visual novo e com os mesmos fluxos.
   tipografia e sombras, para os dois temas.
 - **FR-004**: O tema MUST seguir a configuração claro/escuro do aparelho e mudar na hora quando ela
   mudar.
-- **FR-005**: O fundo das telas MUST ser colorido o bastante para o efeito de vidro aparecer, sem
-  atrapalhar a leitura.
+- **FR-005**: O fundo de todas as telas MUST ser um degradê suave nos tons festivos da FR-016, com
+  manchas de luz desfocadas, colorido o bastante para o efeito de vidro aparecer, sem ilustrações
+  e sem atrapalhar a leitura; o mesmo fundo em todas as telas, com uma versão para cada tema.
 
 **Acessibilidade e uso no celular**
 
@@ -177,8 +194,9 @@ no visual novo e com os mesmos fluxos.
   áreas de toque de pelo menos 44×44px.
 - **FR-008**: Com "reduzir transparência" ou "reduzir movimento" ativados no aparelho, o sistema MUST
   trocar o vidro por superfícies sólidas e tirar as animações, mantendo o restante do estilo.
-- **FR-009**: Quando o navegador não conseguir desenhar o efeito de vidro, o sistema MUST mostrar
-  superfícies sólidas e legíveis.
+- **FR-009**: Quando o navegador não conseguir desenhar o efeito completo de vidro (distorção e
+  brilho na borda), o sistema MUST mostrar vidro fosco simplificado (desfocado e translúcido, sem
+  distorção); quando nem o desfoque funcionar, MUST mostrar superfícies sólidas e legíveis.
 - **FR-010**: Todo componente MUST ter foco de teclado visível e nome acessível; as janelas MUST
   prender o foco enquanto abertas e devolvê-lo ao fechar.
 - **FR-011**: Formulários MUST manter os rótulos sempre visíveis e as mensagens de erro junto do
@@ -188,14 +206,18 @@ no visual novo e com os mesmos fluxos.
 **O que não muda**
 
 - **FR-013**: Textos, telas, rotas, regras de negócio, validações e fluxos das features 001 a 004
-  MUST continuar iguais; o número de toques para concluir cada fluxo MUST NOT aumentar.
+  MUST continuar iguais; o número de toques para concluir cada fluxo MUST NOT aumentar, com uma
+  única exceção: sair da conta ganha a confirmação da FR-015.
 - **FR-014**: O sigilo do resultado MUST continuar igual: com o nome oculto, nada do nome aparece na
   tela, nem borrado ou transparente; nada do resultado vai para o armazenamento do navegador.
-- **FR-015**: As telas logadas MUST ter uma barra de abas fixa embaixo, como nos apps do iPhone, com
-  "Meus grupos", "Criar grupo", "Entrar com código" e "Sair", levando aos mesmos lugares de hoje. A
-  aba da tela atual MUST aparecer marcada; a barra MUST NOT cobrir conteúdo nem botões (o fim de
-  cada tela fica acima dela) e MUST respeitar a área segura do aparelho. As telas de entrar e de
-  criar conta não têm a barra.
+- **FR-015**: Nas telas logadas, a navegação MUST oferecer "Meus grupos", "Criar grupo", "Entrar com
+  código" e "Sair", levando aos mesmos lugares de hoje, com a opção da tela atual marcada:
+  - no celular (larguras menores que a de um tablet em pé, 768px), numa barra de abas fixa embaixo,
+    como nos apps do iPhone, que MUST NOT cobrir conteúdo nem botões (o fim de cada tela fica acima
+    dela) e MUST respeitar a área segura do aparelho;
+  - no tablet e no computador (768px ou mais), no topo da tela, no mesmo visual de vidro.
+  As telas de entrar e de criar conta não têm essa navegação. "Sair" MUST pedir confirmação ("Sair da
+  sua conta?") antes de encerrar a sessão; cancelar mantém a pessoa onde estava.
 
 **Cores**
 
@@ -222,7 +244,7 @@ Não há dados novos. A feature muda só a apresentação.
 - **SC-004**: Em um celular intermediário numa conexão 4G, a primeira tela fica utilizável em até
   3 segundos e a rolagem não engasga com o efeito de vidro.
 - **SC-005**: Todos os fluxos das features 001 a 004 continuam funcionando, com o mesmo número de
-  toques ou menos.
+  toques ou menos (exceto sair da conta, que ganha uma confirmação).
 - **SC-006**: Pelo menos 80% das pessoas de um teste rápido com usuários preferem o visual novo ao
   antigo.
 
