@@ -141,13 +141,13 @@ iguais, brancas com vermelho e dourado, sem verde; contraste AA provado pelo tes
 
 ### Tests ⚠️
 
-- [ ] T029 [US1] Reescrever `frontend/src/lib/contrast.test.ts` para o tema único (R55, data-model §1): cada par (`text`, `textMuted`, `primary`, `accentGold`, `success`, `danger`) ≥ 4,5 sobre o vidro composto em cada parada de `BACKGROUND_STOPS` (`#ffffff`, `#fffaf3`, `#fdf3e3`, `#f7e7e9`, `#f5e2ba`) e sobre a superfície sólida; `onPrimary` sobre `primaryFill`; o `index.css` usa exatamente os valores de `designTokens.ts`, **não** tem `@media (prefers-color-scheme: dark)` e não tem nenhum token verde (`accent-green`); `index.html` tem `<html … data-theme="light">` e um só `theme-color` `#ffffff`
-- [ ] T030 [P] [US1] Ampliar `frontend/src/components/ui/Toast.test.tsx` (Badge `success` e `Notice` `success` usam a classe dourada `text-success`/`ring-success`, nunca verde) e `frontend/src/components/AppBackground.test.tsx` (três manchas: duas douradas e uma vermelha, sem verde)
+- [X] T029 [US1] Reescrever `frontend/src/lib/contrast.test.ts` para o tema único (R55, data-model §1): cada par (`text`, `textMuted`, `primary`, `accentGold`, `success`, `danger`) ≥ 4,5 sobre o vidro composto em cada parada de `BACKGROUND_STOPS` (`#ffffff`, `#fffaf3`, `#fdf3e3`, `#f7e7e9`, `#f5e2ba`) e sobre a superfície sólida; `onPrimary` sobre `primaryFill`; o `index.css` usa exatamente os valores de `designTokens.ts`, **não** tem `@media (prefers-color-scheme: dark)` e não tem nenhum token verde (`accent-green`); `index.html` tem `<html … data-theme="light">` e um só `theme-color` `#ffffff`
+- [X] T030 [P] [US1] Ampliar `frontend/src/components/ui/Toast.test.tsx` (Badge `success` e `Notice` `success` usam a classe dourada `text-success`/`ring-success`, nunca verde) e `frontend/src/components/AppBackground.test.tsx` (três manchas: duas douradas e uma vermelha, sem verde)
 
 ### Implementation
 
-- [ ] T031 [US1] Reescrever `frontend/src/lib/designTokens.ts` (um tema, valores do data-model §1 e `BACKGROUND_STOPS` do §2) e `frontend/src/index.css` (tokens únicos, sem bloco escuro, `--color-gold-soft`, `--color-surface-muted: #fdfaf6`, `--color-border: #eee2d3`, `--lg-on: var(--color-accent-gold)`, `color-scheme: light`, fundo branco com manchas `app-spot-red` e duas `app-spot-gold`) — faz T029 passar
-- [ ] T032 [US1] Alterar `frontend/index.html` (`<html lang="pt-BR" data-theme="light">`, um só `<meta name="theme-color" content="#ffffff">`) e `frontend/src/components/AppBackground.tsx` (manchas novas); trocar qualquer uso de verde restante por dourado (`grep -rn "green" frontend/src`) — faz T029 e T030 passarem
+- [X] T031 [US1] Reescrever `frontend/src/lib/designTokens.ts` (um tema, valores do data-model §1 e `BACKGROUND_STOPS` do §2) e `frontend/src/index.css` (tokens únicos, sem bloco escuro, `--color-gold-soft`, `--color-surface-muted: #fdfaf6`, `--color-border: #eee2d3`, `--lg-on: var(--color-accent-gold)`, `color-scheme: light`, fundo branco com manchas `app-spot-red` e duas `app-spot-gold`) — faz T029 passar
+- [X] T032 [US1] Alterar `frontend/index.html` (`<html lang="pt-BR" data-theme="light">`, um só `<meta name="theme-color" content="#ffffff">`) e `frontend/src/components/AppBackground.tsx` (manchas novas); trocar qualquer uso de verde restante por dourado (`grep -rn "green" frontend/src`) — faz T029 e T030 passarem
 
 **Checkpoint**: todas as telas já aparecem em branco, vermelho e dourado.
 

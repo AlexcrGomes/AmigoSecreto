@@ -11,4 +11,13 @@ describe('AppBackground', () => {
     expect(background).toHaveAttribute('data-glisse-backdrop');
     expect(background).toHaveTextContent('');
   });
+
+  it('tem brilhos vermelho e dourados, sem verde (revisão 2026-11-27)', () => {
+    render(<AppBackground />);
+
+    const background = screen.getByTestId('app-background');
+    expect(background.querySelectorAll('.app-spot-red')).toHaveLength(1);
+    expect(background.querySelectorAll('.app-spot-gold')).toHaveLength(2);
+    expect(background.innerHTML).not.toMatch(/green/i);
+  });
 });

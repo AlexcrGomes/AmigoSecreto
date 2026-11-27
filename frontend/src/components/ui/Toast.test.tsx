@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Badge } from './Badge';
 import { Card } from './Card';
+import { Notice } from './Notice';
 import { Spinner } from './Spinner';
 import { ToastProvider, useToast } from './Toast';
 
@@ -74,6 +75,21 @@ describe('Card, Badge e Spinner', () => {
     expect(screen.getByText('Sorteado')).toBeInTheDocument();
     expect(screen.getByText('Aberto')).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Carregando grupos' })).toBeInTheDocument();
+  });
+
+  it('sucesso é dourado (token success), nunca verde (revisão 2026-11-27)', () => {
+    render(
+      <>
+        <Badge tone="success">Confirmado</Badge>
+        <Notice tone="success">Sorteio realizado.</Notice>
+      </>,
+    );
+
+    const badge = screen.getByText('Confirmado');
+    expect(badge).toHaveClass('text-success', 'ring-success');
+    const notice = screen.getByRole('status');
+    expect(notice.querySelector('svg')).toHaveClass('text-success');
+    expect(document.body.innerHTML).not.toMatch(/green/i);
   });
 
   it('spinner sem rótulo é decorativo', () => {
