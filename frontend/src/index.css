@@ -1,45 +1,119 @@
 @import 'tailwindcss';
 
-/* Tokens do design (Constituição VI): cores com contraste AA, raios e sombras. */
+/*
+ * Tokens do design (Constituição VI; feature 005, data-model.md). Paleta festiva — vermelho, verde e
+ * dourado — com contraste AA nos dois temas, inclusive sobre o vidro: os valores de cor são os de
+ * src/lib/designTokens.ts, conferidos por contrast.test.ts.
+ */
 @theme {
-  --color-primary: #b91c1c;
-  --color-primary-hover: #991b1b;
+  /* Tema claro */
+  --color-text: #1f1315;
+  --color-text-muted: #5b4448;
+  --color-primary: #b3121f;
+  --color-primary-hover: #8f0e18;
+  --color-primary-fill: #b3121f;
   --color-on-primary: #ffffff;
-
-  --color-surface: #ffffff;
-  --color-surface-muted: #f5f5f4;
-  --color-border: #d6d3d1;
-
-  --color-text: #1c1917;
-  --color-text-muted: #57534e;
-
-  --color-danger: #b91c1c;
   --color-success: #15803d;
+  --color-danger: #be123c;
+  --color-accent-green: #15803d;
+  --color-accent-gold: #92400e;
+  --color-surface: #ffffff;
+  --color-surface-muted: #fbf5f5;
+  --color-glass: rgb(255 255 255 / 0.72);
+  --color-glass-edge: rgb(255 255 255 / 0.6);
+  --color-border: #e7d6d8;
 
-  --radius-card: 1rem;
-  --radius-control: 0.75rem;
+  --radius-card: 1.75rem;
+  --radius-control: 9999px;
+  --radius-field: 1rem;
 
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.06);
+  --blur-glass: 24px;
+  --shadow-glass:
+    0 1px 0 rgb(255 255 255 / 0.5) inset, 0 8px 24px rgb(76 5 25 / 0.08),
+    0 1px 3px rgb(76 5 25 / 0.06);
+  --shadow-card: var(--shadow-glass);
+
+  --tabbar-height: 4.5rem;
 }
 
-/* Variantes escuras seguindo a preferência do sistema */
+/* Fundo festivo (data-model.md §2), usado pelo AppBackground */
+:root {
+  --bg-1: #fff7ed;
+  --bg-2: #fde2e4;
+  --bg-3: #fef3c7;
+  --bg-spot-red: rgb(248 113 113 / 0.45);
+  --bg-spot-green: rgb(74 222 128 / 0.3);
+  --bg-spot-gold: rgb(251 191 36 / 0.4);
+
+  /* Ponte com a Glisse (research R45): as regras dela usam :where(), então estas vencem */
+  --lg-foreground: var(--color-text);
+  --lg-muted: var(--color-text-muted);
+  --lg-glass: var(--color-glass);
+  --lg-fill: var(--color-primary-fill);
+  --lg-destructive: var(--color-danger);
+  --lg-on: var(--color-accent-green);
+  --lg-ring: var(--color-primary);
+  --lg-separator: var(--color-border);
+}
+
+/* Tema escuro, seguindo o aparelho (FR-004) */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-primary: #f87171;
-    --color-primary-hover: #fca5a5;
-    --color-on-primary: #1c1917;
-
-    --color-surface: #1c1917;
-    --color-surface-muted: #292524;
-    --color-border: #44403c;
-
-    --color-text: #fafaf9;
-    --color-text-muted: #d6d3d1;
-
-    --color-danger: #f87171;
+    --color-text: #fff7f5;
+    --color-text-muted: #e7cfd2;
+    --color-primary: #ff6b6b;
+    --color-primary-hover: #ff8a8a;
+    --color-primary-fill: #c81e2b;
+    --color-on-primary: #ffffff;
     --color-success: #4ade80;
+    --color-danger: #fb7185;
+    --color-accent-green: #4ade80;
+    --color-accent-gold: #fbbf24;
+    --color-surface: #1c1416;
+    --color-surface-muted: #140c0e;
+    --color-glass: rgb(28 20 22 / 0.66);
+    --color-glass-edge: rgb(255 255 255 / 0.12);
+    --color-border: rgb(255 255 255 / 0.14);
 
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
+    --shadow-glass:
+      0 1px 0 rgb(255 255 255 / 0.08) inset, 0 8px 24px rgb(0 0 0 / 0.35),
+      0 1px 3px rgb(0 0 0 / 0.3);
+
+    --bg-1: #1c0a10;
+    --bg-2: #4c0519;
+    --bg-3: #064e3b;
+    --bg-spot-red: rgb(220 38 38 / 0.35);
+    --bg-spot-green: rgb(22 163 74 / 0.25);
+    --bg-spot-gold: rgb(217 119 6 / 0.3);
+  }
+}
+
+/* Sem transparência quando o aparelho pede (FR-008): o vidro da Glisse também fica sólido */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --lg-glass: var(--color-surface);
+  }
+}
+
+/*
+ * Superfície de vidro fosco (research R47, nível 2). Fica sólida com "reduzir transparência" ou
+ * quando o navegador não desfoca o fundo (nível 3).
+ */
+@utility surface-glass {
+  background-color: var(--color-glass);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.6);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.6);
+  border: 1px solid var(--color-glass-edge);
+  box-shadow: var(--shadow-glass);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: var(--color-surface);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--color-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 
@@ -57,5 +131,16 @@
   :focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
+  }
+
+  /* Sem animações quando o aparelho pede (FR-008) */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
