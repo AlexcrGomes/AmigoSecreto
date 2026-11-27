@@ -104,6 +104,15 @@
   outline: none;
 }
 
+/*
+ * Contorno dos campos (WCAG 1.4.11): sobre o cartão branco o vidro some, então o campo ganha um
+ * filete quente de 3:1 com o fundo (#9c8770).
+ */
+:is(.lg-input.field-input, .lg-glass.field-textarea) {
+  background-color: var(--color-surface);
+  box-shadow: inset 0 0 0 1px #9c8770;
+}
+
 :is(.lg-input.field-input, .lg-glass.field-textarea):focus-visible {
   box-shadow:
     inset 0 0 0 0.5px var(--lg-edge),
@@ -132,6 +141,45 @@
   box-shadow:
     inset 0 0 0 0.5px var(--color-glass-edge),
     0 24px 60px rgb(0 0 0 / 0.25);
+}
+
+/* Barra de abas do celular (research R49): vidro mais denso e com sombra quente */
+.lg-tab-bar.bottom-tab-bar {
+  --lg-blur: 18px;
+  box-shadow: 0 10px 30px rgb(120 53 15 / 0.14);
+}
+
+/* Avisos sobem para não ficarem atrás da barra de abas do celular */
+body:has([data-tabbar]) {
+  --toast-offset: calc(var(--tabbar-height) + 1rem);
+}
+
+/* Painel da marca nas telas de conta, no desenho largo (research R56) */
+.auth-brand {
+  background:
+    radial-gradient(circle at 20% 15%, rgb(233 196 106 / 0.28), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgb(233 196 106 / 0.22), transparent 40%),
+    linear-gradient(150deg, #c0141f 0%, var(--color-primary-fill) 45%, #7f0d16 100%);
+}
+
+.auth-ornament {
+  position: absolute;
+  border: 1px solid rgb(233 196 106 / 0.45);
+  border-radius: 9999px;
+}
+
+.auth-ornament-top {
+  width: 22rem;
+  height: 22rem;
+  top: -8rem;
+  left: -8rem;
+}
+
+.auth-ornament-bottom {
+  width: 30rem;
+  height: 30rem;
+  bottom: -14rem;
+  right: -12rem;
 }
 
 /* Revelação do amigo secreto (research R50): entrada curta; sem ela com "reduzir movimento" */

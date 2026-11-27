@@ -22,9 +22,9 @@ export function CreateGroupPage() {
   }
 
   return (
-    <div className="py-6">
-      <Card>
-        <h1 className="text-2xl font-bold text-text">Criar grupo</h1>
+    <div className="py-6 md:py-4">
+      <Card className="mx-auto max-w-xl md:p-8">
+        <h1 className="text-2xl font-extrabold tracking-tight text-text">Criar grupo</h1>
         <div className="mt-6">
           <EventDetailsForm
             withName

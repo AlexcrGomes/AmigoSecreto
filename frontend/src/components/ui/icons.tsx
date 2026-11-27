@@ -57,6 +57,16 @@ export function IconLogout(props: IconProps) {
   );
 }
 
+export function IconGift(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.5" y="8.5" width="17" height="4" rx="1" />
+      <path d="M5 12.5v6A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-6M12 8.5V20" />
+      <path d="M12 8.5S10.8 4 8.4 4a2.1 2.1 0 0 0 0 4.5H12ZM12 8.5S13.2 4 15.6 4a2.1 2.1 0 0 1 0 4.5H12Z" />
+    </Svg>
+  );
+}
+
 export function IconAlert(props: IconProps) {
   return (
     <Svg {...props}>

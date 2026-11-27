@@ -149,9 +149,13 @@ describe('RegisterPage', () => {
     await fill('Ana', 'ana@x.com', 'senha-forte');
     await userEvent.click(screen.getByRole('button', { name: 'Criar conta' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Muitas tentativas. Tente novamente em alguns minutos.',
-    );
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Muitas tentativas. Tente novamente em alguns minutos.');
+    expect(alert.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    // Cartão de vidro do AuthLayout (feature 005)
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Criar conta' }).closest('.surface-glass'),
+    ).not.toBeNull();
   });
 
   it('tem link para entrar mantendo o "voltar"', async () => {

@@ -117,7 +117,19 @@ describe('LoginPage', () => {
     await fill('ana@x.com', 'errada-123');
     await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('E-mail ou senha inválidos.');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('E-mail ou senha inválidos.');
+    // Erro com ícone e texto, não só cor (feature 005)
+    expect(alert.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('o formulário fica no cartão de vidro do AuthLayout, ao lado da marca (feature 005)', async () => {
+    mockSession(null);
+    renderLogin();
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Entrar' });
+    expect(heading.closest('.surface-glass')).not.toBeNull();
+    expect(screen.getByTestId('auth-brand')).toBeInTheDocument();
   });
 
   it('429 mostra o aviso de muitas tentativas', async () => {

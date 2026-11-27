@@ -33,6 +33,13 @@ async function fillValidDetails() {
 }
 
 describe('CreateGroupPage', () => {
+  it('o formulário fica num cartão de largura limitada (feature 005)', async () => {
+    renderCreate();
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Criar grupo' });
+    expect(heading.closest('.max-w-xl')).not.toBeNull();
+  });
+
   it('nome, data e local são obrigatórios', async () => {
     renderCreate();
 

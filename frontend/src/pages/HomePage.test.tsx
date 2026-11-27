@@ -112,6 +112,26 @@ describe('HomePage', () => {
     expect(screen.getByRole('heading', { name: 'Criar grupo' })).toBeInTheDocument();
   });
 
+  it('grupos numa lista que vira grade no tablet e no computador (feature 005)', async () => {
+    renderHome([
+      {
+        id: 'g-1',
+        name: 'Natal 2026',
+        status: 'DRAWN',
+        participantCount: 4,
+        organizer: false,
+        eventDate: '2026-12-19',
+        eventTime: '19:00',
+      },
+    ]);
+
+    const section = await screen.findByRole('region', { name: 'Em andamento' });
+    const list = within(section).getByRole('list');
+    expect(list).toHaveClass('grid', 'md:grid-cols-2', 'xl:grid-cols-3');
+    // Selo "Sorteado" em dourado, nunca verde
+    expect(within(list).getByText('Sorteado')).toHaveClass('text-success');
+  });
+
   it('botão "Entrar com código" leva à tela de entrar', async () => {
     renderHome([]);
 
