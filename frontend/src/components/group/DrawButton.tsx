@@ -83,7 +83,7 @@ export function DrawButton({ group }: { group: GroupDetail }) {
         {error && (
           <p
             role="alert"
-            className="mt-3 rounded-control border border-danger px-3 py-2 text-danger"
+            className="mt-3 rounded-2xl border border-danger bg-surface px-3 py-2 font-medium text-danger"
           >
             {error}
           </p>

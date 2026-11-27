@@ -48,7 +48,10 @@ export function ExitRequestsList({ group }: { group: GroupDetail }) {
       </h2>
       <ul aria-labelledby="pedidos-de-saida" className="mt-3 flex flex-col gap-3">
         {group.pendingExitRequests.map((request) => (
-          <li key={request.id} className="rounded-control border border-border p-3">
+          <li
+            key={request.id}
+            className="rounded-2xl bg-surface/60 p-3 ring-1 ring-border ring-inset"
+          >
             <p className="font-medium break-words text-text">
               {request.name}
               {request.guardianName && (

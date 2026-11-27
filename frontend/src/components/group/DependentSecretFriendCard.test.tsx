@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DependentSecretFriend, MyDependent } from '../../api/groups';
 import { problem } from '../../test/groups';
+import { setMediaMatcher } from '../../test/media';
 import { server } from '../../test/server';
 import { ToastProvider } from '../ui/Toast';
 import {
@@ -93,6 +94,30 @@ describe('DependentSecretFriendCards', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Revelar o amigo secreto de Bia' }));
     expect(await screen.findByText('Davi')).toBeInTheDocument();
     expect(calls()).toBe(1);
+  });
+
+  it('cartões de destaque; os nomes ocultos não estão na página (feature 005)', async () => {
+    mockResults();
+    renderCards();
+
+    const heading = screen.getByRole('heading', { name: 'Amigo secreto de Lucas' });
+    expect(heading.closest('.lg-glass')).not.toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Revelar o amigo secreto de Lucas' }));
+
+    expect(await screen.findByText('Carla')).toHaveClass('reveal-in');
+    // O resultado de Bia já veio na mesma resposta, mas continua fora da página
+    expect(document.body.textContent).not.toContain('Davi');
+  });
+
+  it('com "reduzir movimento", o nome aparece sem animação', async () => {
+    setMediaMatcher((query) => query.includes('prefers-reduced-motion'));
+    mockResults();
+    renderCards([LUCAS]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Revelar o amigo secreto de Lucas' }));
+
+    expect(await screen.findByText('Carla')).not.toHaveClass('reveal-in');
   });
 
   it('ocultar esconde o cartão; ao ocultar o último, os resultados saem da memória', async () => {

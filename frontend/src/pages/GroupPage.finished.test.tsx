@@ -110,10 +110,9 @@ describe('GroupPage — status FINISHED', () => {
       FakeEventSource.latest().emit('group-finished', { status: 'FINISHED', participantCount: 3 }),
     );
 
-    expect(
-      await screen.findByText('O evento aconteceu. Este grupo foi finalizado.'),
-    ).toBeInTheDocument();
-    expect(await screen.findByText('Finalizado')).toBeInTheDocument();
+    const notice = await screen.findByText('O evento aconteceu. Este grupo foi finalizado.');
+    expect(notice.closest('[role="status"]')?.querySelector('svg')).not.toBeNull();
+    expect(await screen.findByText('Finalizado')).toHaveClass('rounded-control');
     expect(screen.queryByRole('button', { name: 'Editar detalhes' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Revelar' })).toBeInTheDocument();
   });

@@ -115,7 +115,10 @@ export function DependentsCard({ group }: { group: GroupDetail }) {
       {dependents.length > 0 && (
         <ul aria-labelledby="meus-dependentes" className="mt-4 flex flex-col gap-3">
           {dependents.map((dependent) => (
-            <li key={dependent.id} className="rounded-control border border-border p-3">
+            <li
+              key={dependent.id}
+              className="rounded-2xl bg-surface/60 p-3 ring-1 ring-border ring-inset"
+            >
               <div className="flex items-center justify-between gap-3">
                 <p className="min-w-0 truncate font-medium text-text">{dependent.name}</p>
                 {open &&

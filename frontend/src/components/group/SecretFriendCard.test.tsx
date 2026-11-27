@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../ui/Toast';
 import { problem } from '../../test/groups';
+import { setMediaMatcher } from '../../test/media';
 import { server } from '../../test/server';
 import { SecretFriendCard, secretFriendKey } from './SecretFriendCard';
 
@@ -124,6 +125,37 @@ describe('SecretFriendCard', () => {
     renderCard();
 
     expect(screen.queryByRole('heading', { name: 'Lista de desejos' })).not.toBeInTheDocument();
+  });
+
+  // ---- visual novo (feature 005, FR-014 e research R50) ----
+
+  it('é um cartão de destaque e, oculto, o nome não está na página', async () => {
+    server.use(
+      http.get('/api/v1/groups/g-1/my-secret-friend', () => HttpResponse.json({ name: 'Carla' })),
+    );
+    renderCard();
+
+    const heading = screen.getByRole('heading', { name: 'Seu amigo secreto' });
+    expect(heading.closest('.lg-glass')).not.toBeNull();
+    expect(document.body.textContent).not.toContain('Carla');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Revelar' }));
+    expect(await screen.findByText('Carla')).toHaveClass('reveal-in');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ocultar' }));
+    expect(document.body.textContent).not.toContain('Carla');
+  });
+
+  it('com "reduzir movimento", o nome aparece sem animação', async () => {
+    setMediaMatcher((query) => query.includes('prefers-reduced-motion'));
+    server.use(
+      http.get('/api/v1/groups/g-1/my-secret-friend', () => HttpResponse.json({ name: 'Carla' })),
+    );
+    renderCard();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Revelar' }));
+
+    expect(await screen.findByText('Carla')).not.toHaveClass('reveal-in');
   });
 
   it('mostra o valor do presente junto da lista revelada', async () => {

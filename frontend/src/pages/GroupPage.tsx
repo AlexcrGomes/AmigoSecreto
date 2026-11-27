@@ -28,6 +28,7 @@ import { Button, buttonClasses } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Modal } from '../components/ui/Modal';
+import { Notice } from '../components/ui/Notice';
 import { Spinner } from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
 import { GROUPS_KEY, groupKey, useGroup } from '../hooks/useGroup';
@@ -175,8 +176,10 @@ export function GroupPage() {
 
   return (
     <div className="flex flex-col gap-4 py-6">
-      <div>
-        <h1 className="text-2xl font-bold break-words text-text">{detail.name}</h1>
+      <div className="surface-glass rounded-card px-5 py-4">
+        <h1 className="text-2xl font-extrabold tracking-tight break-words text-text">
+          {detail.name}
+        </h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge tone={drawn ? 'success' : finished ? 'neutral' : 'primary'}>
             {drawn ? 'Sorteado' : finished ? 'Finalizado' : 'Aguardando sorteio'}
@@ -201,7 +204,7 @@ export function GroupPage() {
           onEdit={canEditDetails ? () => setEditingDetails(true) : undefined}
         />
       ) : canEditDetails ? (
-        <Card className="border border-primary">
+        <Card highlight>
           <p className="font-semibold text-text">Informe a data e o local do evento</p>
           <p className="mt-1 text-sm text-text-muted">
             Este grupo foi criado antes de existirem os detalhes do evento.
@@ -211,9 +214,7 @@ export function GroupPage() {
           </Button>
         </Card>
       ) : (
-        <p className="text-text-muted">
-          O organizador ainda vai informar a data e o local do evento.
-        </p>
+        <Notice>O organizador ainda vai informar a data e o local do evento.</Notice>
       )}
 
       {pending && (
@@ -225,12 +226,9 @@ export function GroupPage() {
       )}
 
       {drawn && justDrawn && (
-        <p
-          role="status"
-          className="rounded-control border border-success bg-surface px-4 py-3 font-medium text-success"
-        >
+        <Notice tone="success">
           O sorteio foi realizado! Toque em Revelar para ver quem você tirou.
-        </p>
+        </Notice>
       )}
 
       {decisions.map((notice) => (
@@ -243,21 +241,13 @@ export function GroupPage() {
       ))}
 
       {open && (detail.drawUndone || justUndone) && (
-        <p
-          role="status"
-          className="rounded-control border border-primary bg-surface px-4 py-3 font-medium text-text"
-        >
+        <Notice>
           Uma pessoa saiu do grupo e o sorteio foi desfeito. O organizador fará um novo sorteio.
-        </p>
+        </Notice>
       )}
 
       {finished && justFinished && (
-        <p
-          role="status"
-          className="rounded-control border border-border bg-surface px-4 py-3 font-medium text-text"
-        >
-          O evento aconteceu. Este grupo foi finalizado.
-        </p>
+        <Notice tone="success">O evento aconteceu. Este grupo foi finalizado.</Notice>
       )}
 
       {open ? (

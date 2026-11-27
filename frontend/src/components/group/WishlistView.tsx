@@ -38,7 +38,7 @@ export function WishlistView({ wishlist, updatedAt }: WishlistViewProps) {
       ) : (
         <ul aria-labelledby="lista-do-amigo" className="mt-2 flex flex-col gap-2">
           {wishlist.map((item, index) => (
-            <li key={index} className="rounded-control border border-border p-3">
+            <li key={index} className="rounded-2xl bg-surface/60 p-3 ring-1 ring-border ring-inset">
               <p className="break-words whitespace-pre-line text-text">{item.description}</p>
               {item.url && (
                 <button

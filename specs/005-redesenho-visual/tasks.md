@@ -108,17 +108,17 @@ MSW. Gate de cobertura: 80% de linhas. O backend não muda, mas `mvn -B verify` 
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T021 [P] [US2] Ampliar `frontend/src/components/group/SecretFriendCard.test.tsx` e `frontend/src/components/group/DependentSecretFriendCard.test.tsx`: cartão de destaque (superfície de vidro da Glisse); oculto, o nome **não está no DOM** (`document.body.textContent` não contém o nome) e só os pontos aparecem; revelado, o nome aparece; com `prefers-reduced-motion`, sem classe de transição (FR-014, research R50)
-- [ ] T022 [P] [US2] Ampliar `frontend/src/pages/GroupPage.open.test.tsx`, `GroupPage.drawn.test.tsx` e `GroupPage.finished.test.tsx`: selo de status em pílula com o texto ("Aguardando sorteio", "Sorteado", "Finalizado"); as seções continuam na mesma ordem; avisos (sorteio feito, desfeito, finalizado) com ícone e texto; `ConfirmParticipationCard` como cartão de destaque
+- [X] T021 [P] [US2] Ampliar `frontend/src/components/group/SecretFriendCard.test.tsx` e `frontend/src/components/group/DependentSecretFriendCard.test.tsx`: cartão de destaque (superfície de vidro da Glisse); oculto, o nome **não está no DOM** (`document.body.textContent` não contém o nome) e só os pontos aparecem; revelado, o nome aparece; com `prefers-reduced-motion`, sem classe de transição (FR-014, research R50)
+- [X] T022 [P] [US2] Ampliar `frontend/src/pages/GroupPage.open.test.tsx`, `GroupPage.drawn.test.tsx` e `GroupPage.finished.test.tsx`: selo de status em pílula com o texto ("Aguardando sorteio", "Sorteado", "Finalizado"); as seções continuam na mesma ordem; avisos (sorteio feito, desfeito, finalizado) com ícone e texto; `ConfirmParticipationCard` como cartão de destaque
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Alterar `frontend/src/components/group/SecretFriendCard.tsx` e `DependentSecretFriendCard.tsx`: `Card highlight`, nome em destaque com transição de opacidade/escala ≤ 300 ms e `motion-reduce:transition-none` — faz T021 passar
-- [ ] T024 [US2] Alterar `frontend/src/pages/GroupPage.tsx`: cabeçalho do grupo com nome e `Badge` de status; avisos como faixas de vidro com ícone (`IconCheck`/`IconAlert`); espaçamento entre cartões pelos tokens — faz T022 passar
-- [ ] T025 [P] [US2] Ajustar o layout no visual novo de `frontend/src/components/group/EventDetailsCard.tsx`, `ShareCode.tsx`, `DrawButton.tsx` e `ConfirmParticipationCard.tsx` (este como `Card highlight`), sem mudar textos nem ações
-- [ ] T026 [P] [US2] Ajustar o layout no visual novo de `frontend/src/components/group/WishlistEditor.tsx`, `WishlistView.tsx`, `ExternalLinkModal.tsx`, `EventDetailsForm.tsx` (campos de data/hora/valor com `.lg-input`)
-- [ ] T027 [P] [US2] Ajustar o layout no visual novo de `frontend/src/components/group/DependentsCard.tsx`, `DependentForm.tsx`, `ParticipantList.tsx` (linhas com selos em pílula, "(dependente de Ana)" em texto secundário), `ExitRequestsList.tsx` e `ExitRequestPanel.tsx`
-- [ ] T028 [US2] Rodar a suíte do frontend; corrigir quebras mantendo as consultas por papel/nome
+- [X] T023 [US2] Alterar `frontend/src/components/group/SecretFriendCard.tsx` e `DependentSecretFriendCard.tsx`: `Card highlight`, nome em destaque com transição de opacidade/escala ≤ 300 ms e `motion-reduce:transition-none` — faz T021 passar
+- [X] T024 [US2] Alterar `frontend/src/pages/GroupPage.tsx`: cabeçalho do grupo com nome e `Badge` de status; avisos como faixas de vidro com ícone (`IconCheck`/`IconAlert`); espaçamento entre cartões pelos tokens — faz T022 passar
+- [X] T025 [P] [US2] Ajustar o layout no visual novo de `frontend/src/components/group/EventDetailsCard.tsx`, `ShareCode.tsx`, `DrawButton.tsx` e `ConfirmParticipationCard.tsx` (este como `Card highlight`), sem mudar textos nem ações
+- [X] T026 [P] [US2] Ajustar o layout no visual novo de `frontend/src/components/group/WishlistEditor.tsx`, `WishlistView.tsx`, `ExternalLinkModal.tsx`, `EventDetailsForm.tsx` (campos de data/hora/valor com `.lg-input`)
+- [X] T027 [P] [US2] Ajustar o layout no visual novo de `frontend/src/components/group/DependentsCard.tsx`, `DependentForm.tsx`, `ParticipantList.tsx` (linhas com selos em pílula, "(dependente de Ana)" em texto secundário), `ExitRequestsList.tsx` e `ExitRequestPanel.tsx`
+- [X] T028 [US2] Rodar a suíte do frontend; corrigir quebras mantendo as consultas por papel/nome
 
 **Checkpoint**: US1 + US2 entregam o visual novo na tela mais usada.
 

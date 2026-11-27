@@ -111,7 +111,10 @@ export function EventDetailsForm({
   return (
     <form noValidate onSubmit={submit} className="flex flex-col gap-4">
       {formError && (
-        <p role="alert" className="rounded-control border border-danger px-3 py-2 text-danger">
+        <p
+          role="alert"
+          className="rounded-2xl border border-danger bg-surface px-3 py-2 font-medium text-danger"
+        >
           {formError}
         </p>
       )}
@@ -161,7 +164,7 @@ export function EventDetailsForm({
         {...register('giftValue')}
       />
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={descriptionId} className="text-sm font-medium text-text">
+        <label htmlFor={descriptionId} className="text-sm font-semibold text-text">
           Descrição (opcional)
         </label>
         <textarea
@@ -173,9 +176,7 @@ export function EventDetailsForm({
             .filter(Boolean)
             .join(' ')}
           className={[
-            'min-h-11 w-full rounded-control border bg-surface px-3 py-2 text-base text-text',
-            'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary',
-            descriptionError ? 'border-danger' : 'border-border',
+            'lg-glass field-textarea min-h-24 w-full rounded-field px-4 py-3 text-base text-text',
           ].join(' ')}
           {...register('description')}
         />
@@ -192,7 +193,7 @@ export function EventDetailsForm({
         )}
       </div>
       {scheduleChangeWarning && scheduleChanged && (
-        <p role="note" className="rounded-control border border-primary px-3 py-2 text-text">
+        <p role="note" className="rounded-2xl border border-primary bg-surface px-3 py-2 text-text">
           {scheduleChangeWarning}
         </p>
       )}
