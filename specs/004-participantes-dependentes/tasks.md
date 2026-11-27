@@ -184,7 +184,7 @@ os dependentes (FR-016), em todos os caminhos, também é da US1.
 - [X] T052 Voltar `test/…/integration/OpenApiContractIT.java` à igualdade completa (rotas geradas = união 001 + 002 + 003 + 004)
 - [X] T053 Ampliar `test/…/integration/DrawPerformanceIT.java`: sorteio de 100 participantes com 15 responsáveis e 5 dependentes cada em < 1 s no servidor (plan.md, Performance Goals)
 - [X] T054 Rodar `mvn -B verify` e `npm run lint && npm run format:check && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80% nos dois
-- [ ] T055 Executar o roteiro manual do [quickstart.md](./quickstart.md) (§1 migração, §2 passos 1–17 com uma janela a 360px, §3 sigilo) e registrar o resultado no PR
+- [X] T055 Executar o roteiro manual do [quickstart.md](./quickstart.md) (§1 migração, §2 passos 1–17 com uma janela a 360px, §3 sigilo) e registrar o resultado no PR
 - [X] T056 Revisão final contra a constituição v1.3.0 (Princípios I a VIII) com a checklist do PR template, conferindo em especial: nenhuma rota devolve resultado de dependente a partir de id do cliente; dependente nunca autentica; sorteio só por rejeição; nenhum evento SSE novo; nenhuma dependência nova no `pom.xml` e no `package.json`
 
 ---
