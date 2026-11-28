@@ -149,6 +149,24 @@
   box-shadow: 0 10px 30px rgb(120 53 15 / 0.14);
 }
 
+/*
+ * Abas da tela do grupo (research R57): o seletor da Glisse na largura toda, com opções de 44px. A
+ * largura de cada opção vem do próprio seletor (unidade cqw), para o marcador acompanhar.
+ */
+.lg-segmented.segmented-tabs {
+  container-type: inline-size;
+  display: flex;
+  width: 100%;
+  --lg-tab-height: 2.75rem;
+  --lg-tab-width: calc(100cqw / var(--lg-tabs, 3));
+  --lg-segment-track: rgb(161 98 7 / 0.1);
+}
+
+.lg-segmented.segmented-tabs :is(.lg-tab, .lg-tab-copy) {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 /* Avisos sobem para não ficarem atrás da barra de abas do celular */
 body:has([data-tabbar]) {
   --toast-offset: calc(var(--tabbar-height) + 1rem);

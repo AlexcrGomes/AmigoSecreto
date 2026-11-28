@@ -2,12 +2,16 @@ import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { Route, Routes } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeEventSource } from '../test/eventSource';
 import { BRUNO_ID, mockGroup, openGroup, problem } from '../test/groups';
 import { ANA, mockSession, renderWithProviders } from '../test/render';
+import { setMediaMatcher } from '../test/media';
 import { server } from '../test/server';
 import { GroupPage } from './GroupPage';
+
+// Desenho largo (≥ 768px): as três partes do grupo ficam visíveis juntas (feature 005, R59)
+beforeEach(() => setMediaMatcher((query) => query.includes('min-width: 768px')));
 
 function renderGroup(id = 'g-1') {
   mockSession(ANA);
