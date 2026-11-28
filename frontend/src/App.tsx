@@ -2,7 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router';
 import { ApiError, apiFetch } from './api/client';
-import { AuthProvider } from './auth/AuthProvider';
+import { AuthProvider, useAuth } from './auth/AuthProvider';
+import { AppNavigation, WIDE_QUERY } from './components/AppNavigation';
+import { useMediaQuery } from './hooks/useMediaQuery';
 import { GuestOnly, RequireAuth } from './auth/RequireAuth';
 import { AppBackground } from './components/AppBackground';
 import { AppHeader } from './components/AppHeader';
@@ -30,13 +32,31 @@ function createQueryClient() {
   });
 }
 
-/** Layout base mobile-first: coluna única de até 28rem, sem rolagem horizontal em 360px. */
+/**
+ * Moldura em dois desenhos (research R56): no celular, cabeçalho compacto, coluna única de até 28rem e
+ * barra de abas embaixo; no tablet, iPad e computador, menu lateral e conteúdo até 72rem. A ordem
+ * dos filhos não muda entre os desenhos, então girar o tablet não desmonta a tela (US4-7).
+ */
 function Layout() {
+  const { status } = useAuth();
+  const wide = useMediaQuery(WIDE_QUERY);
+  const loggedIn = status === 'authenticated';
+
+  const mainClasses = wide
+    ? loggedIn
+      ? 'mx-auto w-full max-w-6xl min-w-0 flex-1 px-6 py-6 lg:px-10 lg:py-8'
+      : 'w-full flex-1'
+    : [
+        'mx-auto w-full max-w-md flex-1 px-4',
+        loggedIn ? 'pb-[calc(var(--tabbar-height)+env(safe-area-inset-bottom)+1.5rem)]' : 'pb-8',
+      ].join(' ');
+
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className={wide && loggedIn ? 'flex min-h-dvh' : 'flex min-h-dvh flex-col'}>
       <AppBackground />
-      <AppHeader />
-      <main className="mx-auto w-full max-w-md flex-1 px-4 pb-8">
+      {!wide && <AppHeader />}
+      {loggedIn && <AppNavigation />}
+      <main className={mainClasses}>
         <Outlet />
       </main>
     </div>

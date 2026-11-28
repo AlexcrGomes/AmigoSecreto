@@ -4,8 +4,9 @@ import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
+import { AuthLayout } from '../components/AuthLayout';
 import { Input } from '../components/ui/Input';
+import { Notice } from '../components/ui/Notice';
 import { applyFieldErrors, errorMessage } from '../lib/errors';
 import { safeRedirect, voltarQuery } from '../lib/redirect';
 import { loginSchema, type LoginInput } from '../lib/schemas';
@@ -39,46 +40,44 @@ export function LoginPage() {
   });
 
   return (
-    <div className="py-8">
-      <Card>
-        <h1 className="text-2xl font-bold text-text">Entrar</h1>
-        <form noValidate onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
-          {formError && (
-            <p role="alert" className="rounded-control border border-danger px-3 py-2 text-danger">
-              {formError}
-            </p>
-          )}
-          <Input
-            label="E-mail"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            spellCheck={false}
-            error={errors.email?.message}
-            {...register('email')}
-          />
-          <Input
-            label="Senha"
-            type="password"
-            autoComplete="current-password"
-            error={errors.password?.message}
-            {...register('password')}
-          />
-          <Button type="submit" loading={isSubmitting} fullWidth>
-            Entrar
-          </Button>
-        </form>
-        <p className="mt-6 text-center text-text-muted">
-          Ainda não tem conta?{' '}
-          <Link
-            to={`/cadastro${voltarQuery(voltar)}`}
-            className="inline-flex min-h-11 items-center font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            Criar conta
-          </Link>
-        </p>
-      </Card>
-    </div>
+    <AuthLayout>
+      <h1 className="text-2xl font-extrabold tracking-tight text-text">Entrar</h1>
+      <form noValidate onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
+        {formError && (
+          <Notice tone="danger" role="alert">
+            {formError}
+          </Notice>
+        )}
+        <Input
+          label="E-mail"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          error={errors.email?.message}
+          {...register('email')}
+        />
+        <Input
+          label="Senha"
+          type="password"
+          autoComplete="current-password"
+          error={errors.password?.message}
+          {...register('password')}
+        />
+        <Button type="submit" loading={isSubmitting} fullWidth>
+          Entrar
+        </Button>
+      </form>
+      <p className="mt-6 text-center text-text-muted">
+        Ainda não tem conta?{' '}
+        <Link
+          to={`/cadastro${voltarQuery(voltar)}`}
+          className="inline-flex min-h-11 items-center font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          Criar conta
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

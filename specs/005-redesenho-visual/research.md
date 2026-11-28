@@ -241,3 +241,100 @@ componente por baixo não muda as consultas.
 | 1 | Fundação (US1): Glisse, CSP (R44), tokens e ponte `--lg-*` (R45), fundo (R48), componentes base (R46/R47), ícones, contraste — todas as telas já mudam de cara, porque usam os componentes base |
 | 2 | Tela do grupo (US2): cartões de destaque, revelação, ajustes de layout de cada parte |
 | 3 | Telas de conta e grupos + navegação por abas (US3), roteiro manual nos dois temas e a 360px |
+
+---
+
+# Revisão de 2026-11-27 (depois do PR #24)
+
+O usuário mesclou o PR #24, mas pediu outra paleta (branco e vermelho com detalhes dourados), um
+tema só e a disposição reorganizada em dois desenhos (spec, "Revisão 2026-11-27"). As decisões
+abaixo **substituem** R45 (só a parte dos dois temas), R48 e R49 onde conflitam; o resto continua.
+
+## R55. Um tema só, claro, imune ao modo escuro do aparelho (FR-004, FR-016)
+
+**Decision**:
+
+- Sai o bloco `@media (prefers-color-scheme: dark)` do `index.css`; os tokens têm um valor só.
+- `<html data-theme="light">` no `index.html`: o CSS da Glisse tem as variáveis escuras em
+  `@media (prefers-color-scheme: dark) { :where(:root:not([data-theme=light])) … }`; com o atributo,
+  ela não troca para o escuro por conta própria (nem nas variáveis que a ponte `--lg-*` não cobre,
+  como `--lg-glass-active` e `--lg-segment-thumb`).
+- `color-scheme: light` (os controles nativos de data e hora também ficam claros) e um único
+  `<meta name="theme-color" content="#ffffff">`.
+- Paleta: branco nas superfícies e no fundo; vermelho `#b3121f` nas ações; dourado `#a16207` nos
+  detalhes com texto (selos, ícones, sucesso) e `#e9c46a` só em decoração sem texto (filetes,
+  brilhos, bordas); sem verde. Sucesso passa a ser dourado; `--lg-on` (interruptor ligado) aponta
+  para o dourado. Contraste no pior caso no [data-model.md](./data-model.md) §1.
+
+**Alternatives considered**: manter o escuro com vinho (recusado pelo usuário); `color-scheme`
+sem `data-theme` (a Glisse ainda trocaria as próprias variáveis).
+
+## R56. Dois desenhos trocados em 768px (FR-017)
+
+**Decision**: um único ponto de troca, 768px (o iPad em pé), via `useMediaQuery('(min-width:
+768px)')` onde a estrutura muda (navegação, abas do grupo) e via o prefixo `md:` do Tailwind onde só
+a disposição muda (grades, colunas, metades). Dentro do desenho largo, `lg:` (1024px) só alarga:
+menu lateral compacto (ícone + rótulo curto, 5rem) de 768 a 1023px e completo (16rem) a partir de
+1024px; a coluna lateral do grupo vai de 18rem a 22rem.
+
+| Tela | Celular (< 768px) | Tablet, iPad e computador (≥ 768px) |
+|------|-------------------|-------------------------------------|
+| Moldura | cabeçalho compacto de vidro no topo + `TabBar` fixa embaixo | menu lateral fixo à esquerda (vidro), conteúdo até 72rem |
+| Entrar / criar conta | marca acima, formulário num cartão | duas metades: marca (vermelho com dourado) à esquerda, formulário à direita |
+| Meus grupos | título; "Criar grupo" e "Entrar com código" lado a lado; lista de cartões | título com os botões à direita; grade `md:grid-cols-2 xl:grid-cols-3` |
+| Criar grupo / entrar com código | cartão de largura total | cartão centralizado, até 36rem |
+| Grupo | cabeçalho do grupo + abas Resumo · Pessoas · Desejos | cabeçalho + duas colunas: resumo à esquerda; pessoas e desejos à direita |
+
+**Rationale**: um só ponto de troca é fácil de testar (o `matchMedia` falso dos testes, R53) e bate
+com a regra já usada pela navegação.
+
+## R57. A tela do grupo em três partes, montadas uma vez (FR-017, US4)
+
+**Decision**: a `GroupPage` agrupa o que já existe em três seções, sem mudar a ordem interna:
+
+- **Resumo**: avisos, confirmação, detalhes do evento (ou "informar detalhes"), código e sorteio
+  (aberto) ou amigo secreto e cartões dos dependentes (sorteado/finalizado), pedidos de saída
+  (organizador), "Sair do grupo" / painel de pedido de saída.
+- **Pessoas**: participantes e dependentes.
+- **Desejos**: minha lista e as listas dos dependentes.
+
+As três seções ficam **sempre montadas**; no celular, as que não estão na aba escolhida recebem o
+atributo `hidden` (somem da tela e dos leitores de tela); no desenho largo, nenhuma tem `hidden` e
+elas se dispõem em grade. Assim, girar o tablet ou trocar de aba não desmonta nada: um item de lista
+sendo editado ou um nome revelado continuam como estavam (spec, US4-7).
+
+- **Abas**: `SegmentedControl` da Glisse (papel `radiogroup`/`radio`), embrulhado em
+  `components/ui/SegmentedTabs.tsx` (a Glisse só entra por `ui/`, R46), com rótulo acessível
+  "Partes do grupo". Cada seção tem `id` e título próprio para quem navega por teclado.
+- **Aba no endereço**: `?aba=pessoas` ou `?aba=desejos` (sem o parâmetro = Resumo), com
+  `useSearchParams` e `replace` — voltar no navegador sai do grupo em vez de passear pelas abas;
+  recarregar mantém a aba. Valor desconhecido = Resumo.
+- **Revelação**: o cartão do amigo secreto fica no Resumo e continua sem o nome no DOM enquanto
+  oculto (R50); trocar de aba com o nome revelado não o esconde nem o expõe em outro lugar.
+
+**Alternatives considered**: desmontar as abas inativas (perderia edição em andamento ao girar o
+tablet); seções recolhíveis (o usuário escolheu abas).
+
+## R58. Menu lateral do desenho largo
+
+**Decision**: `AppNavigation` passa a ter duas formas, uma só no DOM por vez (R49 continua para o
+celular): no celular, a `TabBar` da Glisse embaixo; no desenho largo, um `<nav aria-label="Menu
+principal">` lateral do projeto, de vidro, com a marca no topo, os três destinos como links (ícone +
+rótulo; o atual com fundo vermelho e `aria-current="page"`), e no fim o nome do usuário e "Sair"
+(mesma confirmação). A `TabBar` da Glisse é horizontal e não serve como menu lateral; o menu é feito
+com `buttonClasses` e os tokens, no mesmo vidro. O cabeçalho de topo existe só no celular.
+
+## R59. Testes com dois desenhos
+
+**Decision**: o `matchMedia` falso começa como celular (R53). Os testes de comportamento da tela do
+grupo (`GroupPage.*.test.tsx`), que procuram participantes, listas e cartões todos de uma vez,
+passam a rodar no **desenho largo** com `setMediaMatcher` num `beforeEach` — sem mudar nenhuma
+consulta. Testes novos cobrem o celular: abas, aba no endereço, seções `hidden`, e a troca de
+desenho sem perder estado. Navegação: celular (`TabBar`, papel `navigation`) e largo (menu lateral)
+testados separadamente.
+
+## R60. Entrega da revisão
+
+**Decision**: uma branch nova (`005-layout-responsivo`) a partir da `main` com o PR #24 mesclado, e
+um PR com a revisão da paleta, a US3 (navegação e telas de conta), a US4 (disposição) e o
+polimento com o roteiro manual — substitui os PRs 2 e 3 da R54.

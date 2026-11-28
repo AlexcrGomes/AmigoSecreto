@@ -14,8 +14,11 @@ valendo; o que muda é a aparência.
 | `Modal` | `open`, `title`, `onClose`, `footer`, `children` | `glisse` `Glass` sobre um véu | `role="dialog"`, `aria-modal`, foco preso, `Esc` fecha, foco volta ao gatilho |
 | `ConfirmModal` | igual | `Modal` | loading e erro dentro da janela |
 | `Toast` | `useToast().show(text, tone)` | do projeto, vidro | `role="status"`; tom `error` com ícone de alerta |
-| `Badge` | `tone`, `children` | do projeto | pílula; cor + texto (nunca só cor) |
+| `Badge` | `tone` (`neutral`, `success`, `primary`), `children` | do projeto | pílula; `success` em dourado (R55); cor + texto (nunca só cor) |
 | `Spinner` | `label`, `className` | do projeto | `role="status"`; sem animação com `prefers-reduced-motion` |
 | `icons.tsx` (novo) | `IconGroups`, `IconPlus`, `IconTicket`, `IconLogout`, `IconAlert`, `IconCheck` | SVG próprio | `aria-hidden`, `currentColor` |
-| `AppBackground` (novo) | — | CSS | fixo atrás de tudo, `data-glisse-backdrop`, sem conteúdo acessível |
-| `AppNavigation` (novo) | — | `glisse` `TabBar` + `ConfirmModal` | research R49 e [ui-routes.md](./ui-routes.md) |
+| `AppBackground` (novo) | — | CSS | fixo atrás de tudo, `data-glisse-backdrop`, sem conteúdo acessível; branco com brilhos vermelho e dourado (R55) |
+| `Notice` (novo, US2) | `tone` (`success`, `info`, `danger`), `role`, `children` | do projeto, vidro | ícone + texto; sucesso dourado (R55) |
+| `SegmentedTabs` (novo, revisão) | `label`, `items {value,label}`, `value`, `onValueChange` | `glisse` `SegmentedControl` | papel `radiogroup` com rótulo; só no celular (research R57) |
+| `AppNavigation` (novo) | — | celular: `glisse` `TabBar`; ≥ 768px: menu lateral do projeto; `ConfirmModal` para "Sair" | research R49, R58 e [ui-routes.md](./ui-routes.md) |
+| `AuthLayout` (novo, revisão) | `title`, `children` | do projeto | celular: marca acima + cartão; ≥ 768px: duas metades (research R56) |

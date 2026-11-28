@@ -32,6 +32,11 @@ todos confirmaram, o organizador faz o sorteio, e todos são avisados ao mesmo t
   nenhum id.
 - **Tempo real**: participantes, confirmações, sorteio e finalização aparecem sem recarregar a
   página.
+- **Visual**: estilo de vidro ("Liquid Glass", como no iOS 26), em branco e vermelho com detalhes
+  dourados, sempre claro. Dois desenhos: no celular, barra de abas embaixo e a tela do grupo em
+  abas (Resumo, Pessoas, Desejos); no tablet, iPad e computador (a partir de 768px), menu lateral e
+  a tela do grupo em duas colunas. Respeita "reduzir transparência" e "reduzir movimento" do
+  aparelho, com contraste WCAG AA.
 
 ## Tecnologias
 
@@ -39,7 +44,7 @@ todos confirmaram, o organizador faz o sorteio, e todos são avisados ao mesmo t
 |-------|-------|
 | Backend | Java 25, Spring Boot 4.1 (Web MVC, Security, Data JPA, Session JDBC), Flyway, Bucket4j |
 | Banco | PostgreSQL 18 |
-| Frontend | React 19, Vite 8, TypeScript 6, Tailwind CSS 4, TanStack Query, React Router |
+| Frontend | React 19, Vite 8, TypeScript 6, Tailwind CSS 4, [Glisse](https://glisse.kelvinzhang.ca/) 0.6 (componentes de vidro), TanStack Query, React Router |
 | Testes | JUnit 5, Mockito, Testcontainers, JaCoCo; Vitest, Testing Library, MSW |
 | Entrega | Docker Compose (nginx + backend + banco), GitHub Actions (CI e varreduras de segurança) |
 

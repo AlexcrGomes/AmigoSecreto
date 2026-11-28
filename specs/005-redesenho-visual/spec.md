@@ -39,38 +39,57 @@ continuam valendo; esta feature muda **só a aparência e a experiência visual*
 - Q: Tocar em "Sair" encerra a sessão na hora ou pede confirmação? → A: Pede confirmação ("Sair da
   sua conta?") antes de sair.
 
+### Revisão 2026-11-27 (depois da primeira entrega, PR #24)
+
+O usuário viu a primeira entrega e pediu: layout responsivo de verdade para celular, a disposição
+dos cartões reorganizada de um jeito fácil e agradável, um design para celular e outro para
+tablet/iPad/computador, e trocar o verde e vermelho por **branco e vermelho com detalhes
+dourados**.
+
+- Q: Quais as cores? → A: Branco e vermelho, com detalhes dourados; sem verde. (Substitui o "festivo
+  vermelho, verde e dourado" da sessão anterior.)
+- Q: O que fazer quando o aparelho está no modo escuro? → A: O sistema fica sempre claro (branco com
+  vermelho e dourado), em qualquer aparelho. (Substitui "o tema segue o aparelho".)
+- Q: No celular, como fica a tela do grupo, hoje uma coluna longa? → A: Abas no topo do grupo —
+  "Resumo", "Pessoas" e "Desejos" —, cada uma mostrando só a sua parte.
+- Q: Em tablet, iPad e computador, qual a disposição? → A: Menu lateral fixo à esquerda e, na tela do
+  grupo, conteúdo em duas colunas (principal: resumo; lateral: pessoas e desejos). (Substitui "no
+  tablet e no computador, a navegação fica no topo".)
+
 **Decisões do pedido** (tomadas com o usuário antes da spec; não são detalhes a decidir no
 plano):
 
 - A biblioteca de componentes **Glisse** é a base do visual: os componentes que ela oferece são
   usados como são; o que ela não oferece é desenhado pelo projeto no mesmo estilo, para nenhuma
   parte do sistema destoar.
-- O tema segue a configuração claro/escuro do aparelho.
+- O sistema tem **um só tema, claro** (branco, vermelho e dourado), independente do aparelho
+  (revisão de 2026-11-27).
+- Há **dois desenhos**: um para celular (menos de 768px) e outro para tablet, iPad e computador
+  (768px ou mais) — revisão de 2026-11-27.
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Uma identidade visual nova, coerente e nos dois temas (Priority: P1)
+### User Story 1 - Uma identidade visual nova e coerente: branco, vermelho e dourado (Priority: P1)
 
-Quem abre o sistema vê um visual novo e bonito, igual em todas as telas: fundo colorido, cartões e
-janelas de vidro, botões, campos, selos e avisos no mesmo estilo. No aparelho em modo escuro, o
-sistema aparece escuro; em modo claro, aparece claro — e muda sozinho se o usuário trocar o modo
-com o sistema aberto.
+Quem abre o sistema vê um visual novo e bonito, igual em todas as telas: fundo branco com brilhos
+suaves de vermelho e dourado, cartões e janelas de vidro claro, botões vermelhos, detalhes
+dourados, campos, selos e avisos no mesmo estilo. O visual é sempre claro, qualquer que seja o modo
+do aparelho.
 
 **Why this priority**: é a base de todas as telas; sem ela, cada tela redesenhada ficaria com um
 estilo diferente.
 
 **Independent Test**: abrir uma tela qualquer com o aparelho em modo claro e depois em modo escuro;
-os dois mostram o visual novo, legível, com os mesmos componentes; trocar o modo do aparelho com
-a tela aberta muda o tema na hora.
+os dois mostram o mesmo visual claro, branco com vermelho e dourado, legível, sem nenhum verde.
 
 **Acceptance Scenarios**:
 
-1. **Given** o aparelho em modo escuro, **When** o usuário abre o sistema, **Then** todas as telas
-   aparecem no tema escuro do visual novo.
-2. **Given** o aparelho em modo claro, **When** o usuário abre o sistema, **Then** todas as telas
-   aparecem no tema claro do visual novo.
-3. **Given** o sistema aberto, **When** o usuário troca o modo do aparelho, **Then** o tema muda sem
-   recarregar a página e sem perder o que estava sendo feito.
+1. **Given** o aparelho em modo claro ou escuro, **When** o usuário abre o sistema, **Then** todas as
+   telas aparecem no visual claro: branco, vermelho como cor principal e dourado nos detalhes.
+2. **Given** qualquer tela, **When** o usuário a percorre, **Then** não há verde em lugar nenhum;
+   sucesso e confirmações usam o dourado, sempre com ícone ou texto.
+3. **Given** o sistema aberto, **When** o usuário troca o modo do aparelho, **Then** nada muda na
+   aparência e nada se perde.
 4. **Given** um aparelho configurado para reduzir transparência ou movimento, **When** o usuário
    abre o sistema, **Then** as superfícies aparecem sólidas e sem animações de lente, mantendo o
    mesmo estilo de cores, cantos e espaçamentos.
@@ -118,7 +137,7 @@ visual, com o cabeçalho e a navegação entre essas telas.
 principal acontece na tela do grupo.
 
 **Independent Test**: criar uma conta, entrar, ver "Meus grupos" vazio e com grupos (em andamento e
-finalizados), criar um grupo e entrar em outro pelo código, tudo a 360px e nos dois temas; tudo
+finalizados), criar um grupo e entrar em outro pelo código, tudo a 360px e a 1280px; tudo
 no visual novo e com os mesmos fluxos.
 
 **Acceptance Scenarios**:
@@ -132,11 +151,52 @@ no visual novo e com os mesmos fluxos.
    validações de antes.
 4. **Given** qualquer tela logada no celular, **When** o usuário quer ir para outra parte do sistema,
    **Then** usa a barra de abas embaixo, com a aba atual marcada, e chega aos mesmos lugares de antes;
-   no tablet ou no computador, a mesma navegação fica no topo.
+   no tablet, iPad ou computador, a mesma navegação fica num menu lateral fixo à esquerda.
 5. **Given** qualquer tela logada, **When** o usuário toca em "Sair", **Then** vê "Sair da sua conta?" e
    só sai ao confirmar; cancelar o mantém na mesma tela.
 6. **Given** a última ação de uma tela comprida (ex.: "Sair do grupo"), **When** o usuário rola até o
    fim, **Then** ela fica inteira acima da barra de abas e pode ser tocada.
+
+---
+
+### User Story 4 - Disposição reorganizada: um desenho para celular e outro para tablet e computador (Priority: P1)
+
+As telas deixam de ser uma coluna longa com tudo empilhado. No celular, cada tela mostra o que
+importa sem rolar muito: a tela do grupo ganha abas "Resumo", "Pessoas" e "Desejos". No tablet,
+iPad e computador, o espaço é aproveitado: menu lateral, grupos em grade e a tela do grupo em duas
+colunas.
+
+**Why this priority**: é o pedido principal da revisão — a disposição atual não agradou e o
+sistema precisa ser confortável no celular.
+
+**Independent Test**: percorrer "Meus grupos", a tela do grupo (nos três status, como organizador,
+participante e responsável), entrar, criar conta, criar grupo e entrar com código a 360px, 390px,
+768px (iPad em pé), 1024px (iPad deitado) e 1280px; em cada largura, a disposição é a do desenho
+correspondente, sem rolagem horizontal e com todas as ações funcionando.
+
+**Acceptance Scenarios**:
+
+1. **Given** a tela do grupo no celular, **When** ela abre, **Then** mostra no topo o nome e o status
+   do grupo e, logo abaixo, as abas "Resumo", "Pessoas" e "Desejos", com "Resumo" marcada; o
+   "Resumo" tem os avisos, a confirmação, o amigo secreto (ou o código e o sorteio, antes do
+   sorteio), os detalhes do evento, os pedidos de saída e a ação de sair; "Pessoas" tem os
+   participantes e os dependentes; "Desejos" tem a minha lista e as listas dos dependentes.
+2. **Given** a tela do grupo no celular, **When** o usuário troca de aba, **Then** só o conteúdo muda,
+   sem recarregar, e ao voltar do navegador ou recarregar a página a mesma aba continua aberta.
+3. **Given** a tela do grupo no tablet, iPad ou computador, **When** ela abre, **Then** não há abas:
+   o resumo fica na coluna principal e pessoas e desejos na coluna lateral, tudo visível ao mesmo
+   tempo.
+4. **Given** "Meus grupos", **When** a tela abre, **Then** no celular os grupos aparecem em lista com os
+   botões "Criar grupo" e "Entrar com código" lado a lado no topo; no tablet e no computador, em
+   grade de duas ou três colunas, com os botões ao lado do título.
+5. **Given** as telas de entrar e de criar conta, **When** abertas no tablet ou no computador,
+   **Then** aparecem em duas metades — à esquerda, a marca do Amigo Secreto em vermelho com detalhes
+   dourados; à direita, o formulário; no celular, só o formulário num cartão, com a marca acima.
+6. **Given** os formulários de criar grupo e de entrar com código, **When** abertos no tablet ou no
+   computador, **Then** ficam num cartão centralizado de largura confortável, sem esticar até a
+   borda.
+7. **Given** um tablet girado ou uma janela redimensionada, **When** a largura cruza 768px, **Then** a
+   disposição troca de desenho sem perder a tela, a aba ou o que estava sendo digitado.
 
 ---
 
@@ -151,14 +211,18 @@ no visual novo e com os mesmos fluxos.
   se o fundo atrás variar, a superfície fica opaca o suficiente para manter o contraste.
 - **Nomes e textos longos** (grupos, participantes, dependentes, itens de lista, links): quebram
   linha dentro das superfícies, sem estourar a largura de 360px.
-- **Girar o tablet ou redimensionar a janela**: ao cruzar a largura de 768px, a navegação passa de
-  baixo para o topo (ou o contrário) sem perder a tela atual.
+- **Girar o tablet ou redimensionar a janela**: ao cruzar a largura de 768px, a navegação passa da
+  barra de baixo para o menu lateral (ou o contrário) e a tela do grupo passa das abas para as duas
+  colunas, sem perder a tela atual, a aba escolhida nem o que estava sendo digitado.
+- **Aba do grupo no endereço**: a aba aberta no celular fica no endereço da página; voltar no
+  navegador ou recarregar mantém a aba; um endereço com aba aberto no computador mostra as duas
+  colunas normalmente.
 - **Teclado aberto no celular**: com um campo em foco, a barra de abas não cobre o campo nem o
   botão de enviar.
 - **Vermelho da marca e vermelho de erro**: um erro nunca é mostrado só pela cor; vem com texto e,
   quando couber, ícone.
-- **Troca de tema com uma janela aberta ou um nome revelado**: o tema muda sem fechar a janela nem
-  esconder o nome.
+- **Aparelho em modo escuro**: o sistema continua claro; nenhum componente da biblioteca pode
+  aparecer escuro por conta própria.
 - **Celulares mais simples**: o efeito de vidro não pode deixar a rolagem lenta; se pesar, o
   sistema usa a versão sólida.
 - **Leitores de tela e teclado**: todos os componentes novos têm nome acessível, foco visível e a
@@ -179,16 +243,16 @@ no visual novo e com os mesmos fluxos.
   que ela não oferece (campos de formulário, avisos, selos, cartões, janelas), componentes do
   projeto com a mesma aparência.
 - **FR-003**: O visual MUST seguir um conjunto único e documentado de cores, cantos, espaçamentos,
-  tipografia e sombras, para os dois temas.
-- **FR-004**: O tema MUST seguir a configuração claro/escuro do aparelho e mudar na hora quando ela
-  mudar.
-- **FR-005**: O fundo de todas as telas MUST ser um degradê suave nos tons festivos da FR-016, com
-  manchas de luz desfocadas, colorido o bastante para o efeito de vidro aparecer, sem ilustrações
-  e sem atrapalhar a leitura; o mesmo fundo em todas as telas, com uma versão para cada tema.
+  tipografia e sombras, num tema único e claro.
+- **FR-004**: O sistema MUST ter um só tema, claro, em qualquer aparelho: o modo escuro do aparelho
+  MUST NOT mudar cores, fundo nem componentes (revisão de 2026-11-27).
+- **FR-005**: O fundo de todas as telas MUST ser branco, com brilhos suaves e desfocados de vermelho
+  e dourado (FR-016) — o bastante para o efeito de vidro aparecer, sem ilustrações e sem atrapalhar
+  a leitura; o mesmo fundo em todas as telas.
 
 **Acessibilidade e uso no celular**
 
-- **FR-006**: Todo texto e todo controle MUST atender ao contraste mínimo WCAG 2.1 AA nos dois temas,
+- **FR-006**: Todo texto e todo controle MUST atender ao contraste mínimo WCAG 2.1 AA,
   inclusive sobre superfícies de vidro.
 - **FR-007**: Todas as telas MUST funcionar a partir de 360px de largura sem rolagem horizontal, com
   áreas de toque de pelo menos 44×44px.
@@ -206,8 +270,9 @@ no visual novo e com os mesmos fluxos.
 **O que não muda**
 
 - **FR-013**: Textos, telas, rotas, regras de negócio, validações e fluxos das features 001 a 004
-  MUST continuar iguais; o número de toques para concluir cada fluxo MUST NOT aumentar, com uma
-  única exceção: sair da conta ganha a confirmação da FR-015.
+  MUST continuar iguais; o número de toques para concluir cada fluxo MUST NOT aumentar, com duas
+  exceções: sair da conta ganha a confirmação da FR-015; no celular, chegar a "Pessoas" ou
+  "Desejos" na tela do grupo custa um toque na aba (FR-017).
 - **FR-014**: O sigilo do resultado MUST continuar igual: com o nome oculto, nada do nome aparece na
   tela, nem borrado ou transparente; nada do resultado vai para o armazenamento do navegador.
 - **FR-015**: Nas telas logadas, a navegação MUST oferecer "Meus grupos", "Criar grupo", "Entrar com
@@ -215,17 +280,34 @@ no visual novo e com os mesmos fluxos.
   - no celular (larguras menores que a de um tablet em pé, 768px), numa barra de abas fixa embaixo,
     como nos apps do iPhone, que MUST NOT cobrir conteúdo nem botões (o fim de cada tela fica acima
     dela) e MUST respeitar a área segura do aparelho;
-  - no tablet e no computador (768px ou mais), no topo da tela, no mesmo visual de vidro.
+  - no tablet, iPad e computador (768px ou mais), num menu lateral fixo à esquerda, de vidro, com a
+    marca no topo e "Sair" no fim (revisão de 2026-11-27).
   As telas de entrar e de criar conta não têm essa navegação. "Sair" MUST pedir confirmação ("Sair da
   sua conta?") antes de encerrar a sessão; cancelar mantém a pessoa onde estava.
 
 **Cores**
 
-- **FR-016**: A paleta MUST ter tom festivo de fim de ano: vermelho como cor principal de ações e
-  destaques, verde e dourado como cores de apoio, e cores próprias para sucesso, aviso e erro que
-  não se confundam com elas (o erro não pode ser o mesmo vermelho da ação principal sem outro
-  sinal, como ícone ou texto). Tudo com o contraste da FR-006 nos dois temas; o fundo colorido da
-  FR-005 usa os mesmos tons.
+- **FR-016**: A paleta MUST ser branco e vermelho com detalhes dourados (revisão de 2026-11-27):
+  branco nas superfícies e no fundo, vermelho como cor principal de ações e destaques, dourado nos
+  detalhes (selos, ícones, filetes, brilhos) e no sucesso. MUST NOT haver verde. O erro não pode ser
+  mostrado só pelo vermelho: vem sempre com ícone e texto. Tudo com o contraste da FR-006; o fundo
+  da FR-005 usa os mesmos tons.
+
+**Disposição (revisão de 2026-11-27)**
+
+- **FR-017**: O sistema MUST ter dois desenhos, trocados na largura de 768px:
+  - **celular** (menos de 768px): uma coluna; a tela do grupo MUST ter, abaixo do nome e do status,
+    as abas "Resumo", "Pessoas" e "Desejos" (conteúdo de cada uma na US4, cenário 1), com "Resumo"
+    aberta por padrão e a aba escolhida guardada no endereço da página; "Meus grupos" em lista, com
+    "Criar grupo" e "Entrar com código" lado a lado no topo; entrar e criar conta num cartão único
+    com a marca acima;
+  - **tablet, iPad e computador** (768px ou mais): menu lateral (FR-015); a tela do grupo MUST mostrar,
+    sem abas, o resumo numa coluna principal e pessoas e desejos numa coluna lateral; "Meus grupos"
+    em grade de duas ou três colunas; entrar e criar conta em duas metades (marca à esquerda,
+    formulário à direita); criar grupo e entrar com código num cartão centralizado de largura
+    limitada.
+  Trocar de desenho (girar o tablet, redimensionar) MUST NOT perder a tela, a aba nem o que estava
+  sendo digitado.
 
 ### Key Entities
 
@@ -236,9 +318,8 @@ Não há dados novos. A feature muda só a apresentação.
 ### Measurable Outcomes
 
 - **SC-001**: 100% das telas e estados listados no inventário de telas (features 001 a 004) aparecem
-  no visual novo, conferidos um a um nos dois temas.
-- **SC-002**: 0 falhas de contraste WCAG 2.1 AA numa verificação automática de todas as telas, nos
-  dois temas.
+  no visual novo, conferidos um a um no celular (360px) e no computador (1280px).
+- **SC-002**: 0 falhas de contraste WCAG 2.1 AA numa verificação automática de todas as telas.
 - **SC-003**: 0 telas com rolagem horizontal a 360px e 0 controles com área de toque menor que
   44×44px.
 - **SC-004**: Em um celular intermediário numa conexão 4G, a primeira tela fica utilizável em até
@@ -251,12 +332,13 @@ Não há dados novos. A feature muda só a apresentação.
 ## Assumptions
 
 - O redesenho troca a aparência dos componentes que já existem; não cria telas, campos ou ações
-  novas. A única mudança de lugar é a navegação, que passa do topo para a barra de abas embaixo
-  (FR-015).
+  novas. Mudam de lugar a navegação (barra embaixo no celular, menu lateral no tablet e no
+  computador — FR-015) e a disposição das partes de cada tela (FR-017).
 - A biblioteca escolhida é nova (versão anterior à 1.0, mantida por uma pessoa); o projeto aceita o
   risco de mudanças de versão por ser um pedido explícito do usuário, e as próximas atualizações
   dela seguem a política de dependências do projeto (só por segurança ou necessidade).
-- O tema é sempre o do aparelho; não há botão para trocar o tema dentro do sistema nesta versão.
+- O tema é único e claro (revisão de 2026-11-27); não há tema escuro nem botão para trocar de tema
+  nesta versão.
 - Ícones, se necessários, seguem o mesmo estilo e não trazem textos novos.
 - **Fora do escopo desta versão**: mudanças de texto ou de fluxo, telas novas, temas escolhidos
   pelo usuário, animações de comemoração além da revelação, logotipo novo.

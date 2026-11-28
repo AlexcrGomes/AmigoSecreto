@@ -1,27 +1,26 @@
 @import 'tailwindcss';
 
 /*
- * Tokens do design (Constituição VI; feature 005, data-model.md). Paleta festiva — vermelho, verde e
- * dourado — com contraste AA nos dois temas, inclusive sobre o vidro: os valores de cor são os de
+ * Tokens do design (Constituição VI; feature 005, data-model.md). Revisão de 2026-11-27 (R55): um
+ * tema só, claro — branco e vermelho com detalhes dourados, sem verde. Os valores de cor são os de
  * src/lib/designTokens.ts, conferidos por contrast.test.ts.
  */
 @theme {
-  /* Tema claro */
   --color-text: #1f1315;
   --color-text-muted: #5b4448;
   --color-primary: #b3121f;
   --color-primary-hover: #8f0e18;
   --color-primary-fill: #b3121f;
   --color-on-primary: #ffffff;
-  --color-success: #15803d;
+  --color-success: #a16207;
   --color-danger: #be123c;
-  --color-accent-green: #15803d;
-  --color-accent-gold: #92400e;
+  --color-accent-gold: #a16207;
+  --color-gold-soft: #e9c46a;
   --color-surface: #ffffff;
-  --color-surface-muted: #fbf5f5;
-  --color-glass: rgb(255 255 255 / 0.72);
-  --color-glass-edge: rgb(255 255 255 / 0.6);
-  --color-border: #e7d6d8;
+  --color-surface-muted: #fdfaf6;
+  --color-glass: rgb(255 255 255 / 0.78);
+  --color-glass-edge: rgb(255 255 255 / 0.7);
+  --color-border: #eee2d3;
 
   --radius-card: 1.75rem;
   --radius-control: 9999px;
@@ -29,21 +28,20 @@
 
   --blur-glass: 24px;
   --shadow-glass:
-    0 1px 0 rgb(255 255 255 / 0.5) inset, 0 8px 24px rgb(76 5 25 / 0.08),
-    0 1px 3px rgb(76 5 25 / 0.06);
+    0 1px 0 rgb(255 255 255 / 0.6) inset, 0 10px 30px rgb(120 53 15 / 0.08),
+    0 1px 3px rgb(120 53 15 / 0.06);
   --shadow-card: var(--shadow-glass);
 
   --tabbar-height: 4.5rem;
 }
 
-/* Fundo festivo (data-model.md §2), usado pelo AppBackground */
+/* Fundo branco com brilhos vermelho e dourados (data-model.md §2), usado pelo AppBackground */
 :root {
-  --bg-1: #fff7ed;
-  --bg-2: #fde2e4;
-  --bg-3: #fef3c7;
-  --bg-spot-red: rgb(248 113 113 / 0.45);
-  --bg-spot-green: rgb(74 222 128 / 0.3);
-  --bg-spot-gold: rgb(251 191 36 / 0.4);
+  --bg-1: #ffffff;
+  --bg-2: #fffaf3;
+  --bg-3: #fdf3e3;
+  --bg-spot-red: rgb(179 18 31 / 0.1);
+  --bg-spot-gold: rgb(212 160 23 / 0.2);
 
   /* Ponte com a Glisse (research R45): as regras dela usam :where(), então estas vencem */
   --lg-foreground: var(--color-text);
@@ -51,41 +49,9 @@
   --lg-glass: var(--color-glass);
   --lg-fill: var(--color-primary-fill);
   --lg-destructive: var(--color-danger);
-  --lg-on: var(--color-accent-green);
+  --lg-on: var(--color-accent-gold);
   --lg-ring: var(--color-primary);
   --lg-separator: var(--color-border);
-}
-
-/* Tema escuro, seguindo o aparelho (FR-004) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-text: #fff7f5;
-    --color-text-muted: #e7cfd2;
-    --color-primary: #ff6b6b;
-    --color-primary-hover: #ff8a8a;
-    --color-primary-fill: #c81e2b;
-    --color-on-primary: #ffffff;
-    --color-success: #4ade80;
-    --color-danger: #fb7185;
-    --color-accent-green: #4ade80;
-    --color-accent-gold: #fbbf24;
-    --color-surface: #1c1416;
-    --color-surface-muted: #140c0e;
-    --color-glass: rgb(28 20 22 / 0.66);
-    --color-glass-edge: rgb(255 255 255 / 0.12);
-    --color-border: rgb(255 255 255 / 0.14);
-
-    --shadow-glass:
-      0 1px 0 rgb(255 255 255 / 0.08) inset, 0 8px 24px rgb(0 0 0 / 0.35),
-      0 1px 3px rgb(0 0 0 / 0.3);
-
-    --bg-1: #1c0a10;
-    --bg-2: #4c0519;
-    --bg-3: #064e3b;
-    --bg-spot-red: rgb(220 38 38 / 0.35);
-    --bg-spot-green: rgb(22 163 74 / 0.25);
-    --bg-spot-gold: rgb(217 119 6 / 0.3);
-  }
 }
 
 /* Sem transparência quando o aparelho pede (FR-008): o vidro da Glisse também fica sólido */
@@ -138,6 +104,15 @@
   outline: none;
 }
 
+/*
+ * Contorno dos campos (WCAG 1.4.11): sobre o cartão branco o vidro some, então o campo ganha um
+ * filete quente de 3:1 com o fundo (#9c8770).
+ */
+:is(.lg-input.field-input, .lg-glass.field-textarea) {
+  background-color: var(--color-surface);
+  box-shadow: inset 0 0 0 1px #9c8770;
+}
+
 :is(.lg-input.field-input, .lg-glass.field-textarea):focus-visible {
   box-shadow:
     inset 0 0 0 0.5px var(--lg-edge),
@@ -168,6 +143,63 @@
     0 24px 60px rgb(0 0 0 / 0.25);
 }
 
+/* Barra de abas do celular (research R49): vidro mais denso e com sombra quente */
+.lg-tab-bar.bottom-tab-bar {
+  --lg-blur: 18px;
+  box-shadow: 0 10px 30px rgb(120 53 15 / 0.14);
+}
+
+/*
+ * Abas da tela do grupo (research R57): o seletor da Glisse na largura toda, com opções de 44px. A
+ * largura de cada opção vem do próprio seletor (unidade cqw), para o marcador acompanhar.
+ */
+.lg-segmented.segmented-tabs {
+  container-type: inline-size;
+  display: flex;
+  width: 100%;
+  --lg-tab-height: 2.75rem;
+  --lg-tab-width: calc(100cqw / var(--lg-tabs, 3));
+  --lg-segment-track: rgb(161 98 7 / 0.1);
+}
+
+.lg-segmented.segmented-tabs :is(.lg-tab, .lg-tab-copy) {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Avisos sobem para não ficarem atrás da barra de abas do celular */
+body:has([data-tabbar]) {
+  --toast-offset: calc(var(--tabbar-height) + 1rem);
+}
+
+/* Painel da marca nas telas de conta, no desenho largo (research R56) */
+.auth-brand {
+  background:
+    radial-gradient(circle at 20% 15%, rgb(233 196 106 / 0.28), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgb(233 196 106 / 0.22), transparent 40%),
+    linear-gradient(150deg, #c0141f 0%, var(--color-primary-fill) 45%, #7f0d16 100%);
+}
+
+.auth-ornament {
+  position: absolute;
+  border: 1px solid rgb(233 196 106 / 0.45);
+  border-radius: 9999px;
+}
+
+.auth-ornament-top {
+  width: 22rem;
+  height: 22rem;
+  top: -8rem;
+  left: -8rem;
+}
+
+.auth-ornament-bottom {
+  width: 30rem;
+  height: 30rem;
+  bottom: -14rem;
+  right: -12rem;
+}
+
 /* Revelação do amigo secreto (research R50): entrada curta; sem ela com "reduzir movimento" */
 @keyframes reveal-pop {
   from {
@@ -194,27 +226,29 @@
 
 .app-spot-red {
   top: -30vmax;
-  left: -25vmax;
+  right: -25vmax;
   background: radial-gradient(closest-side, var(--bg-spot-red), transparent);
 }
 
-.app-spot-green {
-  right: -30vmax;
-  top: 25vh;
-  background: radial-gradient(closest-side, var(--bg-spot-green), transparent);
+.app-spot-gold {
+  background: radial-gradient(closest-side, var(--bg-spot-gold), transparent);
 }
 
-.app-spot-gold {
+.app-spot-gold.app-spot-top {
+  top: -35vmax;
+  left: -30vmax;
+}
+
+.app-spot-gold.app-spot-bottom {
   bottom: -35vmax;
-  left: 10vw;
-  background: radial-gradient(closest-side, var(--bg-spot-gold), transparent);
+  right: -10vw;
 }
 
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
-    /* Controles nativos (data, hora, rolagem) seguem o tema do aparelho */
-    color-scheme: light dark;
+    /* Controles nativos (data, hora, rolagem) sempre claros, como o resto (R55) */
+    color-scheme: light;
   }
 
   body {

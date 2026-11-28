@@ -27,6 +27,13 @@ async function submit(code: string) {
 }
 
 describe('JoinGroupPage', () => {
+  it('o formulário fica num cartão de largura limitada (feature 005)', async () => {
+    renderJoin();
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Entrar com código' });
+    expect(heading.closest('.max-w-xl')).not.toBeNull();
+  });
+
   it('campo com máscara XXXX-XXXX, maiúsculas e sem autocorreção', async () => {
     renderJoin();
 

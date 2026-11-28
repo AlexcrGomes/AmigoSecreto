@@ -53,9 +53,9 @@ export function JoinGroupPage() {
   }
 
   return (
-    <div className="py-6">
-      <Card>
-        <h1 className="text-2xl font-bold text-text">Entrar com código</h1>
+    <div className="py-6 md:py-4">
+      <Card className="mx-auto max-w-xl md:p-8">
+        <h1 className="text-2xl font-extrabold tracking-tight text-text">Entrar com código</h1>
         <p className="mt-2 text-text-muted">Digite o código que o organizador compartilhou.</p>
         <form
           noValidate
