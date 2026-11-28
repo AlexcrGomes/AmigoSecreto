@@ -58,6 +58,21 @@ As versões ficam fixadas e **só mudam por dois motivos**:
 As atualizações de versão "por novidade" estão desligadas no `.github/dependabot.yml`
 (`open-pull-requests-limit: 0`).
 
+## Regras do visual (feature 005)
+
+- **Glisse só em `frontend/src/components/ui/*`.** Páginas e `components/group/*` usam os
+  componentes do projeto (`Button`, `Card`, `Modal`, `SegmentedTabs`…), que escondem a biblioteca.
+  Trocar ou atualizar a Glisse não deve tocar as telas. Ela fica fixada na versão exata (sem `^`),
+  e o CSS dela vem empacotado no build — a CSP (`style-src 'self'`) não muda.
+- **Cores só pelos tokens** de `frontend/src/index.css` (`text-primary`, `text-accent-gold`,
+  `surface-glass`…). O tema é único e claro: sem bloco de modo escuro e sem verde. Valor novo de
+  cor entra também em `src/lib/designTokens.ts`, e o `contrast.test.ts` prova o contraste AA.
+- **Dois desenhos, um ponto de troca: 768px.** Use `md:` (e `lg:`/`xl:` só para alargar) ou
+  `useMediaQuery('(min-width: 768px)')` quando a estrutura muda. Ao trocar de desenho, nada pode
+  desmontar o que a pessoa está fazendo: esconda com `hidden`, não remova.
+- **CSS fora de camada** (`index.css`) só para ajustar classes da Glisse, que não tem camada e
+  venceria os utilitários do Tailwind.
+
 ## Configuração única no GitHub (mantenedor)
 
 O repositório é público, então o environment com revisor obrigatório está disponível no plano

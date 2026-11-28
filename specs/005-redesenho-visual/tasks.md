@@ -206,10 +206,10 @@ editado não perde a edição.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T047 [P] Atualizar `README.md` (visual novo branco, vermelho e dourado, tema único, dois desenhos, Glisse como dependência e por quê) e `CONTRIBUTING.md` (Glisse só em `components/ui/*`; cores só por tokens; troca de desenho só em 768px)
-- [ ] T048 Rodar `mvn -B verify` (backend, sem mudanças) e `npm run lint && npm run format:check && npx tsc -b && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80%
-- [ ] T049 Subir com `docker compose up -d --build` e executar o roteiro do [quickstart.md](./quickstart.md) (§1 sem violação de CSP no console, §2 nas larguras 360, 390, 768, 1024 e 1280px, §3 contraste, sem rolagem horizontal, Lighthouse e sigilo), com capturas de tela de celular e de computador no PR
-- [ ] T050 Revisão final contra a constituição v1.3.0 (Princípios I a VIII), conferindo em especial: CSP inalterada em `frontend/nginx.conf`; Glisse importada só em `components/ui/*`; `glisse` fixada em 0.6.0 sem `^`; nenhuma outra dependência nova; nenhum nome oculto no DOM; nenhum verde e nenhum tema escuro
+- [X] T047 [P] Atualizar `README.md` (visual novo branco, vermelho e dourado, tema único, dois desenhos, Glisse como dependência e por quê) e `CONTRIBUTING.md` (Glisse só em `components/ui/*`; cores só por tokens; troca de desenho só em 768px)
+- [X] T048 Rodar `mvn -B verify` (backend, sem mudanças) e `npm run lint && npm run format:check && npx tsc -b && npm run test:coverage && npm run build` nos containers; corrigir até ficar verde com cobertura ≥ 80%
+- [X] T049 Subir com `docker compose up -d --build` e executar o roteiro do [quickstart.md](./quickstart.md) (§1 sem violação de CSP no console, §2 nas larguras 360, 390, 768, 1024 e 1280px, §3 contraste, sem rolagem horizontal, Lighthouse e sigilo), com capturas de tela de celular e de computador no PR
+- [X] T050 Revisão final contra a constituição v1.3.0 (Princípios I a VIII), conferindo em especial: CSP inalterada em `frontend/nginx.conf`; Glisse importada só em `components/ui/*`; `glisse` fixada em 0.6.0 sem `^`; nenhuma outra dependência nova; nenhum nome oculto no DOM; nenhum verde e nenhum tema escuro
 
 ---
 
